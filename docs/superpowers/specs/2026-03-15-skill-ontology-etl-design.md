@@ -617,6 +617,40 @@ ag:payload_abc123
 
 ---
 
+## OWL Reasoning
+
+### Optional Entailment
+
+When `--reason` flag is enabled, the ontology is expanded with inferred triples:
+
+```python
+import owlrl
+from rdflib import Graph
+
+def apply_reasoning(graph: Graph) -> Graph:
+    """
+    Apply OWL 2 RL reasoning to infer new triples.
+
+    Inferences:
+    - Inverse: A dependsOn B → B enables A
+    - Transitive: A extends B, B extends C → A extends C
+    - Symmetric: A contradicts B → B contradicts A
+
+    Modifies graph in-place and returns it.
+    """
+    owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(graph)
+    return graph
+```
+
+### Performance Considerations
+
+- Reasoning is disabled by default for performance
+- Large ontologies (1000+ skills) may take several seconds
+- Inferred triples are not persisted unless saved
+- Use `--reason` only when you need the expanded graph for queries
+
+---
+
 ## CLI Commands
 
 ### `skill-etl compile [SKILL_NAME]`
@@ -631,6 +665,7 @@ Compile skills into ontology.
 - `-o, --output`: Output file (default: `./ontology/skills.ttl`)
 - `--dry-run`: Preview without saving
 - `--skip-security`: Skip security checks (not recommended)
+- `--reason / --no-reason`: Apply OWL reasoning to infer relationships (default: `--no-reason`)
 - `-y, --yes`: Skip confirmation prompt
 - `-v, --verbose`: Enable debug logging
 - `-q, --quiet`: Suppress progress output
@@ -867,6 +902,7 @@ click>=8.1.0
 pydantic>=2.0.0
 rdflib>=7.0.0
 rich>=13.0.0
+owlrl>=1.0.0
 ```
 
 **Dev dependencies**:
@@ -965,12 +1001,12 @@ class SkillNotFoundError(SkillETLError):
 6. ✅ Atomic writes with backup/restore
 7. ✅ Tool-use handles arbitrarily large skills
 8. ✅ OWL property characteristics (inverse, transitive, symmetric) defined
+9. ✅ Optional OWL reasoning with `--reason` flag
 
 ---
 
 ## Future Considerations
 
-- [ ] **OWL Reasoning**: Add `owlrl` for automatic entailment (inverse/transitive inference)
 - [ ] Web UI for ontology browsing
 - [ ] Skill versioning and history
 - [ ] Multi-language support
