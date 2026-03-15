@@ -88,11 +88,3 @@ ag:flipper_subghz_tx a ag:AgenticSkill ;
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
-### Cosa puoi fare ora?
-
-Se hai già generato il codice con Claude Code, potresti chiedergli di **"Generate the LICENSE file and the README.md based on this text"**.
-
-Vuoi che ti aiuti a scrivere un esempio di file `skills/sample.md` per testare se il compilatore estrae correttamente le informazioni?
