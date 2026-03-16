@@ -14,8 +14,8 @@ SKILLS_DIR = os.getenv('ONTOCLAW_SKILLS_DIR', '../../skills/')
 OUTPUT_DIR = os.getenv('ONTOCLAW_OUTPUT_DIR', '../../semantic-skills/')
 
 # Anthropic API model configurations
-ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-4-6-20250514')
-SECURITY_MODEL = os.getenv('SECURITY_MODEL', 'claude-3-5-haiku-20241022')
+ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-opus-4-6')
+SECURITY_MODEL = os.getenv('SECURITY_MODEL', 'claude-opus-4-6')
 
 # Processing limits
 MAX_ITERATIONS = 20

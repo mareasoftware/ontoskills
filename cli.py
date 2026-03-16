@@ -91,7 +91,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, yes,
       ├── index.ttl
       └── <mirrored paths>/skill.ttl
     """
-    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False)))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
     logger = logging.getLogger(__name__)
 
     input_path = Path(input_dir)
@@ -245,7 +245,7 @@ def query_cmd(ctx, query_string, ontology_file, output_format, verbose, quiet):
     Example:
         ontoclaw query "SELECT ?s ?n WHERE { ?s oc:nature ?n }" -f json
     """
-    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False)))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
 
     ontology_path = Path(ontology_file)
     if not ontology_path.exists():

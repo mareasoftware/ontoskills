@@ -23,7 +23,7 @@ from exceptions import SecurityError
 logger = logging.getLogger(__name__)
 
 # Security model for LLM-as-judge
-SECURITY_MODEL = os.getenv("SECURITY_MODEL", "claude-3-5-haiku-20241022")
+SECURITY_MODEL = os.getenv("SECURITY_MODEL", "claude-opus-4-6")
 SECURITY_TIMEOUT = 30  # seconds
 
 # Initialize Anthropic client

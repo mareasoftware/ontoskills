@@ -79,7 +79,7 @@ def test_default_anthropic_model():
         import config
         importlib.reload(config)
 
-        assert config.ANTHROPIC_MODEL == 'claude-sonnet-4-6-20250514'
+        assert config.ANTHROPIC_MODEL == 'claude-opus-4-6'
 
 
 def test_custom_anthropic_model():
@@ -103,7 +103,7 @@ def test_default_security_model():
         import config
         importlib.reload(config)
 
-        assert config.SECURITY_MODEL == 'claude-3-5-haiku-20241022'
+        assert config.SECURITY_MODEL == 'claude-opus-4-6'
 
 
 def test_custom_security_model():

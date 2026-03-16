@@ -1,6 +1,6 @@
 [project]
-name = "skill-ontology-etl"
-version = "0.1.0"
+name = "ontoclaw-compiler"
+version = "0.2.0"
 description = "CLI tool that compiles markdown agent skills into a queryable OWL 2 RDF/Turtle ontology"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,7 +21,7 @@ dev = [
 ]
 
 [project.scripts]
-skill-ontology = "cli:cli"
+ontoclaw = "cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]

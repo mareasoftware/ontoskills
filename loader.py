@@ -755,3 +755,63 @@ def apply_reasoning(graph: Graph) -> Graph:
     owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(graph)
     logger.info(f"Reasoning complete, graph now has {len(graph)} triples")
     return graph
+
+
+def generate_index_manifest(
+    skill_paths: list[Path],
+    index_path: Path,
+    output_base: Optional[Path] = None
+) -> None:
+    """
+    Generate the index.ttl manifest that lists all skill modules.
+
+    Creates an index manifest with owl:imports referencing all skill modules,
+    enabling SPARQL queries against the combined ontology by loading index.ttl.
+
+    Args:
+        skill_paths: List of paths to skill.ttl module files
+        index_path: Path where index.ttl will be written
+        output_base: Base output directory for computing relative paths
+    """
+    if output_base is None:
+        output_base = Path(OUTPUT_DIR).resolve()
+    else:
+        output_base = output_base.resolve()
+
+    oc = get_oc_namespace()
+    g = Graph()
+
+    # Bind namespaces
+    g.bind("oc", oc)
+    g.bind("owl", OWL)
+    g.bind("rdf", RDF)
+    g.bind("rdfs", RDFS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("skos", SKOS)
+    g.bind("prov", PROV)
+
+    # Ontology header
+    base_uri = URIRef(BASE_URI.rstrip('#'))
+    g.add((base_uri, RDF.type, OWL.Ontology))
+    g.add((base_uri, DCTERMS.title, Literal("OntoClaw Skill Index")))
+    g.add((base_uri, DCTERMS.description, Literal(
+        "Index manifest referencing all compiled skill modules"
+    )))
+    g.add((base_uri, DCTERMS.created, Literal(datetime.now().isoformat())))
+
+    # Import core ontology
+    core_path = output_base / "ontoclaw-core.ttl"
+    if core_path.exists():
+        g.add((base_uri, OWL.imports, URIRef(f"file://{core_path}")))
+
+    # Import all skill modules
+    for skill_path in skill_paths:
+        skill_path = skill_path.resolve()
+        g.add((base_uri, OWL.imports, URIRef(f"file://{skill_path}")))
+
+    # Ensure output directory exists
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write to file
+    g.serialize(index_path, format="turtle")
+    logger.info(f"Generated index manifest at {index_path} with {len(skill_paths)} skill imports")
