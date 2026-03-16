@@ -19,9 +19,84 @@ from rdflib.namespace import DCTERMS, SKOS, PROV
 
 from schemas import ExtractedSkill, Requirement, ExecutionPayload
 from exceptions import OntologyLoadError
-from config import BASE_URI, CORE_STATES, FAILURE_STATES
+from config import BASE_URI, CORE_STATES, FAILURE_STATES, SKILLS_DIR, OUTPUT_DIR
 
 logger = logging.getLogger(__name__)
+
+
+def mirror_skill_path(skill_dir: Path, output_base: Path) -> Path:
+    """
+    Mirror the skills directory structure to the output directory.
+
+    Mirroring rule:
+        skills/{path}/SKILL.md → semantic-skills/{path}/skill.ttl
+
+    Args:
+        skill_dir: Path to skill directory (e.g., skills/xlsx/pdf/pptx)
+        output_base: Base output directory (e.g., semantic-skills/)
+
+    Returns:
+        Path to output skill.ttl file (e.g., semantic-skills/xlsx/pdf/pptx/skill.ttl)
+    """
+    # Convert to absolute paths if needed
+    skill_dir = skill_dir.resolve()
+    output_base = output_base.resolve()
+
+    # Get relative path from skills directory
+    # If skill_dir is /path/to/skills/xlsx/pdf/pptx
+    # and SKILLS_DIR is /path/to/skills
+    # relative should be xlsx/pdf/pptx
+    try:
+        skills_base = Path(SKILLS_DIR).resolve()
+        relative = skill_dir.relative_to(skills_base)
+    except ValueError:
+        # If skill_dir is not under SKILLS_DIR, try to extract relative path
+        # Check if it looks like a path under a "skills" directory
+        parts = skill_dir.parts
+        if 'skills' in parts:
+            # Extract path after 'skills' directory
+            skills_idx = parts.index('skills')
+            relative = Path(*parts[skills_idx + 1:])
+        else:
+            # Fall back to using the skill directory name
+            relative = skill_dir.name
+
+    # Mirror the path structure
+    output_path = output_base / relative / "skill.ttl"
+    return output_path
+
+
+def get_output_path(skill_dir: Path, output_base: Optional[Path] = None) -> Path:
+    """
+    Get the output path for a skill module.
+
+    Args:
+        skill_dir: Path to skill directory containing SKILL.md
+        output_base: Base output directory (default: from config)
+
+    Returns:
+        Path where skill.ttl should be written
+    """
+    if output_base is None:
+        output_base = Path(OUTPUT_DIR).resolve()
+
+    return mirror_skill_path(skill_dir, output_base)
+
+
+def create_output_directory(skill_dir: Path, output_base: Optional[Path] = None) -> Path:
+    """
+    Create the output directory for a skill module.
+
+    Args:
+        skill_dir: Path to skill directory containing SKILL.md
+        output_base: Base output directory (default: from config)
+
+    Returns:
+        Path to created output directory
+    """
+    output_path = get_output_path(skill_dir, output_base)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    return output_path.parent
 
 
 def get_oc_namespace() -> Namespace:
@@ -29,7 +104,7 @@ def get_oc_namespace() -> Namespace:
     return Namespace(BASE_URI)
 
 
-def create_core_ontology(output_path: Path) -> Graph:
+def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     """
     Create the core OntoClaw ontology (TBox) with state transition system.
 
@@ -41,11 +116,15 @@ def create_core_ontology(output_path: Path) -> Graph:
     - Predefined core and failure states
 
     Args:
-        output_path: Path where ontoclaw-core.ttl will be saved
+        output_path: Path where ontoclaw-core.ttl will be saved (default: OUTPUT_DIR/ontoclaw-core.ttl)
 
     Returns:
         Graph with core ontology definitions
     """
+    if output_path is None:
+        output_base = Path(OUTPUT_DIR).resolve()
+        output_path = output_base / "ontoclaw-core.ttl"
+
     oc = get_oc_namespace()
     g = Graph()
 
@@ -406,6 +485,70 @@ def serialize_skill(graph: Graph, skill: ExtractedSkill) -> None:
     # Provenance
     if skill.provenance:
         graph.add((skill_uri, PROV.wasDerivedFrom, Literal(skill.provenance)))
+
+
+def serialize_skill_to_module(skill: ExtractedSkill, output_path: Path) -> None:
+    """
+    Serialize a skill to a standalone skill.ttl module file.
+
+    Creates a skill module that mirrors the skills directory structure:
+    - skills/xlsx/pdf/pptx/SKILL.md → semantic-skills/xlsx/pdf/pptx/skill.ttl
+
+    Args:
+        skill: ExtractedSkill to serialize
+        output_path: Path where skill.ttl should be written
+    """
+    oc = get_oc_namespace()
+    g = Graph()
+
+    # Bind namespaces
+    g.bind("oc", oc)
+    g.bind("owl", OWL)
+    g.bind("rdf", RDF)
+    g.bind("rdfs", RDFS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("skos", SKOS)
+    g.bind("prov", PROV)
+
+    # Add imports to core ontology
+    core_ontology_path = Path(OUTPUT_DIR).resolve() / "ontoclaw-core.ttl"
+    if core_ontology_path.exists():
+        g.add((URIRef(BASE_URI.rstrip('#')), OWL.imports, URIRef(f"file://{core_ontology_path}")))
+
+    # Serialize the skill
+    serialize_skill(g, skill)
+
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write to file
+    g.serialize(output_path, format="turtle")
+    logger.info(f"Serialized skill module to {output_path}")
+
+
+def load_skill_module(module_path: Path) -> Graph:
+    """
+    Load a skill module from a skill.ttl file.
+
+    Args:
+        module_path: Path to skill.ttl file
+
+    Returns:
+        RDF Graph containing the skill module
+
+    Raises:
+        OntologyLoadError: If file cannot be loaded
+    """
+    if not module_path.exists():
+        raise OntologyLoadError(f"Skill module not found: {module_path}")
+
+    try:
+        graph = Graph()
+        graph.parse(module_path, format="turtle")
+        logger.info(f"Loaded skill module from {module_path} with {len(graph)} triples")
+        return graph
+    except Exception as e:
+        raise OntologyLoadError(f"Failed to load skill module: {e}")
 
 
 def load_ontology(ontology_path: Path) -> Graph:

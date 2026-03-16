@@ -5,13 +5,18 @@ from loader import (
     get_oc_namespace,
     create_core_ontology,
     serialize_skill,
+    serialize_skill_to_module,
     load_ontology,
+    load_skill_module,
     merge_skill,
     save_ontology_atomic,
     apply_reasoning,
+    mirror_skill_path,
+    get_output_path,
+    create_output_directory,
 )
 from schemas import ExtractedSkill, Requirement, ExecutionPayload
-from config import BASE_URI, CORE_STATES, FAILURE_STATES
+from config import BASE_URI, CORE_STATES, FAILURE_STATES, OUTPUT_DIR
 
 
 def test_get_oc_namespace():
@@ -285,3 +290,130 @@ def test_apply_reasoning(tmp_path):
 
     # Should have inferences
     assert isinstance(reasoned, Graph)
+
+
+def test_mirror_skill_path_simple():
+    """Test path mirroring with simple skill path."""
+    skill_dir = Path("/skills/xlsx")
+    output_base = Path("/semantic-skills")
+
+    result = mirror_skill_path(skill_dir, output_base)
+
+    assert result == Path("/semantic-skills/xlsx/skill.ttl")
+
+
+def test_mirror_skill_path_nested():
+    """Test path mirroring with nested skill path."""
+    skill_dir = Path("/skills/xlsx/pdf/pptx")
+    output_base = Path("/semantic-skills")
+
+    result = mirror_skill_path(skill_dir, output_base)
+
+    assert result == Path("/semantic-skills/xlsx/pdf/pptx/skill.ttl")
+
+
+def test_mirror_skill_path_with_config():
+    """Test path mirroring uses config defaults."""
+    from config import SKILLS_DIR, OUTPUT_DIR
+
+    # Create mock paths using config
+    skill_dir = Path(SKILLS_DIR) / "xlsx" / "pdf"
+    output_base = Path(OUTPUT_DIR)
+
+    result = mirror_skill_path(skill_dir, output_base)
+
+    assert result.name == "skill.ttl"
+    assert "xlsx" in str(result)
+    assert "pdf" in str(result)
+
+
+def test_get_output_path():
+    """Test get_output_path uses config defaults."""
+    skill_dir = Path("/skills/test-skill")
+
+    result = get_output_path(skill_dir)
+
+    assert result.name == "skill.ttl"
+    # Should resolve OUTPUT_DIR to absolute path
+    assert "semantic-skills" in str(result) or "test-skill" in str(result)
+
+
+def test_create_output_directory(tmp_path):
+    """Test create_output_directory creates directory structure."""
+    skill_dir = Path("/skills/xlsx/pdf/pptx")
+    output_base = tmp_path / "semantic-skills"
+
+    output_dir = create_output_directory(skill_dir, output_base)
+
+    assert output_dir.exists()
+    assert output_dir.is_dir()
+    assert (output_dir / "skill.ttl").parent == output_dir
+
+
+def test_serialize_skill_to_module(tmp_path):
+    """Test serializing a skill to a standalone module file."""
+    skill = ExtractedSkill(
+        id="test-module-skill",
+        hash="module123",
+        nature="A skill for module serialization",
+        genus="Test",
+        differentia="module serialization",
+        intents=["test", "module"],
+        requirements=[],
+        execution_payload=None,
+        provenance="/skills/test/SKILL.md",
+    )
+
+    output_path = tmp_path / "test-skill" / "skill.ttl"
+    serialize_skill_to_module(skill, output_path)
+
+    # Verify file was created
+    assert output_path.exists()
+
+    # Load and verify content
+    graph = Graph()
+    graph.parse(output_path, format="turtle")
+
+    oc = get_oc_namespace()
+    skill_uri = oc["skill_" + skill.hash[:16]]
+    assert (skill_uri, RDF.type, oc.Skill) in graph
+
+
+def test_load_skill_module(tmp_path):
+    """Test loading a skill module from file."""
+    # First create a module
+    skill = ExtractedSkill(
+        id="loadable-skill",
+        hash="loadable456",
+        nature="A loadable skill",
+        genus="Test",
+        differentia="loadable",
+        intents=["test"],
+        requirements=[],
+        execution_payload=None,
+        provenance="/skills/loadable/SKILL.md",
+    )
+
+    module_path = tmp_path / "loadable" / "skill.ttl"
+    serialize_skill_to_module(skill, module_path)
+
+    # Now load it
+    loaded_graph = load_skill_module(module_path)
+
+    assert isinstance(loaded_graph, Graph)
+    assert len(loaded_graph) > 0
+
+    # Verify skill is present
+    oc = get_oc_namespace()
+    skill_uri = oc["skill_" + skill.hash[:16]]
+    assert (skill_uri, RDF.type, oc.Skill) in loaded_graph
+
+
+def test_load_skill_module_not_found():
+    """Test loading non-existent module raises error."""
+    from loader import OntologyLoadError
+
+    non_existent = Path("/tmp/non-existent/skill.ttl")
+
+    with pytest.raises(OntologyLoadError):
+        load_skill_module(non_existent)

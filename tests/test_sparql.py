@@ -1,27 +1,30 @@
 import pytest
 from pathlib import Path
 from rdflib import Graph, RDF, Literal
-from rdflib.namespace import RDF as RDF_NS
-from loader import create_ontology_graph, AG
+from loader import create_core_ontology, get_oc_namespace
 from sparql import execute_sparql, format_results
 
 
 @pytest.fixture
 def sample_ontology(tmp_path):
     """Create a sample ontology for testing."""
-    graph = create_ontology_graph()
+    # Create core ontology
+    core_path = tmp_path / "ontoclaw-core.ttl"
+    graph = create_core_ontology(core_path)
 
     # Add some test skills
-    skill1 = AG["skill_abc123"]
-    graph.add((skill1, RDF.type, AG.Skill))
-    graph.add((skill1, AG.nature, Literal("A testing skill")))
-    graph.add((skill1, AG.resolvesIntent, Literal("test")))
-    graph.add((skill1, AG.resolvesIntent, Literal("verify")))
+    oc = get_oc_namespace()
 
-    skill2 = AG["skill_def456"]
-    graph.add((skill2, RDF.type, AG.Skill))
-    graph.add((skill2, AG.nature, Literal("A documentation skill")))
-    graph.add((skill2, AG.resolvesIntent, Literal("document")))
+    skill1 = oc["skill_abc123"]
+    graph.add((skill1, RDF.type, oc.Skill))
+    graph.add((skill1, oc.nature, Literal("A testing skill")))
+    graph.add((skill1, oc.resolvesIntent, Literal("test")))
+    graph.add((skill1, oc.resolvesIntent, Literal("verify")))
+
+    skill2 = oc["skill_def456"]
+    graph.add((skill2, RDF.type, oc.Skill))
+    graph.add((skill2, oc.nature, Literal("A documentation skill")))
+    graph.add((skill2, oc.resolvesIntent, Literal("document")))
 
     # Save to temp file
     ontology_path = tmp_path / "skills.ttl"
@@ -32,16 +35,17 @@ def sample_ontology(tmp_path):
 
 def test_execute_sparql_select(sample_ontology):
     """Test basic SELECT query."""
-    query = "SELECT ?s ?n WHERE { ?s <http://agentic.web/ontology#nature> ?n }"
+    query = "SELECT ?s ?n WHERE { ?s <http://ontoclaw.marea.software/ontology#nature> ?n }"
     results, vars = execute_sparql(sample_ontology, query)
     assert len(results) == 2
 
 
 def test_execute_sparql_with_prefix(sample_ontology):
     """Test query with prefix declaration."""
-    query = """
-    PREFIX ag: <http://agentic.web/ontology#>
-    SELECT ?skill WHERE { ?skill a ag:Skill }
+    oc = get_oc_namespace()
+    query = f"""
+    PREFIX oc: <{str(oc)}>
+    SELECT ?skill WHERE {{ ?skill a oc:Skill }}
     """
     results, vars = execute_sparql(sample_ontology, query)
     assert len(results) == 2
@@ -49,13 +53,14 @@ def test_execute_sparql_with_prefix(sample_ontology):
 
 def test_execute_sparql_filter(sample_ontology):
     """Test query with FILTER."""
-    query = """
-    PREFIX ag: <http://agentic.web/ontology#>
-    SELECT ?s WHERE {
-        ?s a ag:Skill ;
-           ag:nature ?n .
+    oc = get_oc_namespace()
+    query = f"""
+    PREFIX oc: <{str(oc)}>
+    SELECT ?s WHERE {{
+        ?s a oc:Skill ;
+           oc:nature ?n .
         FILTER(CONTAINS(?n, "testing"))
-    }
+    }}
     """
     results, vars = execute_sparql(sample_ontology, query)
     assert len(results) == 1

@@ -1,30 +1,26 @@
 """
-Skill Ontology ETL CLI.
+Ontoclaw Compiler CLI.
 
 Click-based command-line interface for compiling skills
-to OWL 2 RDF/Turtle ontology.
+to modular OWL 2 RDF/Turtle ontology.
 """
 
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
 from rich.panel import Panel
-from rich.syntax import Syntax
 
 from extractor import generate_skill_id, compute_skill_hash
 from transformer import tool_use_loop
 from security import security_check, SecurityError
 from loader import (
-    create_ontology_graph,
-    load_ontology,
-    merge_skill,
-    save_ontology_atomic,
-    apply_reasoning,
-    get_id_mapping,
+    create_core_ontology,
+    serialize_skill_to_module,
+    generate_index_manifest,
+    get_oc_namespace,
 )
 from sparql import execute_sparql, format_results
 from exceptions import (
@@ -33,6 +29,7 @@ from exceptions import (
     SPARQLError,
     SkillNotFoundError,
 )
+from config import SKILLS_DIR, OUTPUT_DIR
 
 # Configure logging
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -58,12 +55,12 @@ def setup_logging(verbose: bool, quiet: bool):
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="skill-ontology-etl")
+@click.version_option(version="0.2.0", prog_name="ontoclaw-compiler")
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
 def cli(ctx, verbose, quiet):
-    """Skill Ontology ETL - Compile markdown skills to OWL 2 ontology."""
+    """Ontoclaw Compiler - Compile markdown skills to modular OWL 2 ontology."""
     setup_logging(verbose, quiet)
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
@@ -72,30 +69,39 @@ def cli(ctx, verbose, quiet):
 
 @cli.command()
 @click.argument('skill_name', required=False)
-@click.option('-i', '--input', 'input_dir', default='./skills/',
+@click.option('-i', '--input', 'input_dir', default=SKILLS_DIR,
               type=click.Path(exists=False), help='Input skills directory')
-@click.option('-o', '--output', 'output_file', default='./ontology/skills.ttl',
-              type=click.Path(), help='Output ontology file')
+@click.option('-o', '--output', 'output_dir', default=OUTPUT_DIR,
+              type=click.Path(), help='Output directory for semantic-skills')
 @click.option('--dry-run', is_flag=True, help='Preview without saving')
-@click.option('--skip-security', is_flag=True, help='Skip security checks (not recommended)')
-@click.option('--reason/--no-reason', default=False, help='Apply OWL reasoning')
+@click.option('--skip-security', is_flag=True, help='Skip security checks')
 @click.option('-y', '--yes', is_flag=True, help='Skip confirmation prompt')
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
-def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
-            reason, yes, verbose, quiet):
-    """Compile skills into ontology.
+def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, yes, verbose, quiet):
+    """Compile skills into modular ontology.
 
     Without SKILL_NAME: Compile all skills in input directory.
-    With SKILL_NAME: Compile specific skill (shows preview, asks confirmation).
+    With SKILL_NAME: Compile specific skill.
+
+    Output structure:
+      semantic-skills/
+      ├── ontoclaw-core.ttl
+      ├── index.ttl
+      └── <mirrored paths>/skill.ttl
     """
-    setup_logging(verbose or ctx.obj.get('verbose', False),
-                  quiet or ctx.obj.get('quiet', False))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False)))
     logger = logging.getLogger(__name__)
 
     input_path = Path(input_dir)
-    output_path = Path(output_file)
+    output_path = Path(output_dir)
+
+    # Ensure core ontology exists
+    core_path = output_path / "ontoclaw-core.ttl"
+    if not core_path.exists():
+        logger.info("Creating core ontology...")
+        create_core_ontology(core_path)
 
     # Find skills to compile
     if skill_name:
@@ -105,14 +111,13 @@ def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
             raise SkillNotFoundError(f"Skill directory not found: {skill_dir}")
         skill_dirs = [skill_dir]
     else:
-        # All skills
+        # All skills - find directories containing SKILL.md
         if not input_path.exists():
             console.print(f"[yellow]No skills directory found at {input_path}[/yellow]")
-            console.print("[yellow]No SKILL.md files found in input directory[/yellow]")
             return
 
         skill_dirs = [
-            d for d in input_path.iterdir()
+            d for d in input_path.rglob("*")
             if d.is_dir() and (d / "SKILL.md").exists()
         ]
 
@@ -124,6 +129,8 @@ def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
 
     # Process each skill
     compiled_skills = []
+    skill_output_paths = []
+
     for skill_dir in skill_dirs:
         skill_id = generate_skill_id(skill_dir.name)
         skill_hash = compute_skill_hash(skill_dir)
@@ -149,6 +156,12 @@ def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
         try:
             extracted = tool_use_loop(skill_dir, skill_hash, skill_id)
             compiled_skills.append(extracted)
+
+            # Calculate output path (mirror directory structure)
+            rel_path = skill_dir.relative_to(input_path)
+            output_skill_path = output_path / rel_path / "skill.ttl"
+            skill_output_paths.append(output_skill_path)
+
             logger.info(f"Successfully extracted: {skill_id}")
         except ExtractionError as e:
             console.print(f"[red]Extraction failed for {skill_id}: {e}[/red]")
@@ -166,6 +179,10 @@ def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
         console.print(f"  Nature: {skill.nature[:80]}...")
         console.print(f"  Genus: {skill.genus}")
         console.print(f"  Intents: {', '.join(skill.intents)}")
+        if skill.state_transitions.requires_state:
+            console.print(f"  Requires: {', '.join(skill.state_transitions.requires_state)}")
+        if skill.state_transitions.yields_state:
+            console.print(f"  Yields: {', '.join(skill.state_transitions.yields_state)}")
 
     if dry_run:
         console.print("\n[yellow]Dry run - no changes saved[/yellow]")
@@ -177,26 +194,45 @@ def compile(ctx, skill_name, input_dir, output_file, dry_run, skip_security,
             console.print("[yellow]Cancelled[/yellow]")
             return
 
-    # Merge and save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Serialize each skill module
+    for skill, output_skill_path in zip(compiled_skills, skill_output_paths):
+        serialize_skill_to_module(skill, output_skill_path, output_path)
 
-    graph = load_ontology(output_path)
-    for skill in compiled_skills:
-        graph = merge_skill(output_path, skill)
+    # Generate index manifest
+    index_path = output_path / "index.ttl"
+    generate_index_manifest(skill_output_paths, index_path, output_path)
 
-    # Apply reasoning if requested
-    if reason:
-        logger.info("Applying OWL reasoning...")
-        graph = apply_reasoning(graph)
+    console.print(f"\n[green]Compiled {len(compiled_skills)} skill(s) to {output_path}[/green]")
 
-    save_ontology_atomic(output_path, graph)
-    console.print(f"\n[green]Ontology saved to {output_path}[/green]")
+
+@cli.command('init-core')
+@click.option('-o', '--output', 'output_dir', default=OUTPUT_DIR,
+              type=click.Path(), help='Output directory for semantic-skills')
+@click.option('-f', '--force', is_flag=True, help='Overwrite existing core ontology')
+@click.pass_context
+def init_core(ctx, output_dir, force):
+    """Initialize the core ontology (ontoclaw-core.ttl).
+
+    Creates the foundational TBox with classes, properties, and predefined states.
+    Safe to run multiple times - skips if file exists unless --force is used.
+    """
+    logger = logging.getLogger(__name__)
+    output_path = Path(output_dir)
+    core_path = output_path / "ontoclaw-core.ttl"
+
+    if core_path.exists() and not force:
+        console.print(f"[yellow]Core ontology already exists at {core_path}[/yellow]")
+        console.print("Use --force to overwrite")
+        return
+
+    create_core_ontology(core_path)
+    console.print(f"[green]Created core ontology at {core_path}[/green]")
 
 
 @cli.command('query')
 @click.argument('query_string')
-@click.option('-o', '--ontology', 'ontology_file', default='./ontology/skills.ttl',
-              type=click.Path(exists=False), help='Ontology file')
+@click.option('-o', '--ontology', 'ontology_file', default=OUTPUT_DIR + "/index.ttl",
+              type=click.Path(exists=False), help='Ontology file or directory')
 @click.option('-f', '--format', 'output_format',
               type=click.Choice(['table', 'json', 'turtle']), default='table',
               help='Output format')
@@ -207,14 +243,13 @@ def query_cmd(ctx, query_string, ontology_file, output_format, verbose, quiet):
     """Execute SPARQL query against ontology.
 
     Example:
-        skill-etl query "SELECT ?s ?n WHERE { ?s ag:nature ?n }" -f json
+        ontoclaw query "SELECT ?s ?n WHERE { ?s oc:nature ?n }" -f json
     """
-    setup_logging(verbose or ctx.obj.get('verbose', False),
-                  quiet or ctx.obj.get('quiet', False))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False)))
 
     ontology_path = Path(ontology_file)
     if not ontology_path.exists():
-        console.print(f"[red]Ontology file not found: {ontology_path}[/red]")
+        console.print(f"[red]Ontology not found: {ontology_path}[/red]")
         raise SPARQLError(f"Ontology not found: {ontology_path}")
 
     try:
@@ -233,31 +268,32 @@ def query_cmd(ctx, query_string, ontology_file, output_format, verbose, quiet):
 
 
 @cli.command('list-skills')
-@click.option('-o', '--ontology', 'ontology_file', default='./ontology/skills.ttl',
-              type=click.Path(exists=False), help='Ontology file')
+@click.option('-o', '--ontology', 'ontology_file', default=OUTPUT_DIR + "/index.ttl",
+              type=click.Path(exists=False), help='Ontology file or directory')
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
 def list_skills(ctx, ontology_file, verbose, quiet):
     """List all skills in the ontology."""
-    setup_logging(verbose or ctx.obj.get('verbose', False),
-                  quiet or ctx.obj.get('quiet', False))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
 
     ontology_path = Path(ontology_file)
     if not ontology_path.exists():
-        console.print(f"[red]Ontology file not found: {ontology_path}[/red]")
+        console.print(f"[red]Ontology not found: {ontology_path}[/red]")
         return
+
+    oc = get_oc_namespace()
 
     try:
         results, _ = execute_sparql(
             ontology_path,
-            """PREFIX ag: <http://agentic.web/ontology#>
+            f"""PREFIX oc: <{str(oc)}>
             PREFIX dcterms: <http://purl.org/dc/terms/>
-            SELECT ?id ?nature WHERE {
-                ?skill a ag:Skill ;
+            SELECT ?id ?nature WHERE {{
+                ?skill a oc:Skill ;
                        dcterms:identifier ?id ;
-                       ag:nature ?nature .
-            }"""
+                       oc:nature ?nature .
+            }}"""
         )
 
         if not results:
@@ -275,15 +311,14 @@ def list_skills(ctx, ontology_file, verbose, quiet):
 
 
 @cli.command('security-audit')
-@click.option('-i', '--input', 'input_dir', default='./skills/',
+@click.option('-i', '--input', 'input_dir', default=SKILLS_DIR,
               type=click.Path(exists=False), help='Input skills directory')
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
 def security_audit(ctx, input_dir, verbose, quiet):
     """Re-validate all skills against current security patterns."""
-    setup_logging(verbose or ctx.obj.get('verbose', False),
-                  quiet or ctx.obj.get('quiet', False))
+    setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
 
     input_path = Path(input_dir)
     if not input_path.exists():
@@ -291,7 +326,7 @@ def security_audit(ctx, input_dir, verbose, quiet):
         return
 
     skill_dirs = [
-        d for d in input_path.iterdir()
+        d for d in input_path.rglob("*")
         if d.is_dir() and (d / "SKILL.md").exists()
     ]
 
