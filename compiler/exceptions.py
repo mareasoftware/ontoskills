@@ -20,3 +20,8 @@ class SPARQLError(SkillETLError):
 
 class SkillNotFoundError(SkillETLError):
     exit_code = 7
+
+
+class OntologyValidationError(SkillETLError):
+    """Raised when skill ontology fails SHACL validation."""
+    exit_code = 8
