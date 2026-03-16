@@ -10,6 +10,7 @@ dependencies = [
     "anthropic>=0.39.0",
     "rich>=13.0.0",
     "owlrl>=1.0.0",
+    "pyshacl>=0.25.0",
 ]
 
 [project.optional-dependencies]
