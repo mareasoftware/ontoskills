@@ -361,20 +361,29 @@ Skills are extracted following the **Knowledge Architecture** framework:
 ```mermaid
 flowchart LR
     subgraph Properties["OWL 2 Property Characteristics"]
-        A[ag:dependsOn<br/>AsymmetricProperty<br/>inverse: ag:enables]
-        B[ag:extends<br/>TransitiveProperty<br/>inverse: ag:isExtendedBy]
-        C[ag:contradicts<br/>SymmetricProperty]
-        D[ag:implements<br/>inverse: ag:isImplementedBy]
-        E[ag:exemplifies<br/>inverse: ag:isExemplifiedBy]
+        A["ag:dependsOn<br/>AsymmetricProperty<br/>inverse: ag:enables"]
+        B["ag:extends<br/>TransitiveProperty<br/>inverse: ag:isExtendedBy"]
+        C["ag:contradicts<br/>SymmetricProperty"]
+        D["ag:implements<br/>inverse: ag:isImplementedBy"]
+        E["ag:exemplifies<br/>inverse: ag:isExemplifiedBy"]
     end
 
-    A --> |Skill Dependencies|
-    B --> |Skill Inheritance|
-    C --> |Incompatible Skills|
-    D --> |Interface Compliance|
-    E --> |Pattern Demonstration|
+    subgraph UseCases["Use Cases"]
+        UC1["Skill Dependencies"]
+        UC2["Skill Inheritance"]
+        UC3["Incompatible Skills"]
+        UC4["Interface Compliance"]
+        UC5["Pattern Demonstration"]
+    end
+
+    A -->|"connects"| UC1
+    B -->|"connects"| UC2
+    C -->|"connects"| UC3
+    D -->|"connects"| UC4
+    E -->|"connects"| UC5
 
     style Properties fill:#9333EA,stroke:#16213e,color:#fff
+    style UseCases fill:#1a1a2e,stroke:#16213e,color:#fff
     style A fill:#00bf63,stroke:#000,color:#fff
     style B fill:#00bf63,stroke:#000,color:#fff
     style C fill:#ff6b6b,stroke:#000,color:#fff
