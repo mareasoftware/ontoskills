@@ -18,8 +18,9 @@ from rdflib import Graph, Namespace, RDF, RDFS, OWL, Literal, URIRef
 from rdflib.namespace import DCTERMS, SKOS, PROV
 
 from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
-from compiler.exceptions import OntologyLoadError
+from compiler.exceptions import OntologyLoadError, OntologyValidationError
 from compiler.config import BASE_URI, CORE_STATES, FAILURE_STATES, SKILLS_DIR, OUTPUT_DIR
+from compiler.validator import validate_and_raise
 
 logger = logging.getLogger(__name__)
 
@@ -541,6 +542,13 @@ def serialize_skill_to_module(skill: ExtractedSkill, output_path: Path) -> None:
     # Serialize the skill
     serialize_skill(g, skill)
 
+    # VALIDATE BEFORE WRITE
+    try:
+        validate_and_raise(g)
+    except OntologyValidationError as e:
+        logger.critical(f"Refusing to write invalid skill to {output_path}")
+        raise
+
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -708,6 +716,13 @@ def merge_skill(ontology_path: Path, skill: ExtractedSkill) -> Graph:
     # Add new/updated skill
     logger.info(f"Adding skill {skill.id} to ontology")
     serialize_skill(graph, skill)
+
+    # VALIDATE BEFORE RETURNING
+    try:
+        validate_and_raise(graph)
+    except OntologyValidationError as e:
+        logger.critical(f"Skill {skill.id} failed validation, not merging")
+        raise
 
     return graph
 

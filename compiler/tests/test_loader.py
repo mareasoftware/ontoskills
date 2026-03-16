@@ -179,6 +179,7 @@ def test_merge_skill_new(tmp_path):
         constraints=[],
         execution_payload=None,
         provenance=None,
+        generated_by="claude-opus-4-6"
     )
 
     merged = merge_skill(ontology_path, skill)
@@ -212,6 +213,7 @@ def test_merge_skill_update(tmp_path):
         contradicts=[],
         execution_payload=None,
         provenance=None,
+        generated_by="claude-opus-4-6"
     )
     merge_skill(ontology_path, skill1)
     save_ontology_atomic(ontology_path, merge_skill(ontology_path, skill1))
@@ -228,6 +230,7 @@ def test_merge_skill_update(tmp_path):
         contradicts=[],
         execution_payload=None,
         provenance=None,
+        generated_by="claude-opus-4-6"
     )
 
     merged = merge_skill(ontology_path, skill2)
@@ -362,6 +365,7 @@ def test_serialize_skill_to_module(tmp_path):
         requirements=[],
         execution_payload=None,
         provenance="/skills/test/SKILL.md",
+        generated_by="claude-opus-4-6"
     )
 
     output_path = tmp_path / "test-skill" / "skill.ttl"
@@ -392,6 +396,7 @@ def test_load_skill_module(tmp_path):
         requirements=[],
         execution_payload=None,
         provenance="/skills/loadable/SKILL.md",
+        generated_by="claude-opus-4-6"
     )
 
     module_path = tmp_path / "loadable" / "skill.ttl"
@@ -473,3 +478,76 @@ def test_serialize_skill_adds_declarative_type():
     serialize_skill(g, skill)
     skill_uri = oc[f"skill_{skill.hash[:16]}"]
     assert (skill_uri, RDF.type, oc.DeclarativeSkill) in g
+
+
+def test_serialize_skill_to_module_validates_and_blocks_invalid():
+    """Test that serialize_skill_to_module validates and blocks invalid skills."""
+    from compiler.exceptions import OntologyValidationError
+
+    # Create an invalid skill - missing required intent (SHACL requires minCount 1)
+    skill = ExtractedSkill(
+        id="invalid-skill",
+        hash="invalid123abc456",
+        nature="Invalid",
+        genus="Test",
+        differentia="test",
+        intents=[],  # Missing required intent - should fail validation
+        requirements=[],
+        generated_by="claude-opus-4-6"
+    )
+
+    with pytest.raises(OntologyValidationError):
+        serialize_skill_to_module(skill, Path("/tmp/invalid/skill.ttl"))
+
+
+def test_serialize_skill_to_module_does_not_write_on_validation_failure(tmp_path):
+    """Test that serialize_skill_to_module does not write file when validation fails."""
+    from compiler.exceptions import OntologyValidationError
+
+    # Create an invalid skill
+    skill = ExtractedSkill(
+        id="invalid-skill-2",
+        hash="invalid789def",
+        nature="Invalid",
+        genus="Test",
+        differentia="test",
+        intents=[],  # Missing required intent
+        requirements=[],
+        generated_by="claude-opus-4-6"
+    )
+
+    output_path = tmp_path / "invalid" / "skill.ttl"
+
+    with pytest.raises(OntologyValidationError):
+        serialize_skill_to_module(skill, output_path)
+
+    # File should NOT have been written
+    assert not output_path.exists()
+
+
+def test_merge_skill_validates_and_blocks_invalid(tmp_path):
+    """Test that merge_skill validates and blocks invalid skills."""
+    from compiler.exceptions import OntologyValidationError
+
+    # Create core ontology first
+    core_path = tmp_path / "ontoclaw-core.ttl"
+    create_core_ontology(core_path)
+
+    ontology_path = tmp_path / "skills.ttl"
+    graph = load_ontology(ontology_path)
+    graph.serialize(ontology_path, format="turtle")
+
+    # Create an invalid skill - missing required intent
+    skill = ExtractedSkill(
+        id="invalid-merge-skill",
+        hash="invalidmerge123",
+        nature="Invalid",
+        genus="Test",
+        differentia="test",
+        intents=[],  # Missing required intent
+        requirements=[],
+        generated_by="claude-opus-4-6"
+    )
+
+    with pytest.raises(OntologyValidationError):
+        merge_skill(ontology_path, skill)
