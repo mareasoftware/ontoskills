@@ -3,6 +3,37 @@ from pydantic import ValidationError
 from compiler.schemas import Requirement, ExecutionPayload, ExtractedSkill, StateTransition
 
 
+def test_skill_type_computed_as_executable():
+    """Test that skill_type is 'executable' when execution_payload exists."""
+    skill = ExtractedSkill(
+        id="test",
+        hash="abc123",
+        nature="Test",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="claude-opus-4-6",
+        execution_payload=ExecutionPayload(executor="python", code="print('hi')")
+    )
+    assert skill.skill_type == "executable"
+
+
+def test_skill_type_computed_as_declarative():
+    """Test that skill_type is 'declarative' when no execution_payload."""
+    skill = ExtractedSkill(
+        id="test",
+        hash="abc123",
+        nature="Test",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="claude-opus-4-6"
+    )
+    assert skill.skill_type == "declarative"
+
+
 def test_state_transition_model():
     """Test StateTransition model with valid URIs."""
     st = StateTransition(

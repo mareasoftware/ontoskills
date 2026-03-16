@@ -1,5 +1,5 @@
 import json
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator, computed_field
 from typing import Literal, Any
 
 
@@ -75,3 +75,9 @@ class ExtractedSkill(BaseModel):
                     pass
 
         return data
+
+    @computed_field
+    @property
+    def skill_type(self) -> Literal["executable", "declarative"]:
+        """Derive skill type from presence of execution_payload."""
+        return "executable" if self.execution_payload is not None else "declarative"
