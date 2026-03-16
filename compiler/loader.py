@@ -434,6 +434,13 @@ def serialize_skill(graph: Graph, skill: ExtractedSkill) -> None:
 
     # Basic properties
     graph.add((skill_uri, RDF.type, oc.Skill))
+
+    # Add appropriate subclass type based on skill_type
+    if skill.skill_type == "executable":
+        graph.add((skill_uri, RDF.type, oc.ExecutableSkill))
+    else:
+        graph.add((skill_uri, RDF.type, oc.DeclarativeSkill))
+
     graph.add((skill_uri, DCTERMS.identifier, Literal(skill.id)))
     graph.add((skill_uri, oc.contentHash, Literal(skill.hash)))
     graph.add((skill_uri, oc.nature, Literal(skill.nature)))

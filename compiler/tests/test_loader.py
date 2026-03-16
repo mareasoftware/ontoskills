@@ -432,3 +432,44 @@ def test_core_ontology_has_skill_subclasses(tmp_path):
 
     # Check DeclarativeSkill is subclass of Skill
     assert (oc.DeclarativeSkill, RDFS.subClassOf, oc.Skill) in g
+
+
+def test_serialize_skill_adds_executable_type():
+    """Test that serialize_skill adds oc:ExecutableSkill type for skills with payload."""
+    oc = get_oc_namespace()
+    g = Graph()
+
+    skill = ExtractedSkill(
+        id="exec-skill",
+        hash="abc123def456",
+        nature="Executable",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="claude-opus-4-6",
+        execution_payload=ExecutionPayload(executor="python", code="test")
+    )
+    serialize_skill(g, skill)
+    skill_uri = oc[f"skill_{skill.hash[:16]}"]
+    assert (skill_uri, RDF.type, oc.ExecutableSkill) in g
+
+
+def test_serialize_skill_adds_declarative_type():
+    """Test that serialize_skill adds oc:DeclarativeSkill type for skills without payload."""
+    oc = get_oc_namespace()
+    g = Graph()
+
+    skill = ExtractedSkill(
+        id="decl-skill",
+        hash="xyz789abc123",
+        nature="Declarative",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="claude-opus-4-6"
+    )
+    serialize_skill(g, skill)
+    skill_uri = oc[f"skill_{skill.hash[:16]}"]
+    assert (skill_uri, RDF.type, oc.DeclarativeSkill) in g
