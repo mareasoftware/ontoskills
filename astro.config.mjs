@@ -13,7 +13,7 @@ export default defineConfig({
       description: 'Neuro-symbolic skill compiler for the Agentic Web',
       logo: {
         src: './src/assets/ontoclaw-logo.png',
-        replacesTitle: true,
+        replacesTitle: false,
       },
       favicon: '/ontoclaw-logo.png',
       disable404Route: true,
