@@ -12,8 +12,11 @@ node_modules/
 
 # IDE
 .idea/
-# Keep .vscode extensions recommendations
-!.vscode/
+.vscode/
+
+# Superpowers
+.superpowers/
+docs/superpowers/
 
 # OS
 .DS_Store
