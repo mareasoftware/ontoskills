@@ -32,6 +32,37 @@
 
 OntoClaw is a **skill compiler** that transforms natural language skill definitions into **validated semantic knowledge graphs**. It bridges the gap between human-readable documentation and machine-executable ontologies.
 
+---
+
+## Why OntoClaw?
+
+### The Determinism Problem
+
+LLMs are inherently **non-deterministic** — the same query can yield different results, and reasoning about skill relationships requires reading entire documents. This creates:
+- **Context rot** from lengthy skill files
+- **Hallucinations** when information is scattered
+- **No verifiable structure** for skill relationships
+
+OntoClaw transforms this into **deterministic, queryable knowledge graphs**.
+
+### Description Logics Foundation
+
+Built on **OWL 2** (𝒜𝒞ℛ𝒪ℐ𝒟 Description Logic), enabling:
+- **Decidable reasoning** — transitive, symmetric, inverse properties
+- **Formal semantics** — no ambiguity in skill relationships
+- **SPARQL queries** with O(1) indexed lookup vs O(n) text scanning
+
+### For Smaller Models
+
+When an agent has 50+ skills, reading all SKILL.md files is impractical. With ontologies:
+- Query only what's needed: `SELECT ?skill WHERE { ?skill oc:resolvesIntent "create_pdf" }`
+- Schema exposure: know what nodes/relations exist before querying
+- Smaller models can reason about complex skill ecosystems
+
+[→ Read the full philosophy](PHILOSOPHY.md)
+
+---
+
 ### Key Capabilities
 
 | Capability | Description |
