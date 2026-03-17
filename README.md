@@ -206,34 +206,6 @@ The classification is **automatic** - you don't specify it. If a skill has code 
 
 ---
 
-## Roadmap
-
-```mermaid
-timeline
-    title OntoClaw Ecosystem Roadmap
-
-    section Phase 1
-        OntoCore : Python compiler
-        OntoSkills : OWL 2 ontologies
-
-    section Phase 2
-        OntoMCP : Rust MCP server
-        : Blazing-fast SPARQL
-        : In-memory graph
-
-    section Phase 3
-        OntoStore : Skill registry
-        : Version management
-        : Distribution
-
-    section Phase 4
-        OntoClaw Agent : Enterprise AI agent
-        : Deterministic reasoning
-        : Production-ready
-```
-
----
-
 ## Installation
 
 ```bash
