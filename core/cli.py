@@ -22,7 +22,7 @@ from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.serialization import serialize_skill_to_module
 from compiler.storage import (
     generate_index_manifest,
-    clean_orphaned_skills,
+    clean_orphaned_files,
 )
 from compiler.sparql import execute_sparql, format_results
 from compiler.exceptions import (
@@ -57,7 +57,7 @@ def setup_logging(verbose: bool, quiet: bool):
 
 
 @click.group()
-@click.version_option(version="0.2.0", prog_name="ontoclaw-compiler")
+@click.version_option(version="0.4.0", prog_name="ontoclaw-compiler")
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
@@ -84,16 +84,24 @@ def cli(ctx, verbose, quiet):
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
 def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, force, yes, verbose, quiet):
-    """Compile skills into modular ontology.
+    """Compile skills into modular ontology with perfect mirroring.
 
-    Without SKILL_NAME: Compile all skills in input directory.
-    With SKILL_NAME: Compile specific skill.
+    Without SKILL_NAME: Compile all files in input directory.
+    With SKILL_NAME: Compile specific skill directory.
+
+    File Processing Rules:
+      - SKILL.md → ontoskill.ttl (LLM compilation)
+      - *.md → *.ttl (LLM compilation)
+      - Other files → direct copy (assets)
 
     Output structure:
       ontoskills/
       ├── ontoclaw-core.ttl
       ├── index.ttl
-      └── <mirrored paths>/skill.ttl
+      └── <mirrored paths>/
+          ├── ontoskill.ttl
+          ├── *.ttl (auxiliary)
+          └── <assets>
     """
     setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
     logger = logging.getLogger(__name__)
@@ -107,49 +115,64 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
         logger.info("Creating core ontology...")
         create_core_ontology(core_path)
 
-    # Find skills to compile
+    # Clean orphaned files before compilation
+    orphans_removed = clean_orphaned_files(input_path, output_path, dry_run=dry_run)
+    if orphans_removed > 0:
+        console.print(f"[yellow]Cleaned {orphans_removed} orphaned file(s)[/yellow]")
+
+    # Find all files to process
     if skill_name:
-        # Single skill
+        # Single skill directory - process all files within it
         skill_dir = input_path / skill_name
         if not skill_dir.exists():
             raise SkillNotFoundError(f"Skill directory not found: {skill_dir}")
-        skill_dirs = [skill_dir]
+        files_to_process = [f for f in skill_dir.rglob("*") if f.is_file()]
     else:
-        # All skills - find directories containing SKILL.md
+        # All files in input directory
         if not input_path.exists():
             console.print(f"[yellow]No skills directory found at {input_path}[/yellow]")
             return
 
-        skill_dirs = [
-            d for d in input_path.rglob("*")
-            if d.is_dir() and (d / "SKILL.md").exists()
-        ]
+        files_to_process = [f for f in input_path.rglob("*") if f.is_file()]
 
-        if not skill_dirs:
-            console.print("[yellow]No SKILL.md files found in input directory[/yellow]")
-            return
+    if not files_to_process:
+        console.print("[yellow]No files found in input directory[/yellow]")
+        return
 
-    logger.info(f"Found {len(skill_dirs)} skill(s) to compile")
+    logger.info(f"Found {len(files_to_process)} file(s) to process")
 
-    # Clean orphaned skills before compilation
-    orphans_removed = clean_orphaned_skills(input_path, output_path, dry_run=dry_run)
-    if orphans_removed > 0:
-        console.print(f"[yellow]Cleaned {orphans_removed} orphaned skill file(s)[/yellow]")
+    # Categorize files by processing rule
+    skill_md_files = []      # Rule A: SKILL.md → ontoskill.ttl
+    auxiliary_md_files = []  # Rule B: *.md → *.ttl
+    asset_files = []         # Rule C: direct copy
 
-    # Process each skill
+    for file_path in files_to_process:
+        if file_path.name == "SKILL.md":
+            skill_md_files.append(file_path)
+        elif file_path.suffix == ".md":
+            auxiliary_md_files.append(file_path)
+        else:
+            asset_files.append(file_path)
+
+    logger.info(f"Core skills: {len(skill_md_files)}, Auxiliary md: {len(auxiliary_md_files)}, Assets: {len(asset_files)}")
+
+    # Process Rule A: Core Skills (SKILL.md → ontoskill.ttl)
     compiled_skills = []
     skill_output_paths = []
 
-    for skill_dir in skill_dirs:
+    for skill_file in skill_md_files:
+        skill_dir = skill_file.parent
         skill_id = generate_skill_id(skill_dir.name)
         skill_hash = compute_skill_hash(skill_dir)
 
         logger.info(f"Processing skill: {skill_id}")
 
+        # Compute output path
+        rel_path = skill_dir.relative_to(input_path)
+        output_skill_path = output_path / rel_path / "ontoskill.ttl"
+
         # Check if skill is unchanged (unless --force)
-        output_skill_path = output_path / skill_dir.relative_to(input_path) / "skill.ttl"
         if not force and output_skill_path.exists():
-            # Read existing hash from TTL file
             existing_graph = Graph()
             try:
                 existing_graph.parse(output_skill_path, format="turtle")
@@ -169,7 +192,6 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
                 logger.debug(f"Could not read existing skill: {e}")
 
         # Security check
-        skill_file = skill_dir / "SKILL.md"
         if skill_file.exists():
             content = skill_file.read_text(encoding="utf-8")
             try:
@@ -194,29 +216,60 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
             console.print(f"[red]Extraction failed for {skill_id}: {e}[/red]")
             continue
 
-    if not compiled_skills:
-        console.print("[yellow]No skills compiled[/yellow]")
-        return
+    # Process Rule B: Auxiliary Markdown (*.md → *.ttl)
+    auxiliary_compiled = []
+    for md_file in auxiliary_md_files:
+        rel_path = md_file.relative_to(input_path)
+        output_ttl_path = output_path / rel_path.with_suffix(".ttl")
 
-    # Show preview
-    console.print(Panel(f"[green]Compiled {len(compiled_skills)} skill(s)[/green]"))
+        logger.info(f"Processing auxiliary markdown: {md_file.name}")
 
-    for skill in compiled_skills:
-        console.print(f"\n[bold]{skill.id}[/bold]")
-        console.print(f"  Nature: {skill.nature[:80]}...")
-        console.print(f"  Genus: {skill.genus}")
-        console.print(f"  Intents: {', '.join(skill.intents)}")
-        if skill.state_transitions.requires_state:
-            console.print(f"  Requires: {', '.join(skill.state_transitions.requires_state)}")
-        if skill.state_transitions.yields_state:
-            console.print(f"  Yields: {', '.join(skill.state_transitions.yields_state)}")
+        # For now, skip auxiliary markdown compilation (can be implemented later)
+        # These would need a different extraction pipeline
+        logger.debug(f"Auxiliary markdown compilation not yet implemented: {md_file}")
+        auxiliary_compiled.append((md_file, output_ttl_path))
+
+    # Process Rule C: Asset Files (direct copy)
+    assets_copied = 0
+    for asset_file in asset_files:
+        rel_path = asset_file.relative_to(input_path)
+        output_asset_path = output_path / rel_path
+
+        # Skip if output exists and not forcing (for assets, check if same size)
+        if output_asset_path.exists() and not force:
+            if output_asset_path.stat().st_size == asset_file.stat().st_size:
+                logger.debug(f"Asset unchanged, skipping: {asset_file.name}")
+                continue
+
+        # Ensure output directory exists
+        output_asset_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Copy asset
+        import shutil
+        shutil.copy2(asset_file, output_asset_path)
+        assets_copied += 1
+        logger.debug(f"Copied asset: {asset_file.name}")
+
+    # Show summary
+    if compiled_skills:
+        console.print(Panel(f"[green]Compiled {len(compiled_skills)} skill(s)[/green]"))
+
+        for skill in compiled_skills:
+            console.print(f"\n[bold]{skill.id}[/bold]")
+            console.print(f"  Nature: {skill.nature[:80]}...")
+            console.print(f"  Genus: {skill.genus}")
+            console.print(f"  Intents: {', '.join(skill.intents)}")
+            if skill.state_transitions.requires_state:
+                console.print(f"  Requires: {', '.join(skill.state_transitions.requires_state)}")
+            if skill.state_transitions.yields_state:
+                console.print(f"  Yields: {', '.join(skill.state_transitions.yields_state)}")
 
     if dry_run:
         console.print("\n[yellow]Dry run - no changes saved[/yellow]")
         return
 
-    # Confirmation
-    if not yes and skill_name:
+    # Confirmation for single skill
+    if not yes and skill_name and compiled_skills:
         if not click.confirm("\nAdd this skill to the ontology?", default=True):
             console.print("[yellow]Cancelled[/yellow]")
             return
@@ -225,11 +278,26 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
     for skill, output_skill_path in zip(compiled_skills, skill_output_paths):
         serialize_skill_to_module(skill, output_skill_path, output_path)
 
+    # Collect all skill output paths for index (including pre-existing)
+    all_skill_paths = list(output_path.rglob("ontoskill.ttl"))
+
     # Generate index manifest
     index_path = output_path / "index.ttl"
-    generate_index_manifest(skill_output_paths, index_path, output_path)
+    generate_index_manifest(all_skill_paths, index_path, output_path)
 
-    console.print(f"\n[green]Compiled {len(compiled_skills)} skill(s) to {output_path}[/green]")
+    # Summary output
+    summary_parts = []
+    if compiled_skills:
+        summary_parts.append(f"{len(compiled_skills)} skill(s)")
+    if assets_copied > 0:
+        summary_parts.append(f"{assets_copied} asset(s)")
+    if auxiliary_md_files:
+        summary_parts.append(f"{len(auxiliary_md_files)} auxiliary md file(s)")
+
+    if summary_parts:
+        console.print(f"\n[green]Processed {', '.join(summary_parts)} to {output_path}[/green]")
+    else:
+        console.print(f"\n[yellow]No changes made[/yellow]")
 
 
 @cli.command('init-core')
