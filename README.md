@@ -132,3 +132,4 @@ The site is configured for static deployment. Build output is in `./dist/`.
 ## License
 
 © 2026 Marea Software. All rights reserved.
+
