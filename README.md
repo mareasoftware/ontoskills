@@ -460,6 +460,21 @@ Detected threats:
 
 ---
 
-## License
+## <a id="license"></a>License
 
-MIT
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License" height="40px">
+  </a>
+</p>
+
+OntoClaw is open-source software, licensed under the **[MIT License](LICENSE)**.
+
+| Permissions | Conditions | Limitations |
+|-------------|------------|-------------|
+| ✅ Commercial use | 📝 Include license and copyright notice | ⚖️ No Liability |
+| ✅ Modification | | 🛡️ No Warranty |
+| ✅ Distribution | | |
+| ✅ Private use | | |
+
+*© 2026 [Marea Software](https://marea.software)*
