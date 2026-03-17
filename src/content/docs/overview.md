@@ -27,7 +27,7 @@ Built on **OWL 2** (𝒜𝒞ℛ𝒪ℐ𝒟 Description Logic), enabling:
 
 ## How It Works
 
-![OntoClaw Architecture](/architecture.svg)
+<img src="/architecture.svg" alt="OntoClaw Architecture" style="max-height: 500px; width: auto; margin: 0 auto;" />
 
 ## Key Capabilities
 
