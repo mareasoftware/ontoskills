@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-03-17
+
+### Added
+
+#### Static Linter (`ontoclaw lint`)
+
+Analyses the compiled ontology without calling the Anthropic API.
+Catches structural issues before they reach runtime or waste API tokens.
+
+- **core/linter.py** — `lint_ontology(ttl_path) → LintResult`
+  - `dead-state` (warning): skill requiresState X but no skill yieldsState X
+  - `circular-dep` (error): cycle detected in oc:dependsOn graph via DFS
+  - `duplicate-intent` (error): two skills resolve the same intent string
+  - `orphan-skill` (info): isolated skill with no dependents and unreachable states
+- **core/tests/test_linter.py** — 6 tests
+- **core/cli.py** — `lint` command: `--ontology`, `--format` (rich/json), `--errors-only`
+  - Exit code 1 when errors found (CI gate)
+
+#### Dependency Graph Visualiser (`ontoclaw graph`)
+
+Exports the skill relationship graph as Mermaid or Graphviz DOT.
+
+- **core/graph_export.py** — `build_graph(ttl_path, fmt, skill_filter) → str`
+  - Covers oc:dependsOn (solid arrow), oc:extends (dashed), oc:contradicts (bidirectional)
+  - Deduplicates symmetric contradicts edges
+  - Optional 1-hop `skill_filter` for subgraph output
+- **core/tests/test_graph_export.py** — 7 tests
+- **core/cli.py** — `graph` command: `--ontology`, `--format` (mermaid/dot), `--skill`, `--output`
+
+#### Skill Explainer (`ontoclaw explain <skill-id>`)
+
+Renders a Rich summary card for a compiled skill without reading raw Turtle.
+
+- **core/explainer.py** — `explain_skill(ttl_path, skill_id) → SkillSummary | None`
+  - Extracts: intents, requiresState, yieldsState, handlesFailure, dependsOn,
+    extends, contradicts, executor (from payload node), contentHash, generatedBy
+  - `list_skill_ids(ttl_path)` — lists all available skill IDs for autocomplete/error hints
+- **core/tests/test_explainer.py** — 9 tests
+- **core/cli.py** — `explain` command: positional `SKILL_ID`, `--ontology`
+  - Prints available IDs when skill not found
+
+#### Migration Guidance (`ontoclaw diff --suggest`)
+
+Extends the Skill Drift Detector with actionable remediation for breaking changes.
+
+- **core/differ.py** — `MigrationSuggestion` dataclass + `DriftReport.suggestions()`
+  - `skill-removed`: SPARQL to find agents with oc:dependsOn pointing to removed skill
+  - `intent-renamed`: SPARQL to find callers of the old intent string
+  - `requirement-added`: SPARQL to find skills with the new oc:requires relationship
+- **core/drift_report.py** — `print_suggestions()` Rich-formatted output
+- **core/cli.py** — `--suggest` flag on `diff` command
+- **core/tests/test_differ.py** — 4 new suggestion tests
+- **core/tests/test_cli.py** — 1 new CLI test for `--suggest`
+
+---
+
 ## [0.4.0] - 2026-03-17
 
 ### Added
