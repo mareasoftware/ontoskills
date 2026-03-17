@@ -3,7 +3,7 @@ title: Roadmap
 description: From compiler to autonomous agent — the OntoClaw ecosystem
 ---
 
-> **We ship fast.** This roadmap evolves with the project.
+> This roadmap evolves with the project.
 
 ## Phase 1: OntoCore ✅
 
