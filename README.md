@@ -207,6 +207,7 @@ ontoclaw security-audit
 | `-o, --output` | Output file (default: `./semantic-skills/skills.ttl`) |
 | `--dry-run` | Preview without saving |
 | `--skip-security` | Skip security checks (not recommended) |
+| `-f, --force` | Force recompilation (bypass hash-based cache) |
 | `--reason/--no-reason` | Apply OWL reasoning |
 | `-y, --yes` | Skip confirmation |
 | `-v, --verbose` | Debug logging |
@@ -236,15 +237,17 @@ ontoclaw/
 ├── compiler/                 # Python skill compiler
 │   ├── cli.py               # Click CLI interface
 │   ├── config.py            # Configuration constants
+│   ├── core_ontology.py     # Namespace and TBox ontology creation
 │   ├── exceptions.py        # Exception hierarchy with exit codes
 │   ├── extractor.py         # ID and hash generation
-│   ├── loader.py            # OWL 2 serialization and validation hooks
 │   ├── schemas.py           # Pydantic models
 │   ├── security.py          # Defense-in-depth security
+│   ├── serialization.py     # RDF serialization with SHACL gatekeeper
 │   ├── sparql.py            # SPARQL query engine
+│   ├── storage.py           # File I/O, merging, orphan cleanup
 │   ├── transformer.py       # LLM tool-use extraction
 │   ├── validator.py         # SHACL validation gatekeeper
-│   └── tests/               # Test suite (91 tests)
+│   └── tests/               # Test suite (150 tests)
 ├── specs/
 │   └── ontoclaw.shacl.ttl   # SHACL shapes constitution
 ├── skills/                  # Input: SKILL.md definitions
@@ -272,8 +275,9 @@ flowchart LR
         E[extractor.py<br/>ID & Hash]
         T[transformer.py<br/>LLM Extraction]
         SEC[security.py<br/>Security Audit]
-        L[loader.py<br/>OWL Serialization]
-        V[validator.py<br/>SHACL Validation]
+        CO[core_ontology.py<br/>Namespace + TBox]
+        SR[serialization.py<br/>RDF + SHACL]
+        ST[storage.py<br/>File I/O + Merge]
     end
 
     subgraph Output["📤 semantic-skills/"]
@@ -290,13 +294,14 @@ flowchart LR
     SN --> E
     E --> T
     T --> SEC
-    SEC --> L
-    L --> V
-    V --> CORE
-    V --> IDX
-    V --> O1
-    V --> O2
-    V --> O3
+    SEC --> CO
+    CO --> SR
+    SR --> ST
+    ST --> CORE
+    ST --> IDX
+    ST --> O1
+    ST --> O2
+    ST --> O3
 
     style Input fill:#1a1a2e,stroke:#16213e,color:#fff
     style Compiler fill:#2196F3,stroke:#16213e,color:#fff
@@ -308,8 +313,9 @@ flowchart LR
     style E fill:#2196F3,stroke:#16213e,color:#eee
     style T fill:#2196F3,stroke:#16213e,color:#eee
     style SEC fill:#2196F3,stroke:#16213e,color:#eee
-    style L fill:#2196F3,stroke:#16213e,color:#eee
-    style V fill:#2196F3,stroke:#16213e,color:#eee
+    style CO fill:#9333EA,stroke:#16213e,color:#eee
+    style SR fill:#e91e63,stroke:#16213e,color:#eee
+    style ST fill:#00bf63,stroke:#16213e,color:#eee
     style CORE fill:#00bf63,stroke:#16213e,color:#eee
     style IDX fill:#00bf63,stroke:#16213e,color:#eee
     style O1 fill:#00bf63,stroke:#16213e,color:#eee

@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-03-17
+
+### Changed
+
+#### Architecture Refactoring
+
+The monolithic `loader.py` (855 lines) has been refactored into 3 focused modules following the Single Responsibility Principle:
+
+- **core_ontology.py** (~344 lines) - Namespace management and core TBox ontology creation
+- **serialization.py** (~168 lines) - Pydantic-to-RDF serialization with SHACL gatekeeper
+- **storage.py** (~484 lines) - File I/O, intelligent merging, orphan cleanup
+
+### Added
+
+#### Cache Invalidation
+
+- **`--force` flag** for `compile` command - Bypass hash-based caching to force recompilation of all skills
+  - Useful when SHACL schemas or LLM prompts are updated
+  - Usage: `ontoclaw compile --force` or `ontoclaw compile -f`
+
+#### Lifecycle Management
+
+- **`clean_orphaned_skills()`** function - Automatically removes `.ttl` files when source `SKILL.md` is deleted
+  - Runs at the start of every compilation
+  - Supports `dry_run` mode for preview
+  - Logs all orphaned files found and removed
+
+#### Bug Fixes
+
+- **`serialize_skill_to_module()` signature** - Fixed pre-existing bug where CLI passed 3 arguments but function only accepted 2
+  - Added `output_base: Optional[Path] = None` parameter with sensible default
+
+#### Testing
+
+- **test_core_ontology.py** (41 tests) - Tests for namespace and core ontology functions
+- **test_serialization.py** (10 tests) - Tests for RDF serialization including SHACL gatekeeper
+- **test_storage.py** (31 tests) - Tests for file I/O, merging, and orphan cleanup
+  - 6 new tests for `clean_orphaned_skills()` function
+  - Tests for `merge_skill()` force parameter
+- **test_cli.py** - 2 new tests for `--force` flag behavior
+
+### Removed
+
+- **loader.py** - Replaced by core_ontology.py, serialization.py, and storage.py
+- **test_loader.py** - Split into test_core_ontology.py, test_serialization.py, and test_storage.py
+
+### Test Summary
+
+- **150 tests** pass (3 deselected)
+- All SHACL validation tests pass (gatekeeper preserved)
+
+---
+
 ## [0.2.0] - 2026-03-16
 
 ### Added
