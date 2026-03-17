@@ -27,51 +27,7 @@ Built on **OWL 2** (𝒜𝒞ℛ𝒪ℐ𝒟 Description Logic), enabling:
 
 ## How It Works
 
-```mermaid
-flowchart TB
-    subgraph Input["📥 Input"]
-        SKILL[SKILL.md<br/>Natural Language]
-    end
-
-    subgraph Extraction["🔄 Extraction"]
-        CLAUDE[Claude API<br/>LLM Extraction]
-        PYDANTIC[Extracted Skill<br/>Pydantic Model]
-    end
-
-    subgraph Security["🔒 Security"]
-        AUDIT[Security Audit<br/>Regex + LLM Review]
-    end
-
-    subgraph Serialization["📦 Serialization"]
-        RDF[RDF Graph<br/>OWL 2 Triples]
-    end
-
-    subgraph Validation["✅ Validation"]
-        SHACL[SHACL Validator<br/>Gatekeeper]
-    end
-
-    subgraph Output["📤 Output"]
-        PASS["PASS<br/>Write .ttl"]
-        FAIL["FAIL<br/>Block & Error"]
-    end
-
-    SKILL --> CLAUDE
-    CLAUDE --> PYDANTIC
-    PYDANTIC --> AUDIT
-    AUDIT --> RDF
-    RDF --> SHACL
-    SHACL --> PASS
-    SHACL --> FAIL
-
-    style Input fill:#1a1a2e,stroke:#16213e,color:#fff
-    style Extraction fill:#2196F3,stroke:#16213e,color:#fff
-    style Security fill:#f39c12,stroke:#16213e,color:#fff
-    style Serialization fill:#9333EA,stroke:#16213e,color:#fff
-    style Validation fill:#e91e63,stroke:#16213e,color:#fff
-    style Output fill:#00bf63,stroke:#16213e,color:#fff
-    style PASS fill:#00bf63,stroke:#000,color:#fff
-    style FAIL fill:#ff6b6b,stroke:#000,color:#fff
-```
+![OntoClaw Architecture](/architecture.svg)
 
 ## Key Capabilities
 
