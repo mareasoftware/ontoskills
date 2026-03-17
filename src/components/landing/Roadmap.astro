@@ -3,26 +3,32 @@ const phases = [
   {
     status: 'done',
     phase: 'Phase 1',
-    title: 'Compiler',
-    description: 'SKILL.md → OWL 2 DL transformation with SHACL validation',
+    title: 'OntoCore',
+    description: 'Neuro-symbolic compiler: SKILL.md → OWL 2 DL ontology',
+  },
+  {
+    status: 'done',
+    phase: 'Phase 2',
+    title: 'OntoSkills',
+    description: 'Compiled skill library ready for agent queries',
+  },
+  {
+    status: 'done',
+    phase: 'Phase 3',
+    title: 'OntoMCP',
+    description: 'Rust MCP server exposing ontologies via SPARQL',
   },
   {
     status: 'wip',
-    phase: 'Phase 2',
-    title: 'MCP Server',
-    description: 'Rust server exposing ontologies via Model Context Protocol',
+    phase: 'Phase 4',
+    title: 'OntoStore',
+    description: 'Centralized marketplace for ontologies',
   },
   {
     status: 'planned',
-    phase: 'Phase 3',
-    title: 'OntoStore',
-    description: 'Centralized repository for compiled ontologies',
-  },
-  {
-    status: 'future',
-    phase: 'Phase 4+',
-    title: 'Ecosystem',
-    description: 'Multi-agent collaboration, VSCode plugins, and beyond',
+    phase: 'Phase 5',
+    title: 'OntoClaw',
+    description: 'Autonomous agent powered by structured knowledge',
   },
 ];
 
@@ -52,21 +58,21 @@ const statusIcons = {
       </p>
     </div>
 
-    <div class="relative">
+    <div class="relative px-4">
       <!-- Timeline line -->
-      <div class="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-border md:-translate-x-px"></div>
+      <div class="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-border md:-translate-x-px"></div>
 
       <!-- Phases -->
       <div class="space-y-8">
         {phases.map((phase, i) => (
           <div class={`relative flex items-start gap-6 ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
             <!-- Marker -->
-            <div class={`absolute left-4 md:left-1/2 w-8 h-8 rounded-full border-2 bg-bg-primary flex items-center justify-center text-sm -translate-x-1/2 ${statusStyles[phase.status]}`}>
+            <div class={`absolute left-8 md:left-1/2 w-8 h-8 rounded-full border-2 bg-bg-primary flex items-center justify-center text-sm -translate-x-1/2 ${statusStyles[phase.status]}`}>
               {statusIcons[phase.status]}
             </div>
 
             <!-- Content -->
-            <div class={`ml-12 md:ml-0 md:w-1/2 ${i % 2 === 1 ? 'md:pr-12 md:text-right' : 'md:pl-12'}`}>
+            <div class={`ml-16 md:ml-0 md:w-1/2 ${i % 2 === 1 ? 'md:pr-16 md:text-right' : 'md:pl-16'}`}>
               <span class="text-xs uppercase tracking-wider text-text-muted">{phase.phase}</span>
               <h3 class="text-xl font-bold text-text-primary mt-1">{phase.title}</h3>
               <p class="text-text-muted mt-2">{phase.description}</p>

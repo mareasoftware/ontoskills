@@ -17,32 +17,32 @@ The foundation. OntoCore is our neuro-symbolic compiler that transforms natural 
 - [x] Security audit pipeline
 - [x] 150+ tests
 
-## Phase 2: OntoSkills 🔨
+## Phase 2: OntoSkills ✅
 
-**Status:** In Development
+**Status:** Complete
 
 The knowledge base. OntoSkills are the compiled, validated skills published from OntoCore — ready to be queried by agents.
 
 - [x] Core skill library compilation
-- [ ] Public skill registry
-- [ ] Skill versioning and updates
-- [ ] Dependency management
+- [x] Public skill registry
+- [x] Skill versioning and updates
+- [x] Dependency management
 
-## Phase 3: OntoMCP 💡
+## Phase 3: OntoMCP ✅
 
-**Status:** Planned
+**Status:** Complete
 
 The interface. OntoMCP exposes OntoSkills via the Model Context Protocol, giving any MCP-compatible agent instant access to structured knowledge.
 
-- [ ] Rust MCP server with stdio transport
-- [ ] Oxigraph in-memory graph store
-- [ ] SPARQL query interface
-- [ ] Runtime ABox updates
-- [ ] Claude Desktop integration
+- [x] Rust MCP server with stdio transport
+- [x] Oxigraph in-memory graph store
+- [x] SPARQL query interface
+- [x] Runtime ABox updates
+- [x] Claude Desktop integration
 
-## Phase 4: OntoStore 🔮
+## Phase 4: OntoStore 🔨
 
-**Status:** Exploratory
+**Status:** In Development
 
 The marketplace. OntoStore is a centralized repository where teams can publish, discover, and share ontologies.
 
@@ -51,9 +51,9 @@ The marketplace. OntoStore is a centralized repository where teams can publish, 
 - [ ] Team collaboration features
 - [ ] Community contributions
 
-## Phase 5: OntoClaw 🤖
+## Phase 5: OntoClaw 💡
 
-**Status:** Vision
+**Status:** Planned
 
 The agent. OntoClaw joins the Claw family (OpenClaw, NanoClaw, ZeroClaw) as an autonomous agent powered by structured knowledge — reasoning with precision, not hallucination.
 
