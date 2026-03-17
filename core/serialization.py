@@ -118,14 +118,14 @@ def serialize_skill_to_module(
     output_base: Optional[Path] = None
 ) -> None:
     """
-    Serialize a skill to a standalone skill.ttl module file.
+    Serialize a skill to a standalone ontoskill.ttl module file.
 
     Creates a skill module that mirrors the skills directory structure:
-    - skills/xlsx/pdf/pptx/SKILL.md -> ontoskills/xlsx/pdf/pptx/skill.ttl
+    - skills/xlsx/pdf/pptx/SKILL.md -> ontoskills/xlsx/pdf/pptx/ontoskill.ttl
 
     Args:
         skill: ExtractedSkill to serialize
-        output_path: Path where skill.ttl should be written
+        output_path: Path where ontoskill.ttl should be written
         output_base: Base output directory for core ontology lookup (default: OUTPUT_DIR)
     """
     oc = get_oc_namespace()
