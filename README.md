@@ -36,7 +36,7 @@
 
 ---
 
-## The OntoClaw Ecosystem
+## OntoClaw: Neuro-Symbolic AI Agent Platform
 
 OntoClaw is a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. It consists of four layered components:
 
@@ -80,7 +80,7 @@ flowchart LR
 
 ---
 
-## Why OntoClaw?
+## Why OntoClaw? — Deterministic AI Agents
 
 ### The Determinism Problem
 
