@@ -1,0 +1,85 @@
+---
+const phases = [
+  {
+    status: 'done',
+    phase: 'Phase 1',
+    title: 'Compiler',
+    description: 'SKILL.md → RDF/Turtle transformation with OWL 2 DL output',
+  },
+  {
+    status: 'wip',
+    phase: 'Phase 2',
+    title: 'MCP Server',
+    description: 'Query interface + ABox runtime updates + Claude integration',
+  },
+  {
+    status: 'planned',
+    phase: 'Phase 3',
+    title: 'OntoStore',
+    description: 'Centralized repository for ontoskills',
+  },
+  {
+    status: 'future',
+    phase: 'Phase 4+',
+    title: 'Ecosystem',
+    description: 'Multi-agent collaboration, VSCode plugins, and beyond',
+  },
+];
+
+const statusStyles = {
+  done: 'border-accent-mint text-accent-mint',
+  wip: 'border-accent-cyan text-accent-cyan animate-pulse',
+  planned: 'border-text-muted text-text-muted',
+  future: 'border-border text-text-muted opacity-60',
+};
+
+const statusIcons = {
+  done: '✓',
+  wip: '🔨',
+  planned: '💡',
+  future: '🔮',
+};
+---
+
+<section id="roadmap" class="py-20">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+        <span class="gradient-text">Roadmap</span>
+      </h2>
+      <p class="text-text-muted">
+        We ship fast. This changes often.
+      </p>
+    </div>
+
+    <div class="relative">
+      <!-- Timeline line -->
+      <div class="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-border md:-translate-x-px"></div>
+
+      <!-- Phases -->
+      <div class="space-y-8">
+        {phases.map((phase, i) => (
+          <div class={`relative flex items-start gap-6 ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+            <!-- Marker -->
+            <div class={`absolute left-4 md:left-1/2 w-8 h-8 rounded-full border-2 bg-bg-primary flex items-center justify-center text-sm -translate-x-1/2 ${statusStyles[phase.status]}`}>
+              {statusIcons[phase.status]}
+            </div>
+
+            <!-- Content -->
+            <div class={`ml-12 md:ml-0 md:w-1/2 ${i % 2 === 1 ? 'md:pr-12 md:text-right' : 'md:pl-12'}`}>
+              <span class="text-xs uppercase tracking-wider text-text-muted">{phase.phase}</span>
+              <h3 class="text-xl font-bold text-text-primary mt-1">{phase.title}</h3>
+              <p class="text-text-muted mt-2">{phase.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="mt-12 text-center">
+      <p class="text-text-muted text-sm">
+        Track progress on <a href="https://github.com/mareasoftware/ontoclaw" class="text-accent-cyan hover:underline">GitHub</a>
+      </p>
+    </div>
+  </div>
+</section>

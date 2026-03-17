@@ -1,14 +1,18 @@
 # OntoClaw Site
 
-<img src="public/ontoclaw-banner.png" alt="OntoClaw - Graph-aware AI Validation" width="100%">
+<img src="public/ontoclaw-banner.png" alt="OntoClaw - MCP Server for AI Agents" width="100%">
 
-> **Graph-aware AI validation framework** — Official website and documentation
+> **MCP server for deterministic AI agents with ontoskills** — Official website and documentation
 
 ## Overview
 
 This repository contains the source code for the OntoClaw website, a hybrid marketing landing page and documentation site built with modern web technologies.
 
-**OntoClaw** is a graph-aware AI validation framework that leverages knowledge graph semantics for intelligent validation of AI systems. It provides built-in support for OWL and RDF ontologies, generating validation reports optimized for AI consumption.
+**OntoClaw** is an MCP server that exposes **ontoskills** — structured, queryable knowledge graphs that let AI agents reason deterministically. Instead of reading skill files, the LLM queries the graph and gets precise answers.
+
+- **Phase 1:** Compiler transforms SKILL.md → RDF/Turtle
+- **Phase 2:** MCP server exposes ontoskills via Model Context Protocol
+- **Phase 3:** OntoStore for centralized ontoskill repository
 
 🔗 **Main Project:** [github.com/mareasoftware/ontoclaw](https://github.com/mareasoftware/ontoclaw)
 
@@ -104,8 +108,9 @@ npm run dev
 
 The documentation is located in `src/content/docs/` and follows Starlight's conventions:
 
-- `overview.md` — Introduction to OntoClaw
-- `getting-started.md` — Quick start guide
+- `overview.md` — Introduction to ontoskills and MCP architecture
+- `getting-started.md` — Setup and usage guide
+- `roadmap.md` — Development phases and future direction
 
 To add new documentation pages, create Markdown files in `src/content/docs/` and update the sidebar configuration in `astro.config.mjs`.
 

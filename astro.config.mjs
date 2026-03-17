@@ -6,11 +6,12 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'OntoClaw',
-      description: 'Graph-aware AI validation framework',
+      description: 'MCP server for deterministic AI agents with ontoskills',
       disable404Route: true,
       sidebar: [
         { label: 'Overview', slug: 'overview' },
         { label: 'Getting Started', slug: 'getting-started' },
+        { label: 'Roadmap', slug: 'roadmap' },
       ],
     }),
     tailwind(),

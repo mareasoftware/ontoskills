@@ -1,37 +1,75 @@
 ---
 title: Getting Started
-description: Get started with OntoClaw
+description: Set up OntoClaw and query your first ontoskill
 ---
 
 # Getting Started
 
-OntoClaw is a graph-aware AI validation framework that leverages knowledge graph semantics for intelligent validation.
+OntoClaw is currently in **Phase 2** development. Here's how to get started with what's available.
 
 ## Prerequisites
 
-- Node.js 18+
-- npm or pnpm
+- **Rust** 1.70+ (for building from source)
+- **Node.js** 18+ (for the compiler CLI)
+- **Claude Desktop** (for MCP integration)
 
-## Installation
+## Phase 1: Compiler
 
-1. **Install OntoClaw**
+The compiler transforms `SKILL.md` files into RDF/Turtle ontologies.
 
-   ```bash
-   npm install ontoclaw
-   ```
+### Installation
 
-2. **Initialize your project**
+```bash
+# Clone the repository
+git clone https://github.com/mareasoftware/ontoclaw.git
+cd ontoclaw
 
-   ```bash
-   npx ontoclaw init
-   ```
+# Build the compiler
+cargo build --release
+```
 
-3. **Configure your ontology**
+### Usage
 
-   Edit `ontoclaw.config.js` to specify your ontology files and validation rules.
+```bash
+# Compile a skill definition
+ontoclaw compile ./skills/SKILL.md --output ./ontoskills/
+```
 
-## Next Steps
+This produces:
+- `ontoskills/skill.ttl` — OWL 2 DL ontology
+- `ontoskills/skill.shacl.ttl` — SHACL shapes for validation
 
-- [Configuration](/configuration/) - Learn how to configure OntoClaw
-- [Ontology Integration](/ontology/) - Connect your OWL and RDF ontologies
-- [Validation Rules](/rules/) - Define custom validation rules
+## Phase 2: MCP Server (In Progress)
+
+The MCP server exposes ontoskills via the Model Context Protocol.
+
+### Build Status
+
+The MCP server is currently under active development. Track progress on [GitHub](https://github.com/mareasoftware/ontoclaw).
+
+### Expected Usage
+
+```bash
+# Start the MCP server (coming soon)
+ontoclaw-mcp --ontologies ./ontoskills/
+```
+
+### Claude Desktop Configuration
+
+Once available, add to your Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "ontoclaw": {
+      "command": "ontoclaw-mcp",
+      "args": ["--ontologies", "/path/to/ontoskills"]
+    }
+  }
+}
+```
+
+## What's Next?
+
+- [Roadmap](/roadmap/) — See what's coming
+- [GitHub](https://github.com/mareasoftware/ontoclaw) — Contribute

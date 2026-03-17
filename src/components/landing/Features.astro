@@ -3,33 +3,33 @@ import Card from '../ui/Card.astro';
 
 const features = [
   {
-    title: 'LLM Extraction',
-    description: 'Claude extracts structured knowledge from natural language SKILL.md files with tool-use.',
-    icon: '🧠'
+    title: 'Ontoskill Query',
+    description: 'SPARQL O(1) indexed lookup instead of O(n) text scanning across skill files.',
+    icon: '🔍'
   },
   {
-    title: 'Knowledge Architecture',
-    description: 'Follows "A is a B that C" definition pattern (genus + differentia) for precise classification.',
+    title: 'Deterministic Reasoning',
+    description: 'The graph responds with precise answers. No interpretation, no hallucination.',
+    icon: '🎯'
+  },
+  {
+    title: 'Evolving Knowledge',
+    description: 'ABox updates automatically when the LLM succeeds or fails. Learning from execution.',
+    icon: '🔄'
+  },
+  {
+    title: 'Stable Foundations',
+    description: 'TBox and RBox define consistent rules. Prerequisites, constraints, capabilities.',
     icon: '🏛️'
   },
   {
-    title: 'OWL 2 Serialization',
-    description: 'Outputs valid OWL 2 DL ontologies in RDF/Turtle format with formal semantics.',
-    icon: '📊'
+    title: 'MCP Protocol Native',
+    description: 'Direct integration with Claude Desktop, VSCode, and any MCP-compatible client.',
+    icon: '🔌'
   },
   {
-    title: 'SHACL Validation',
-    description: 'Constitutional gatekeeper ensures logical validity before any write operation.',
-    icon: '✅'
-  },
-  {
-    title: 'State Machines',
-    description: 'Skills define preconditions, postconditions, and failure handlers for robust execution.',
-    icon: '⚙️'
-  },
-  {
-    title: 'Security Pipeline',
-    description: 'Defense-in-depth: Unicode normalization + regex patterns + LLM review for threat detection.',
+    title: 'Secure Pipeline',
+    description: 'Unicode normalization + pattern validation + LLM review for threat detection.',
     icon: '🔒'
   }
 ];
@@ -39,10 +39,10 @@ const features = [
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-12">
       <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
-        Key <span class="gradient-text">Capabilities</span>
+        How <span class="gradient-text">Ontoskills</span> Work
       </h2>
       <p class="text-text-muted max-w-2xl mx-auto">
-        Everything you need to build deterministic, queryable skill ontologies.
+        Not files to read. A graph to query.
       </p>
     </div>
 

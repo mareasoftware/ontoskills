@@ -1,5 +1,5 @@
 ---
-
+import Button from '../ui/Button.astro';
 ---
 
 <section class="py-20 bg-bg-secondary">
@@ -8,29 +8,29 @@
       <!-- Problem -->
       <div class="space-y-6">
         <h2 class="text-3xl font-bold text-text-primary">
-          The <span class="text-red-400">Determinism</span> Problem
+          The <span class="text-red-400">Interpretation</span> Problem
         </h2>
         <p class="text-text-muted leading-relaxed">
-          LLMs are inherently non-deterministic. The same query can yield different results,
-          and reasoning about skill relationships requires reading entire documents.
+          Today, LLMs read skill files to understand what they can do.
+          Every query means parsing, interpreting, and hoping.
         </p>
         <ul class="space-y-4">
           <li class="flex items-start gap-3">
             <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">Context rot</strong> from loading 50+ SKILL.md files
+              <strong class="text-text-primary">Context rot</strong> — Loading 50+ SKILL.md files to find one capability
             </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">Hallucinations</strong> when information is scattered across files
+              <strong class="text-text-primary">Non-deterministic</strong> — Same query, different interpretation each time
             </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">No verifiable structure</strong> for skill relationships
+              <strong class="text-text-primary">No memory</strong> — Every interaction starts from zero
             </span>
           </li>
         </ul>
@@ -39,29 +39,29 @@
       <!-- Solution -->
       <div class="space-y-6">
         <h2 class="text-3xl font-bold text-text-primary">
-          The <span class="gradient-text">Ontological</span> Solution
+          The <span class="gradient-text">Ontoskill</span> Solution
         </h2>
         <p class="text-text-muted leading-relaxed">
-          OntoClaw transforms unstructured skill definitions into formal, queryable
-          knowledge graphs using Description Logics (OWL 2).
+          Instead of reading, the LLM <em>queries</em>. The graph responds with
+          precise, structured knowledge — and evolves with every interaction.
         </p>
         <ul class="space-y-4">
           <li class="flex items-start gap-3">
             <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">Decidable reasoning</strong> with OWL 2 DL
+              <strong class="text-text-primary">O(1) lookup</strong> — SPARQL queries against indexed graph
             </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">SPARQL queries</strong> with O(1) indexed lookup vs O(n) text scan
+              <strong class="text-text-primary">Deterministic</strong> — Same query, same answer. Always.
             </span>
           </li>
           <li class="flex items-start gap-3">
             <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
             <span class="text-text-muted">
-              <strong class="text-text-primary">Formal semantics</strong> for skill relationships
+              <strong class="text-text-primary">Evolving</strong> — ABox updates when LLM succeeds or fails
             </span>
           </li>
         </ul>
