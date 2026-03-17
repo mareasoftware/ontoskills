@@ -372,7 +372,14 @@ ontoclaw/
 │   ├── transformer.py       # LLM tool-use extraction
 │   ├── validator.py         # SHACL validation gatekeeper
 │   └── tests/               # Test suite (156 tests)
-├── mcp/                     # OntoMCP — Rust MCP server (planned)
+├── mcp/                     # OntoMCP — Rust MCP server
+│   ├── Cargo.toml           # Rust package manifest
+│   ├── Cargo.lock           # Dependency lockfile
+│   ├── README.md            # MCP server documentation
+│   ├── CLAUDE_CODE_GUIDE.md # Claude Code integration guide
+│   └── src/
+│       ├── main.rs          # MCP stdio server
+│       └── catalog.rs       # Ontology catalog + planner
 ├── specs/
 │   └── ontoclaw.shacl.ttl   # SHACL shapes constitution
 ├── skills/                  # Input: SKILL.md definitions (source code)
@@ -380,11 +387,6 @@ ontoclaw/
 │   ├── ontoclaw-core.ttl    # Core ontology with states
 │   ├── index.ttl            # Index of all skills
 │   └── */ontoskill.ttl      # Individual skill modules
-├── mcp/                     # OntoMCP — Rust MCP server
-│   ├── Cargo.toml
-│   ├── CLAUDE_CODE_GUIDE.md
-│   ├── src/main.rs          # MCP stdio server
-│   └── src/catalog.rs       # Ontology catalog + planner
 └── docs/                    # Documentation
 ```
 
