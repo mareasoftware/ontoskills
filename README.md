@@ -140,7 +140,7 @@ OntoClaw transforms this into **deterministic, queryable knowledge graphs**.
 
 ### Description Logics Foundation
 
-Built on **OWL 2** (𝒜𝒞ℛ𝒪ℐ𝒟 Description Logic), enabling:
+Built on **OWL 2** ($\mathcal{SROIQ}^{(D)}$ Description Logic), enabling:
 - **Decidable reasoning** — transitive, symmetric, inverse properties
 - **Formal semantics** — no ambiguity in skill relationships
 - **SPARQL queries** with O(1) indexed lookup vs O(n) text scanning
