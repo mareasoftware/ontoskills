@@ -8,7 +8,7 @@ def test_cli_version():
     runner = CliRunner()
     result = runner.invoke(cli, ['--version'])
     assert result.exit_code == 0
-    assert "0.2.0" in result.output
+    assert "0.4.0" in result.output
 
 
 def test_cli_help():
@@ -136,11 +136,11 @@ def test_force_flag_bypasses_hash(tmp_path):
     skill_file = skill_dir / "SKILL.md"
     skill_file.write_text("# Test Skill\n\nThis is a test skill.", encoding="utf-8")
 
-    # Create output directory with an existing skill.ttl that has matching hash
+    # Create output directory with an existing ontoskill.ttl that has matching hash
     output_dir = tmp_path / "output"
     output_skill_dir = output_dir / "test-skill"
     output_skill_dir.mkdir(parents=True)
-    output_skill_path = output_skill_dir / "skill.ttl"
+    output_skill_path = output_skill_dir / "ontoskill.ttl"
 
     # Create a fake existing skill with the same hash
     # Use the correct namespace from config

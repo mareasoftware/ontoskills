@@ -26,7 +26,8 @@ from compiler.storage import (
     save_ontology_atomic,
     apply_reasoning,
     generate_index_manifest,
-    clean_orphaned_skills,
+    clean_orphaned_files,
+    SYSTEM_FILES,
 )
 from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.serialization import serialize_skill_to_module
@@ -92,7 +93,7 @@ def test_mirror_skill_path_simple():
 
     result = mirror_skill_path(skill_dir, output_base)
 
-    assert result == Path("/ontoskills/xlsx/skill.ttl")
+    assert result == Path("/ontoskills/xlsx/ontoskill.ttl")
 
 
 def test_mirror_skill_path_nested():
@@ -102,7 +103,7 @@ def test_mirror_skill_path_nested():
 
     result = mirror_skill_path(skill_dir, output_base)
 
-    assert result == Path("/ontoskills/xlsx/pdf/pptx/skill.ttl")
+    assert result == Path("/ontoskills/xlsx/pdf/pptx/ontoskill.ttl")
 
 
 def test_mirror_skill_path_with_config():
@@ -113,7 +114,7 @@ def test_mirror_skill_path_with_config():
 
     result = mirror_skill_path(skill_dir, output_base)
 
-    assert result.name == "skill.ttl"
+    assert result.name == "ontoskill.ttl"
     assert "xlsx" in str(result)
     assert "pdf" in str(result)
 
@@ -128,7 +129,7 @@ def test_get_output_path():
 
     result = get_output_path(skill_dir)
 
-    assert result.name == "skill.ttl"
+    assert result.name == "ontoskill.ttl"
     # Should resolve OUTPUT_DIR to absolute path
     assert "ontoskills" in str(result) or "test-skill" in str(result)
 
@@ -140,7 +141,7 @@ def test_get_output_path_with_custom_base(tmp_path):
 
     result = get_output_path(skill_dir, output_base)
 
-    assert result == tmp_path / "custom-output" / "test-skill" / "skill.ttl"
+    assert result == tmp_path / "custom-output" / "test-skill" / "ontoskill.ttl"
 
 
 # =============================================================================
@@ -150,7 +151,7 @@ def test_get_output_path_with_custom_base(tmp_path):
 def test_load_skill_module(tmp_path, sample_skill):
     """Test loading a skill module from file."""
     # First create a module
-    module_path = tmp_path / "loadable" / "skill.ttl"
+    module_path = tmp_path / "loadable" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, module_path)
 
     # Now load it
@@ -167,7 +168,7 @@ def test_load_skill_module(tmp_path, sample_skill):
 
 def test_load_skill_module_not_found():
     """Test loading non-existent module raises error."""
-    non_existent = Path("/tmp/non-existent-skill-module/skill.ttl")
+    non_existent = Path("/tmp/non-existent-skill-module/ontoskill.ttl")
 
     with pytest.raises(OntologyLoadError):
         load_skill_module(non_existent)
@@ -558,7 +559,7 @@ def test_apply_reasoning(tmp_path, core_ontology):
 def test_generate_index_manifest(tmp_path, core_ontology, sample_skill):
     """Test generating the index.ttl manifest."""
     # Create a skill module
-    skill_path = tmp_path / "ontoskills" / "test" / "skill.ttl"
+    skill_path = tmp_path / "ontoskills" / "test" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, skill_path)
 
     index_path = tmp_path / "ontoskills" / "index.ttl"
@@ -579,8 +580,8 @@ def test_generate_index_manifest(tmp_path, core_ontology, sample_skill):
 def test_generate_index_manifest_multiple_skills(tmp_path, core_ontology, sample_skill, sample_skill_with_payload):
     """Test generating index with multiple skill modules."""
     # Create skill modules
-    skill_path1 = tmp_path / "ontoskills" / "skill1" / "skill.ttl"
-    skill_path2 = tmp_path / "ontoskills" / "skill2" / "skill.ttl"
+    skill_path1 = tmp_path / "ontoskills" / "skill1" / "ontoskill.ttl"
+    skill_path2 = tmp_path / "ontoskills" / "skill2" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, skill_path1)
     serialize_skill_to_module(sample_skill_with_payload, skill_path2)
 
@@ -596,22 +597,22 @@ def test_generate_index_manifest_multiple_skills(tmp_path, core_ontology, sample
 
     # Should have 2 skill imports + possibly core ontology import
     imports = list(index_graph.objects(None, OWL.imports))
-    skill_imports = [i for i in imports if "skill.ttl" in str(i)]
+    skill_imports = [i for i in imports if "ontoskill.ttl" in str(i)]
     assert len(skill_imports) == 2
 
 
 # =============================================================================
-# clean_orphaned_skills() tests
+# clean_orphaned_files() tests
 # =============================================================================
 
-def test_clean_orphaned_skills_removes_orphan(tmp_path, core_ontology, sample_skill):
-    """Test that clean_orphaned_skills removes .ttl when source is missing."""
+def test_clean_orphaned_files_removes_orphan(tmp_path, core_ontology, sample_skill):
+    """Test that clean_orphaned_files removes ontoskill.ttl when source SKILL.md is missing."""
     # Set up directories
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
 
     # Create a skill module in output (but no source SKILL.md)
-    orphan_path = output_dir / "orphan-skill" / "skill.ttl"
+    orphan_path = output_dir / "orphan-skill" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, orphan_path)
 
     # Verify orphan exists
@@ -622,26 +623,26 @@ def test_clean_orphaned_skills_removes_orphan(tmp_path, core_ontology, sample_sk
     assert not source_md.exists()
 
     # Run cleanup
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=False)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
 
     # Orphan should be removed
     assert removed == 1
     assert not orphan_path.exists()
 
 
-def test_clean_orphaned_skills_preserves_valid(tmp_path, core_ontology, sample_skill):
-    """Test that clean_orphaned_skills keeps .ttl when source exists."""
+def test_clean_orphaned_files_preserves_valid(tmp_path, core_ontology, sample_skill):
+    """Test that clean_orphaned_files keeps ontoskill.ttl when source SKILL.md exists."""
     # Set up directories
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
 
-    # Create both source SKILL.md and output skill.ttl
+    # Create both source SKILL.md and output ontoskill.ttl
     skill_dir = skills_dir / "valid-skill"
     skill_dir.mkdir(parents=True)
     source_md = skill_dir / "SKILL.md"
     source_md.write_text("# Test Skill\n\nTest content")
 
-    output_path = output_dir / "valid-skill" / "skill.ttl"
+    output_path = output_dir / "valid-skill" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, output_path)
 
     # Verify both exist
@@ -649,7 +650,7 @@ def test_clean_orphaned_skills_preserves_valid(tmp_path, core_ontology, sample_s
     assert output_path.exists()
 
     # Run cleanup
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=False)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
 
     # Nothing should be removed
     assert removed == 0
@@ -657,29 +658,29 @@ def test_clean_orphaned_skills_preserves_valid(tmp_path, core_ontology, sample_s
     assert source_md.exists()
 
 
-def test_clean_orphaned_skills_dry_run(tmp_path, core_ontology, sample_skill):
-    """Test that clean_orphaned_skills doesn't delete in dry_run mode."""
+def test_clean_orphaned_files_dry_run(tmp_path, core_ontology, sample_skill):
+    """Test that clean_orphaned_files doesn't delete in dry_run mode."""
     # Set up directories
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
 
     # Create an orphan
-    orphan_path = output_dir / "orphan-skill" / "skill.ttl"
+    orphan_path = output_dir / "orphan-skill" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, orphan_path)
 
     # Verify orphan exists
     assert orphan_path.exists()
 
     # Run cleanup in dry_run mode
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=True)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=True)
 
     # Should report 1 orphan but not delete
     assert removed == 1
     assert orphan_path.exists()  # File should still exist
 
 
-def test_clean_orphaned_skills_returns_zero_when_no_orphans(tmp_path, core_ontology, sample_skill):
-    """Test that clean_orphaned_skills returns 0 when no orphans exist."""
+def test_clean_orphaned_files_returns_zero_when_no_orphans(tmp_path, core_ontology, sample_skill):
+    """Test that clean_orphaned_files returns 0 when no orphans exist."""
     # Set up directories
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
@@ -690,35 +691,35 @@ def test_clean_orphaned_skills_returns_zero_when_no_orphans(tmp_path, core_ontol
     source_md = skill_dir / "SKILL.md"
     source_md.write_text("# Test Skill")
 
-    output_path = output_dir / "valid-skill" / "skill.ttl"
+    output_path = output_dir / "valid-skill" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, output_path)
 
     # Run cleanup on empty or clean output directory
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=False)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
 
     # No orphans to remove
     assert removed == 0
 
 
-def test_clean_orphaned_skills_empty_output_dir(tmp_path):
-    """Test clean_orphaned_skills on empty output directory."""
+def test_clean_orphaned_files_empty_output_dir(tmp_path):
+    """Test clean_orphaned_files on empty output directory."""
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
     output_dir.mkdir(parents=True)
 
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=False)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
 
     assert removed == 0
 
 
-def test_clean_orphaned_skills_nested_paths(tmp_path, core_ontology, sample_skill):
-    """Test clean_orphaned_skills handles nested directory structures."""
+def test_clean_orphaned_files_nested_paths(tmp_path, core_ontology, sample_skill):
+    """Test clean_orphaned_files handles nested directory structures."""
     # Set up directories
     skills_dir = tmp_path / "skills"
     output_dir = tmp_path / "ontoskills"
 
     # Create nested orphan
-    orphan_path = output_dir / "xlsx" / "pdf" / "convert" / "skill.ttl"
+    orphan_path = output_dir / "xlsx" / "pdf" / "convert" / "ontoskill.ttl"
     serialize_skill_to_module(sample_skill, orphan_path)
 
     assert orphan_path.exists()
@@ -728,7 +729,132 @@ def test_clean_orphaned_skills_nested_paths(tmp_path, core_ontology, sample_skil
     assert not source_md.exists()
 
     # Run cleanup
-    removed = clean_orphaned_skills(skills_dir, output_dir, dry_run=False)
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
 
     assert removed == 1
     assert not orphan_path.exists()
+
+
+def test_clean_orphaned_files_preserves_system_files(tmp_path, core_ontology, sample_skill):
+    """Test that clean_orphaned_files preserves system-generated files."""
+    skills_dir = tmp_path / "skills"
+    output_dir = tmp_path / "ontoskills"
+
+    # Create system files that have no source
+    core_path = output_dir / "ontoclaw-core.ttl"
+    index_path = output_dir / "index.ttl"
+
+    create_core_ontology(core_path)
+    index_path.write_text("@prefix owl: <http://www.w3.org/2002/07/owl#> .")
+
+    assert core_path.exists()
+    assert index_path.exists()
+
+    # Run cleanup
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
+
+    # System files should be preserved
+    assert removed == 0
+    assert core_path.exists()
+    assert index_path.exists()
+
+
+def test_clean_orphaned_files_removes_orphan_asset(tmp_path):
+    """Test that clean_orphaned_files removes orphaned asset files."""
+    skills_dir = tmp_path / "skills"
+    output_dir = tmp_path / "ontoskills"
+
+    # Create an orphan asset file (no source exists)
+    orphan_asset = output_dir / "scripts" / "helper.py"
+    orphan_asset.parent.mkdir(parents=True)
+    orphan_asset.write_text("print('hello')")
+
+    assert orphan_asset.exists()
+
+    # Source doesn't exist
+    source_asset = skills_dir / "scripts" / "helper.py"
+    assert not source_asset.exists()
+
+    # Run cleanup
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
+
+    assert removed == 1
+    assert not orphan_asset.exists()
+
+
+def test_clean_orphaned_files_preserves_valid_asset(tmp_path):
+    """Test that clean_orphaned_files keeps assets when source exists."""
+    skills_dir = tmp_path / "skills"
+    output_dir = tmp_path / "ontoskills"
+
+    # Create both source and output asset
+    source_asset = skills_dir / "scripts" / "helper.py"
+    source_asset.parent.mkdir(parents=True)
+    source_asset.write_text("print('hello')")
+
+    output_asset = output_dir / "scripts" / "helper.py"
+    output_asset.parent.mkdir(parents=True)
+    output_asset.write_text("print('hello')")
+
+    assert source_asset.exists()
+    assert output_asset.exists()
+
+    # Run cleanup
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
+
+    assert removed == 0
+    assert output_asset.exists()
+
+
+def test_clean_orphaned_files_auxiliary_markdown_mapping(tmp_path):
+    """Test that clean_orphaned_files correctly maps *.ttl to *.md for auxiliary files."""
+    skills_dir = tmp_path / "skills"
+    output_dir = tmp_path / "ontoskills"
+
+    # Create an orphan auxiliary ttl (REFERENCE.ttl with no REFERENCE.md source)
+    orphan_ttl = output_dir / "docs" / "REFERENCE.ttl"
+    orphan_ttl.parent.mkdir(parents=True)
+    orphan_ttl.write_text("@prefix oc: <http://example.org/> .")
+
+    assert orphan_ttl.exists()
+
+    # Source doesn't exist (REFERENCE.md)
+    source_md = skills_dir / "docs" / "REFERENCE.md"
+    assert not source_md.exists()
+
+    # Run cleanup
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
+
+    assert removed == 1
+    assert not orphan_ttl.exists()
+
+
+def test_clean_orphaned_files_preserves_auxiliary_with_source(tmp_path):
+    """Test that clean_orphaned_files keeps *.ttl when *.md source exists."""
+    skills_dir = tmp_path / "skills"
+    output_dir = tmp_path / "ontoskills"
+
+    # Create both source and output
+    source_md = skills_dir / "docs" / "REFERENCE.md"
+    source_md.parent.mkdir(parents=True)
+    source_md.write_text("# Reference")
+
+    output_ttl = output_dir / "docs" / "REFERENCE.ttl"
+    output_ttl.parent.mkdir(parents=True)
+    output_ttl.write_text("@prefix oc: <http://example.org/> .")
+
+    assert source_md.exists()
+    assert output_ttl.exists()
+
+    # Run cleanup
+    removed = clean_orphaned_files(skills_dir, output_dir, dry_run=False)
+
+    assert removed == 0
+    assert output_ttl.exists()
+
+
+def test_system_files_constant():
+    """Test that SYSTEM_FILES constant contains expected files."""
+    assert "ontoclaw-core.ttl" in SYSTEM_FILES
+    assert "index.ttl" in SYSTEM_FILES
+    assert len(SYSTEM_FILES) == 2

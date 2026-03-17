@@ -53,7 +53,7 @@ def test_serialize_skill_to_module_creates_file(tmp_path):
         generated_by="claude-opus-4-6"
     )
 
-    output_path = tmp_path / "test-skill" / "skill.ttl"
+    output_path = tmp_path / "test-skill" / "ontoskill.ttl"
     serialize_skill_to_module(skill, output_path)
 
     # Verify file was created
@@ -96,7 +96,7 @@ def test_serialize_skill_to_module_with_output_base(tmp_path):
         generated_by="claude-opus-4-6"
     )
 
-    output_path = tmp_path / "test-output" / "skill.ttl"
+    output_path = tmp_path / "test-output" / "ontoskill.ttl"
 
     # Call with 3 arguments: skill, output_path, output_base
     serialize_skill_to_module(skill, output_path, output_base=output_base)
@@ -126,7 +126,7 @@ def test_serialize_skill_to_module_with_execution_payload(tmp_path):
         execution_payload=ExecutionPayload(executor="python", code="test")
     )
 
-    output_path = tmp_path / "exec-skill" / "skill.ttl"
+    output_path = tmp_path / "exec-skill" / "ontoskill.ttl"
     serialize_skill_to_module(skill, output_path)
 
     # Verify file was created
@@ -154,7 +154,7 @@ def test_serialize_skill_to_module_with_declarative_type(tmp_path):
         generated_by="claude-opus-4-6"
     )
 
-    output_path = tmp_path / "decl-skill" / "skill.ttl"
+    output_path = tmp_path / "decl-skill" / "ontoskill.ttl"
     serialize_skill_to_module(skill, output_path)
 
     # Verify file was created
@@ -227,7 +227,7 @@ def test_serialize_skill_to_module_validates_and_blocks_invalid():
     )
 
     with pytest.raises(OntologyValidationError):
-        serialize_skill_to_module(skill, Path("/tmp/invalid/skill.ttl"))
+        serialize_skill_to_module(skill, Path("/tmp/invalid/ontoskill.ttl"))
 
 
 def test_serialize_skill_to_module_does_not_write_on_validation_failure(tmp_path):
@@ -246,7 +246,7 @@ def test_serialize_skill_to_module_does_not_write_on_validation_failure(tmp_path
         generated_by="claude-opus-4-6"
     )
 
-    output_path = tmp_path / "invalid" / "skill.ttl"
+    output_path = tmp_path / "invalid" / "ontoskill.ttl"
 
     with pytest.raises(OntologyValidationError):
         serialize_skill_to_module(skill, output_path)

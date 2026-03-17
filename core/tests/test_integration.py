@@ -94,7 +94,7 @@ def test_real_compile_xlsx(xlsx_skill_dir, tmp_path):
     assert skill is not None, "Skill extraction failed"
 
     # Serialize to module (mirrors path structure)
-    skill_output_path = output_dir / "office" / "public" / "xlsx" / "skill.ttl"
+    skill_output_path = output_dir / "office" / "public" / "xlsx" / "ontoskill.ttl"
     print(f"Serializing to {skill_output_path}")
     serialize_skill_to_module(skill, skill_output_path)
     assert skill_output_path.exists(), "Skill module should be created"
