@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Backgrounds */
+    --bg-primary: #0d0d14;
+    --bg-secondary: #1a1a2e;
+    --bg-tertiary: #16213e;
+
+    /* Text */
+    --text-primary: #f0f0f5;
+    --text-muted: #8b8ba3;
+
+    /* Accents (from banner text gradient) */
+    --accent-cyan: #6dc9ee;
+    --accent-purple: #9763e1;
+
+    /* Accents (from logo gradient) */
+    --accent-mint: #abf9cc;
+    --accent-aqua: #92eff4;
+
+    /* Gradients */
+    --gradient-text: linear-gradient(135deg, #6dc9ee, #9763e1);
+    --gradient-logo: linear-gradient(135deg, #92eff4, #abf9cc);
+
+    /* Borders */
+    --border: #2a2a3e;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-sans antialiased;
+  }
+
+  /* Gradient text utility */
+  .gradient-text {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-logo {
+    background: var(--gradient-logo);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    @apply outline-2 outline-accent-cyan outline-offset-2;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-accent-purple/30;
+  }
+}
+
+@layer components {
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-200 hover:border-accent-cyan/50 hover:bg-bg-tertiary;
+  }
+}
