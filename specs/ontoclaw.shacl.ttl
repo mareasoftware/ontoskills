@@ -118,6 +118,19 @@ oc:ExecutionPayloadShape
     sh:targetClass oc:ExecutionPayload ;
     rdfs:label "Execution Payload Shape" ;
 
+    # XOR: must have either code (inline) OR executionPath (external file)
+    sh:or (
+        [
+            sh:path oc:code ;
+            sh:minCount 1 ;
+        ]
+        [
+            sh:path oc:executionPath ;
+            sh:minCount 1 ;
+        ]
+    ) ;
+    sh:message "Un ExecutionPayload deve contenere o oc:code (inline) o oc:executionPath (file esterno)" ;
+
     # MUST have exactly one executor
     sh:property [
         sh:path oc:executor ;
@@ -128,13 +141,20 @@ oc:ExecutionPayloadShape
         sh:message "ExecutionPayload deve avere un executor valido: shell, python, node, o claude_tool" ;
     ] ;
 
-    # MUST have exactly one code block
+    # code is optional (can use executionPath instead), max 1 if present
     sh:property [
         sh:path oc:code ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
         sh:datatype xsd:string ;
-        sh:message "ExecutionPayload deve avere esattamente un campo code" ;
+        sh:message "Se presente, code deve essere una stringa" ;
+    ] ;
+
+    # executionPath is optional (can use code instead), max 1 if present
+    sh:property [
+        sh:path oc:executionPath ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Se presente, executionPath deve essere una stringa" ;
     ] ;
 
     # timeout is optional but must be integer if present

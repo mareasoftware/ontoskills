@@ -96,6 +96,9 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
         "A skill without executable code (declarative knowledge)"
     )))
 
+    # OWL 2 DL: DeclarativeSkill and ExecutableSkill are mutually exclusive
+    g.add((oc.DeclarativeSkill, OWL.disjointWith, oc.ExecutableSkill))
+
     # oc:State - Abstract state class
     g.add((oc.State, RDF.type, OWL.Class))
     g.add((oc.State, RDFS.label, Literal("State")))
@@ -188,6 +191,14 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     g.add((oc.timeout, RDFS.label, Literal("timeout")))
     g.add((oc.timeout, RDFS.comment, Literal(
         "Execution timeout in seconds"
+    )))
+
+    # oc:executionPath (DatatypeProperty) - Path to bundled executable asset
+    g.add((oc.executionPath, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.executionPath, RDFS.domain, oc.ExecutionPayload))
+    g.add((oc.executionPath, RDFS.label, Literal("execution path")))
+    g.add((oc.executionPath, RDFS.comment, Literal(
+        "Relative URI/path to the executable asset file copied by the compiler (e.g., './scripts/document.py')"
     )))
 
     # ========== LLM Attestation ==========
