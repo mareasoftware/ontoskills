@@ -1,6 +1,106 @@
 # OntoClaw Philosophy
 
-## 1. The Core Problem
+## 0. The OntoClaw Ecosystem
+
+OntoClaw is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of four layered components:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         OntoClaw                                 │
+│                    (Enterprise AI Agent)                         │
+│                                                                  │
+│        Deterministic • Fast • Reliable • Production-Ready        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        OntoStore                                 │
+│                    (Skill Registry / Store)                      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        OntoMCP                                   │
+│                  (Rust MCP Server — Runtime)                     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       OntoSkills                                 │
+│               (Compiled OWL 2 Ontologies)                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        OntoCore                                  │
+│              (Python Compiler — Design Time)                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### The Vision
+
+**OntoClaw** is inspired by OpenClaw, Claude Code, and Cursor — but built for **enterprise** with a focus on:
+
+- **Determinism**: OWL 2 Description Logics guarantee decidable reasoning
+- **Speed**: Rust-based runtime (OntoMCP) for blazing-fast SPARQL queries
+- **Reliability**: SHACL validation ensures ontological consistency
+- **Modularity**: Plug-and-play skill ontologies
+
+The key insight: **Skills are compiled artifacts, not interpreted documents.**
+
+---
+
+## 1. The Lifecycle: Source Code vs Artifact
+
+OntoCore implements a **compile-time paradigm** for skills, separating human authoring from machine execution:
+
+### Design Time (Source Code)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    DESIGN TIME                          │
+│                                                         │
+│   Human writes SKILL.md                                 │
+│   (Markdown = syntactic sugar for OWL)                  │
+│                                                         │
+│   Why Markdown? Because writing raw Turtle by hand      │
+│   is a terrible developer experience.                   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+OntoCore extracts **everything** into the TTL:
+- Intents (`oc:resolvesIntent`)
+- State transitions (`oc:requiresState`, `oc:yieldsState`, `oc:handlesFailure`)
+- **Execution payload** (`oc:hasPayload` with `oc:executor` + `oc:code`)
+- Dependencies and relations (`oc:dependsOn`, `oc:extends`, `oc:contradicts`)
+
+### Runtime (Artifact)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      RUNTIME                            │
+│                                                         │
+│   Agent ◄──────► OntoMCP (Rust) ◄──────► .ttl files    │
+│                                                         │
+│   SKILL.md files DO NOT EXIST in the agent's context    │
+│                                                         │
+│   The .ttl files are self-contained, modular,           │
+│   pluggable ontologies. All logic lives in RDF.         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**The compiled TTL is the executable artifact. The Markdown is just source code that gets compiled away.**
+
+This separation enables:
+- **Human-friendly authoring** (Markdown during development)
+- **Machine-optimal execution** (OWL 2 at runtime)
+- **Modular deployment** (plug/unplug skill ontologies without touching source)
+
+---
+
+## 2. The Core Problem
 
 Large Language Models are powerful but **non-deterministic**. The same prompt can yield different outputs across runs. When an agent must navigate dozens of skills, it faces:
 
@@ -12,7 +112,7 @@ This is the **knowledge retrieval problem** in the age of LLMs.
 
 ---
 
-## 2. The Ontological Solution
+## 3. The Ontological Solution
 
 OntoClaw applies **Description Logics (DL)** — specifically the 𝒜𝒞ℛ𝒪ℐ𝒟 fragment underlying OWL 2 — to transform unstructured skill definitions into **formal, queryable knowledge graphs**.
 
@@ -29,7 +129,7 @@ Key properties:
 
 ---
 
-## 3. Neuro-Symbolic Architecture
+## 4. Neuro-Symbolic Architecture
 
 OntoClaw is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
 
@@ -42,15 +142,15 @@ OntoClaw is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-- **Neural**: Claude extracts structured knowledge from natural language
-- **Symbolic**: OWL 2 ontology stores knowledge with formal semantics
-- **Query**: SPARQL provides precise, indexed retrieval
+- **Neural**: Claude extracts structured knowledge from natural language (OntoCore)
+- **Symbolic**: OWL 2 ontology stores knowledge with formal semantics (OntoSkills)
+- **Query**: SPARQL provides precise, indexed retrieval (OntoMCP)
 
 The neural layer handles ambiguity and interpretation. The symbolic layer ensures consistency and verifiability.
 
 ---
 
-## 4. Democratizing Intelligence
+## 5. Democratizing Intelligence
 
 A key ambition: **enable smaller models to reason about large skill ecosystems**.
 
@@ -81,7 +181,7 @@ This two-stage querying prevents "blind" questions and improves precision.
 
 ---
 
-## 5. Performance Characteristics
+## 6. Performance Characteristics
 
 | Operation | Text Files | OWL Ontology |
 |-----------|------------|--------------|
@@ -98,7 +198,7 @@ The gap widens with scale.
 
 ---
 
-## 6. Schema-First Querying
+## 7. Schema-First Querying
 
 Traditional skill systems require the LLM to "guess" what information exists. OntoClaw inverts this:
 
@@ -120,7 +220,36 @@ This enables **informed querying** — the LLM knows the ontology's structure be
 
 ---
 
-## 7. Research Foundations
+## 8. Enterprise Focus
+
+OntoClaw is designed for **production enterprise environments**:
+
+### Determinism Over Flexibility
+
+While other agents optimize for flexibility, OntoClaw optimizes for **predictable, reproducible behavior**:
+
+- Same input → same skill selection (via SPARQL, not LLM judgment)
+- Same dependencies → same execution order (via `oc:dependsOn` edges)
+- Same states → same transitions (via `oc:requiresState` / `oc:yieldsState`)
+
+### Security First
+
+OntoCore implements **defense-in-depth**:
+- Regex pattern matching for known attack vectors
+- LLM review for ambiguous content
+- SHACL validation prevents malformed ontologies
+- No execution of unvalidated payloads
+
+### Audit Trail
+
+Every compiled skill carries:
+- `oc:generatedBy` — which LLM model extracted it
+- `oc:hash` — content hash for integrity verification
+- `oc:provenance` — source file reference
+
+---
+
+## 9. Research Foundations
 
 OntoClaw builds on decades of research in Knowledge Representation and Reasoning:
 
