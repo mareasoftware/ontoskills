@@ -6,16 +6,16 @@ OntoClaw is not just a compiler — it's a **complete neuro-symbolic platform** 
 
 ```mermaid
 flowchart LR
-    A["OntoClaw<br/>Enterprise Agent<br/>━━━━━━━━━━<br/>Deterministic reasoning<br/>via SPARQL queries"] --> B["OntoStore<br/>Registry<br/>━━━━━━━━━━<br/>Versioned skill<br/>distribution"]
-    B --> C["OntoMCP<br/>Rust Server<br/>━━━━━━━━━━<br/>Blazing-fast<br/>in-memory graph"]
-    C --> D["OntoSkills<br/>OWL 2<br/>━━━━━━━━━━<br/>Compiled .ttl<br/>ontologies"]
-    D --> E["OntoCore<br/>Compiler<br/>━━━━━━━━━━<br/>SKILL.md → TTL<br/>+ SHACL validation"]
+    CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
+    CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
+    MCP <-->|"queries"| AGENT["OntoClaw<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
+    CENTER <-->|"distributes"| STORE["OntoStore<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
 
-    style A fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
-    style B fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
-    style C fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
-    style D fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
-    style E fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
+    style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
+    style CENTER fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
+    style MCP fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
+    style AGENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
+    style STORE fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
 ```
 
 ### The Vision
