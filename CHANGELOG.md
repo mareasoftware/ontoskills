@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-03-17
+
+### Added
+
+#### Local MCP Server
+
+- Added a new **Rust-based local MCP server** under `mcp/`
+  - Loads compiled OntoClaw ontologies from `.ttl` files
+  - Speaks MCP over `stdio`
+  - Auto-discovers `ontoskills/` from the current directory and its parents
+  - Can also be pointed at a custom ontology root with `--ontology-root`
+
+#### MCP Tooling
+
+- Implemented MCP tools for semantic skill discovery and planning:
+  - `list_skills`
+  - `find_skills_by_intent`
+  - `get_skill`
+  - `get_skill_requirements`
+  - `get_skill_transitions`
+  - `get_skill_dependencies`
+  - `get_skill_conflicts`
+  - `find_skills_yielding_state`
+  - `find_skills_requiring_state`
+  - `check_skill_applicability`
+  - `plan_from_intent`
+  - `get_skill_payload`
+
+#### Planning Engine
+
+- Added state-aware planning inside the Rust MCP catalog:
+  - checks `requiresState` against caller-provided current states
+  - finds preparatory skills through `yieldsState`
+  - ranks candidate plans by unresolved states and step count
+  - prefers direct skills over setup-heavy alternatives when possible
+
+#### Rust Test Coverage
+
+- Added Rust unit tests for:
+  - intent lookup
+  - payload lookup
+  - planning with preparatory skills
+  - planner ranking preference for direct skills
+
+### Changed
+
+#### Documentation
+
+- Updated `README.md` to reflect that `mcp/` is now implemented
+- Added MCP usage, run commands, and verification instructions
+- Updated `mcp/README.md` with scope, tool list, auto-discovery behavior, and run instructions
+- Added `mcp/CLAUDE_CODE_GUIDE.md` with build, run, registration, verification, and troubleshooting steps for Claude Code
+
+#### MCP Compatibility
+
+- Updated the Rust MCP server to support Claude Code's current handshake behavior
+  - supports protocol version `2025-11-25`
+  - accepts line-delimited JSON requests on `stdio` in addition to framed `Content-Length` transport
+  - replies using the same wire mode used by the client
+  - exposes empty `resources/list`, `resources/templates/list`, and `prompts/list` endpoints for client compatibility
+
+---
+
 ## [0.4.0] - 2026-03-17
 
 ### Breaking Changes
