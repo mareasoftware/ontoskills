@@ -4,6 +4,64 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-03-17
+
+### Breaking Changes
+
+#### Output Filename Change
+
+- **`skill.ttl` → `ontoskill.ttl`** - Output skill modules are now named `ontoskill.ttl` instead of `skill.ttl`
+  - Affects all path references in code and tests
+  - Run `ontoclaw compile --force` after upgrading to regenerate modules with new naming
+
+### Changed
+
+#### Perfect Mirroring Architecture
+
+The compiler now acts as a **Semantic Bundler** - the output directory (`ontoskills/`) is a perfect, executable mirror of the input directory (`skills/`).
+
+- **Traversal logic** - Now iterates through ALL files recursively using `rglob("*")` instead of only finding directories with `SKILL.md`
+- **3-Rule File Processing**:
+  - **Rule A (Core Skills)**: `SKILL.md` → compiled via LLM → `ontoskill.ttl`
+  - **Rule B (Auxiliary Markdown)**: `*.md` → compiled via LLM → `*.ttl` (logged, pipeline pending)
+  - **Rule C (Asset Copying)**: Non-markdown files (`.py`, `.js`, `.xsd`, etc.) → direct copy via `shutil.copy2`
+
+#### Orphan Cleanup Enhanced
+
+- **`clean_orphaned_files()`** - Replaces `clean_orphaned_skills()` with comprehensive mirror sync:
+  - `ontoskill.ttl` → `SKILL.md` mapping
+  - `*.ttl` → `*.md` mapping (auxiliary markdown)
+  - Direct asset mapping (non-ttl files map to same path)
+- **`SYSTEM_FILES` safeguard** - Protects compiler-generated files from cleanup:
+  - `ontoclaw-core.ttl` - Core TBox ontology
+  - `index.ttl` - Manifest with owl:imports
+
+### Removed
+
+- **`clean_orphaned_skills()`** - Replaced by `clean_orphaned_files()` (no backward compatibility wrapper)
+- **Legacy `skill.ttl` references** - All code and tests updated to use `ontoskill.ttl`
+
+### Testing
+
+- **test_storage.py** - 8 new tests for perfect mirroring:
+  - `test_clean_orphaned_files_removes_orphan`
+  - `test_clean_orphaned_files_preserves_valid`
+  - `test_clean_orphaned_files_dry_run`
+  - `test_clean_orphaned_files_preserves_system_files`
+  - `test_clean_orphaned_files_removes_orphan_asset`
+  - `test_clean_orphaned_files_preserves_valid_asset`
+  - `test_clean_orphaned_files_auxiliary_markdown_mapping`
+  - `test_clean_orphaned_files_preserves_auxiliary_with_source`
+  - `test_system_files_constant`
+- All existing tests updated for `ontoskill.ttl` naming
+- Removed backward compatibility test
+
+### Test Summary
+
+- **156 tests** pass (3 deselected integration tests)
+
+---
+
 ## [0.3.0] - 2026-03-17
 
 ### Changed
