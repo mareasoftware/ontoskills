@@ -1,14 +1,14 @@
-# OntoClaw Philosophy
+# OntoSkills Philosophy
 
 ## 0. Neuro-Symbolic AI Agent Platform
 
-OntoClaw is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
+OntoSkills is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
 
 ```mermaid
 flowchart LR
     CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
     CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
-    MCP <-->|"queries"| AGENT["OntoClaw<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
+    MCP <-->|"queries"| AGENT["OntoSkills<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
     CENTER <-->|"distributes"| STORE["OntoStore<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
 
     style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
@@ -20,7 +20,7 @@ flowchart LR
 
 ### The Vision
 
-**OntoClaw** is inspired by OpenClaw, Claude Code, and Cursor — but built for **enterprise** with a focus on:
+**OntoSkills** is inspired by OpenClaw, Claude Code, and Cursor — but built for **enterprise** with a focus on:
 
 - **Determinism**: OWL 2 Description Logics guarantee decidable reasoning
 - **Speed**: Rust-based runtime (OntoMCP) for blazing-fast SPARQL queries
@@ -160,19 +160,19 @@ Without formal semantics, every LLM query about skills is a **gamble on interpre
 
 ---
 
-This is the **knowledge retrieval problem** in the age of LLMs — and OntoClaw solves it by making skills **queryable, not readable**.
+This is the **knowledge retrieval problem** in the age of LLMs — and OntoSkills solves it by making skills **queryable, not readable**.
 
 ---
 
 ## 3. The Ontological Solution
 
-OntoClaw applies **Description Logics (DL)** — specifically the **$\mathcal{SROIQ}^{(D)}$** fragment underlying OWL 2 DL — to transform unstructured skill definitions into **formal, queryable knowledge graphs**.
+OntoSkills applies **Description Logics (DL)** — specifically the **$\mathcal{SROIQ}^{(D)}$** fragment underlying OWL 2 DL — to transform unstructured skill definitions into **formal, queryable knowledge graphs**.
 
 ### Why $\mathcal{SROIQ}^{(D)}$?
 
 Each letter represents a capability that solves a specific problem in skill modeling:
 
-| Feature | Capability | OntoClaw Example |
+| Feature | Capability | OntoSkills Example |
 |---------|------------|------------------|
 | **$\mathcal{S}$** | Transitive properties | `A extends B extends C` → A extends C automatically |
 | **$\mathcal{R}$** | Complex role inclusions | `dependsOn` and `contradicts` are mutually exclusive |
@@ -187,7 +187,7 @@ Each letter represents a capability that solves a specific problem in skill mode
 
 ## 4. Neuro-Symbolic Architecture
 
-OntoClaw is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
+OntoSkills is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
 
 ```mermaid
 flowchart LR
@@ -224,7 +224,7 @@ This is especially valuable for:
 
 Before querying, an LLM needs to know: **"What can I ask?"**
 
-OntoClaw exposes the **TBox** (terminological box) — the schema of classes and properties — separately from the **ABox** (assertional box) of individual skills.
+OntoSkills exposes the **TBox** (terminological box) — the schema of classes and properties — separately from the **ABox** (assertional box) of individual skills.
 
 ```mermaid
 flowchart LR
@@ -257,7 +257,7 @@ The gap widens with scale.
 
 ## 7. Schema-First Querying
 
-Traditional skill systems require the LLM to "guess" what information exists. OntoClaw inverts this:
+Traditional skill systems require the LLM to "guess" what information exists. OntoSkills inverts this:
 
 1. **First**: Query the TBox to understand available classes and properties
 2. **Then**: Construct precise ABox queries with known predicates
@@ -279,11 +279,11 @@ This enables **informed querying** — the LLM knows the ontology's structure be
 
 ## 8. Enterprise Focus
 
-OntoClaw is designed for **production enterprise environments**:
+OntoSkills is designed for **production enterprise environments**:
 
 ### Determinism Over Flexibility
 
-While other agents optimize for flexibility, OntoClaw optimizes for **predictable, reproducible behavior**:
+While other agents optimize for flexibility, OntoSkills optimizes for **predictable, reproducible behavior**:
 
 - Same input → same skill selection (via SPARQL, not LLM judgment)
 - Same dependencies → same execution order (via `oc:dependsOn` edges)
@@ -308,7 +308,7 @@ Every compiled skill carries:
 
 ## 9. Research Foundations
 
-OntoClaw builds on decades of research in Knowledge Representation, Logical Reasoning, and modern AI:
+OntoSkills builds on decades of research in Knowledge Representation, Logical Reasoning, and modern AI:
 
 **Description Logics & Reasoning**
 * Baader, F., Calvanese, D., McGuinness, D., Nardi, D., & Patel-Schneider, P. (2003). *The Description Logic Handbook*. Cambridge University Press.
@@ -329,4 +329,4 @@ OntoClaw builds on decades of research in Knowledge Representation, Logical Reas
 * Heath, T., Bizer, C. (2011). "Linked Data: Evolving the Web into a Global Data Space". *Synthesis Lectures on the Semantic Web*.
 * SPARQL 1.1 Query Language (2013). https://www.w3.org/TR/sparql11-query/
 
-*OntoClaw is the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*
+*OntoSkills is the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*

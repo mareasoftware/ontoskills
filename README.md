@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/ontoclaw-banner.png" alt="OntoClaw: Neuro-Symbolic Skill Compiler" width="100%">
+  <img src="assets/ontoskills-banner.png" alt="OntoSkills: Neuro-Symbolic Skill Compiler" width="100%">
 </p>
 
 <h1 align="center">
-  <a href="https://ontoclaw.marea.software" style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center; gap: 10px;">
-    <img src="assets/ontoclaw-logo.png" alt="OntoClaw Logo Inline" height="40px" style="display: block;">
-    <span>OntoClaw</span>
+  <a href="https://ontoskills.marea.software" style="text-decoration: none; color: inherit; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <img src="assets/ontoskills-logo.png" alt="OntoSkills Logo Inline" height="40px" style="display: block;">
+    <span>OntoSkills</span>
   </a>
 </h1>
 
@@ -37,15 +37,15 @@
 
 ---
 
-## OntoClaw: Neuro-Symbolic AI Agent Platform
+## OntoSkills: Neuro-Symbolic AI Agent Platform
 
-OntoClaw is a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. It consists of four layered components:
+OntoSkills is a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. It consists of four layered components:
 
 ```mermaid
 flowchart LR
     CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
     CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
-    MCP <-->|"queries"| AGENT["OntoClaw<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
+    MCP <-->|"queries"| AGENT["OntoSkills<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
     CENTER <-->|"distributes"| STORE["OntoStore<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
 
     style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
@@ -59,7 +59,7 @@ flowchart LR
 
 ## Use Cases
 
-| Use Case | How OntoClaw Helps |
+| Use Case | How OntoSkills Helps |
 |----------|-------------------|
 | **Enterprise AI Agents** | Deterministic skill selection via SPARQL queries instead of LLM judgment |
 | **Edge Deployment** | Smaller models query large skill ecosystems without loading all files |
@@ -81,7 +81,7 @@ flowchart LR
 
 ---
 
-## Why OntoClaw? — Deterministic AI Agents
+## Why OntoSkills? — Deterministic AI Agents
 
 ### The Determinism Problem
 
@@ -90,7 +90,7 @@ LLMs are inherently **non-deterministic** — the same query can yield different
 - **Hallucinations** when information is scattered
 - **No verifiable structure** for skill relationships
 
-OntoClaw transforms this into **deterministic, queryable knowledge graphs**.
+OntoSkills transforms this into **deterministic, queryable knowledge graphs**.
 
 ### Description Logics Foundation
 
@@ -201,7 +201,7 @@ The classification is **automatic** - you don't specify it. If a skill has code 
 | **OntoCore** (`core/`) | Python | ✅ Ready | Design Time | Skill compiler to OWL 2 ontology |
 | **OntoMCP** (`mcp/`) | Rust | ✅ Ready | Runtime | MCP server for semantic skill discovery and planning |
 | **OntoStore** | TBD | 📋 Roadmap | Distribution | Versioned skill registry |
-| **OntoClaw** | Python/Rust | 📋 Roadmap | Agent | Enterprise AI agent |
+| **OntoSkills** | Python/Rust | 📋 Roadmap | Agent | Enterprise AI agent |
 | `skills/` | Markdown | ✅ Ready | Design Time | **Source code** — human-authored skill definitions |
 | `ontoskills/` | Turtle | Generated | Runtime | **Artifact** — compiled, self-contained ontologies |
 | `specs/` | Turtle | ✅ Ready | Both | SHACL shapes constitution |
@@ -332,7 +332,7 @@ ontoclaw diff --suggest
 
 ## Local MCP Server
 
-OntoClaw now includes a **local Rust MCP server** under [mcp/](mcp/).
+OntoSkills now includes a **local Rust MCP server** under [mcp/](mcp/).
 
 The MCP server is intentionally focused on:
 
@@ -588,7 +588,7 @@ Detected threats:
   </a>
 </p>
 
-OntoClaw is open-source software, licensed under the **[MIT License](LICENSE)**.
+OntoSkills is open-source software, licensed under the **[MIT License](LICENSE)**.
 
 | Permissions | Conditions | Limitations |
 |-------------|------------|-------------|

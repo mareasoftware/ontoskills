@@ -1,16 +1,16 @@
-# OntoClaw MCP With Claude Code
+# OntoSkills MCP With Claude Code
 
 ## Overview
 
 This guide explains how to:
 
-- build the OntoClaw MCP server
+- build the OntoSkills MCP server
 - run it manually
 - register it in Claude Code
 - verify that Claude Code sees it as connected
 - understand where ontology data comes from
 
-The OntoClaw MCP server is a **local stdio server**.
+The OntoSkills MCP server is a **local stdio server**.
 It is not an HTTP service and it does not listen on a TCP port.
 
 Claude Code starts it as a subprocess and talks to it over `stdin/stdout`.
@@ -137,7 +137,7 @@ Re-add it with a different ontology root if needed.
 
 ## What Claude Code Uses
 
-Once connected, Claude Code can call tools exposed by OntoClaw, including:
+Once connected, Claude Code can call tools exposed by OntoSkills, including:
 
 - `list_skills`
 - `find_skills_by_intent`

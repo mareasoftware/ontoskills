@@ -1,6 +1,6 @@
 # OntoMCP
 
-Rust-based local MCP (Model Context Protocol) server for the OntoClaw ecosystem.
+Rust-based local MCP (Model Context Protocol) server for the OntoSkills ecosystem.
 
 **Status:** ✅ Ready
 
@@ -8,7 +8,7 @@ Rust-based local MCP (Model Context Protocol) server for the OntoClaw ecosystem.
 
 ## Overview
 
-OntoMCP is the **runtime layer** of OntoClaw. It loads compiled OntoSkills (`.ttl` files) into an in-memory RDF graph and provides blazing-fast SPARQL queries to AI agents via the Model Context Protocol.
+OntoMCP is the **runtime layer** of OntoSkills. It loads compiled OntoSkills (`.ttl` files) into an in-memory RDF graph and provides blazing-fast SPARQL queries to AI agents via the Model Context Protocol.
 
 ```mermaid
 flowchart LR
@@ -156,8 +156,8 @@ cargo test
 | **OntoCore** | Python | Design-time compiler |
 | **OntoMCP** | Rust | Runtime server (this) |
 | **OntoStore** | TBD | Skill registry (planned) |
-| **OntoClaw** | Python/Rust | Enterprise AI agent (planned) |
+| **OntoSkills** | Python/Rust | Enterprise AI agent (planned) |
 
 ---
 
-*Part of the [OntoClaw ecosystem](../README.md).*
+*Part of the [OntoSkills ecosystem](../README.md).*
