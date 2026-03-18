@@ -106,8 +106,8 @@ class ExtractedSkill(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def parse_nested_json(cls, data: Any) -> Any:
-        """Parse JSON strings for nested models if LLM returns them as strings."""
+    def parse_and_clean_nested_data(cls, data: Any) -> Any:
+        """Parse JSON strings and filter incomplete knowledge_nodes."""
         if isinstance(data, dict):
             # Parse state_transitions if it's a string
             if 'state_transitions' in data and isinstance(data['state_transitions'], str):
@@ -122,6 +122,22 @@ class ExtractedSkill(BaseModel):
                     data['execution_payload'] = json.loads(data['execution_payload'])
                 except json.JSONDecodeError:
                     pass
+
+            # Filter out incomplete knowledge_nodes (LLM sometimes returns partial nodes)
+            # Only filter when nodes are dicts; leave KnowledgeNode objects as-is
+            if 'knowledge_nodes' in data and isinstance(data['knowledge_nodes'], list):
+                required_fields = {'node_type', 'directive_content', 'applies_to_context', 'has_rationale'}
+                filtered_nodes = []
+                for node in data['knowledge_nodes']:
+                    if isinstance(node, KnowledgeNode):
+                        # Already a valid KnowledgeNode object, keep it
+                        filtered_nodes.append(node)
+                    elif isinstance(node, dict):
+                        # Check if dict has all required fields with non-empty values
+                        if required_fields.issubset(node.keys()) and all(node.get(f) for f in required_fields):
+                            filtered_nodes.append(node)
+                    # Skip invalid/incomplete nodes
+                data['knowledge_nodes'] = filtered_nodes
 
         return data
 
