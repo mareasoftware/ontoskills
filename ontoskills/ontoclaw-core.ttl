@@ -1,11 +1,12 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix oc: <http://ontoclaw.marea.software/ontology#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 <http://ontoclaw.marea.software/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-18T00:46:46.567250" ;
+    dcterms:created "2026-03-18T10:08:31.078894" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoClaw Core Ontology" .
 
@@ -14,11 +15,43 @@ oc:APIKeySet a owl:Class ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "APIKeySet" .
 
+oc:AmbiguityTolerance a owl:Class ;
+    rdfs:label "AmbiguityTolerance" ;
+    rdfs:subClassOf oc:CognitiveBoundary .
+
+oc:AntiPattern a owl:Class ;
+    rdfs:label "AntiPattern" ;
+    rdfs:subClassOf oc:NormativeRule .
+
+oc:AssumptionBoundary a owl:Class ;
+    rdfs:label "AssumptionBoundary" ;
+    rdfs:subClassOf oc:CognitiveBoundary .
+
+oc:ComputeCost a owl:Class ;
+    rdfs:label "ComputeCost" ;
+    rdfs:subClassOf oc:ResourceProfile .
+
+oc:Constraint a owl:Class ;
+    rdfs:label "Constraint" ;
+    rdfs:subClassOf oc:NormativeRule .
+
+oc:DataProvenance a owl:Class ;
+    rdfs:label "DataProvenance" ;
+    rdfs:subClassOf oc:TrustMetric .
+
 oc:DeclarativeSkill a owl:Class ;
     rdfs:label "Declarative Skill" ;
     rdfs:comment "A skill without executable code (declarative knowledge)" ;
     rdfs:subClassOf oc:Skill ;
     owl:disjointWith oc:ExecutableSkill .
+
+oc:DesignPrinciple a owl:Class ;
+    rdfs:label "DesignPrinciple" ;
+    rdfs:subClassOf oc:StrategicInsight .
+
+oc:DestructivePotential a owl:Class ;
+    rdfs:label "DestructivePotential" ;
+    rdfs:subClassOf oc:SecurityGuardrail .
 
 oc:DirectoryWritable a owl:Class ;
     rdfs:label "DirectoryWritable" ;
@@ -30,6 +63,14 @@ oc:EnvironmentReady a owl:Class ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "EnvironmentReady" .
 
+oc:ExecutionDeterminism a owl:Class ;
+    rdfs:label "ExecutionDeterminism" ;
+    rdfs:subClassOf oc:TrustMetric .
+
+oc:FallbackStrategy a owl:Class ;
+    rdfs:label "FallbackStrategy" ;
+    rdfs:subClassOf oc:SecurityGuardrail .
+
 oc:FileExists a owl:Class ;
     rdfs:label "FileExists" ;
     rdfs:subClassOf oc:State ;
@@ -40,10 +81,22 @@ oc:FileNotFound a owl:Class ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "FileNotFound" .
 
+oc:Heuristic a owl:Class ;
+    rdfs:label "Heuristic" ;
+    rdfs:subClassOf oc:StrategicInsight .
+
+oc:Idempotency a owl:Class ;
+    rdfs:label "Idempotency" ;
+    rdfs:subClassOf oc:ExecutionPhysics .
+
 oc:InvalidInput a owl:Class ;
     rdfs:label "InvalidInput" ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "InvalidInput" .
+
+oc:KnownIssue a owl:Class ;
+    rdfs:label "KnownIssue" ;
+    rdfs:subClassOf oc:ResilienceTactic .
 
 oc:NetworkAvailable a owl:Class ;
     rdfs:label "NetworkAvailable" ;
@@ -60,20 +113,77 @@ oc:OperationFailed a owl:Class ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "OperationFailed" .
 
+oc:PerformanceProfile a owl:Class ;
+    rdfs:label "PerformanceProfile" ;
+    rdfs:subClassOf oc:ExecutionPhysics .
+
 oc:PermissionDenied a owl:Class ;
     rdfs:label "PermissionDenied" ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "PermissionDenied" .
+
+oc:PostFlightValidation a owl:Class ;
+    rdfs:label "PostFlightValidation" ;
+    rdfs:subClassOf oc:LifecycleHook .
+
+oc:PreFlightCheck a owl:Class ;
+    rdfs:label "PreFlightCheck" ;
+    rdfs:subClassOf oc:LifecycleHook .
+
+oc:RecoveryTactic a owl:Class ;
+    rdfs:label "RecoveryTactic" ;
+    rdfs:subClassOf oc:ResilienceTactic .
+
+oc:RequiresHumanClarification a owl:Class ;
+    rdfs:label "RequiresHumanClarification" ;
+    rdfs:subClassOf oc:CognitiveBoundary .
+
+oc:RollbackProcedure a owl:Class ;
+    rdfs:label "RollbackProcedure" ;
+    rdfs:subClassOf oc:LifecycleHook .
+
+oc:SecurityImplication a owl:Class ;
+    rdfs:label "SecurityImplication" ;
+    rdfs:subClassOf oc:SecurityGuardrail .
+
+oc:SideEffect a owl:Class ;
+    rdfs:label "SideEffect" ;
+    rdfs:subClassOf oc:ExecutionPhysics .
+
+oc:Standard a owl:Class ;
+    rdfs:label "Standard" ;
+    rdfs:subClassOf oc:NormativeRule .
+
+oc:SuccessIndicator a owl:Class ;
+    rdfs:label "SuccessIndicator" ;
+    rdfs:subClassOf oc:Observability .
 
 oc:SystemAuthenticated a owl:Class ;
     rdfs:label "SystemAuthenticated" ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "SystemAuthenticated" .
 
+oc:TelemetryPattern a owl:Class ;
+    rdfs:label "TelemetryPattern" ;
+    rdfs:subClassOf oc:Observability .
+
+oc:TokenEconomy a owl:Class ;
+    rdfs:label "TokenEconomy" ;
+    rdfs:subClassOf oc:ResourceProfile .
+
 oc:ToolInstalled a owl:Class ;
     rdfs:label "ToolInstalled" ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "ToolInstalled" .
+
+oc:WorkflowStrategy a owl:Class ;
+    rdfs:label "WorkflowStrategy" ;
+    rdfs:subClassOf oc:StrategicInsight .
+
+oc:appliesToContext a owl:DatatypeProperty ;
+    rdfs:label "applies to context" ;
+    rdfs:comment "When this rule applies" ;
+    rdfs:domain oc:KnowledgeNode .
 
 oc:code a owl:DatatypeProperty ;
     rdfs:label "code" ;
@@ -105,6 +215,11 @@ oc:differentia a owl:DatatypeProperty ;
     rdfs:comment "Specific characteristics that differentiate this skill" ;
     rdfs:domain oc:Skill .
 
+oc:directiveContent a owl:DatatypeProperty ;
+    rdfs:label "directive content" ;
+    rdfs:comment "The actual rule/guideline text" ;
+    rdfs:domain oc:KnowledgeNode .
+
 oc:executionPath a owl:DatatypeProperty ;
     rdfs:label "execution path" ;
     rdfs:comment "Relative URI/path to the executable asset file copied by the compiler (e.g., './scripts/document.py')" ;
@@ -114,14 +229,6 @@ oc:executor a owl:DatatypeProperty ;
     rdfs:label "executor" ;
     rdfs:comment "Executor type (e.g., 'shell', 'python', 'javascript')" ;
     rdfs:domain oc:ExecutionPayload .
-
-oc:extends a owl:ObjectProperty,
-        owl:TransitiveProperty ;
-    rdfs:label "extends" ;
-    rdfs:comment "Skill extends another skill (inheritance)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range oc:Skill ;
-    owl:inverseOf oc:isExtendedBy .
 
 oc:generatedBy a owl:DatatypeProperty ;
     rdfs:label "generated by" ;
@@ -144,6 +251,11 @@ oc:hasPayload a owl:ObjectProperty ;
     rdfs:comment "Links a skill to its execution payload" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:ExecutionPayload .
+
+oc:hasRationale a owl:DatatypeProperty ;
+    rdfs:label "has rationale" ;
+    rdfs:comment "Why this rule exists" ;
+    rdfs:domain oc:KnowledgeNode .
 
 oc:hasRequirement a owl:ObjectProperty ;
     rdfs:label "has requirement" ;
@@ -180,6 +292,11 @@ oc:resolvesIntent a owl:DatatypeProperty ;
     rdfs:comment "User intent that this skill can resolve" ;
     rdfs:domain oc:Skill .
 
+oc:severityLevel a owl:DatatypeProperty ;
+    rdfs:label "severity level" ;
+    rdfs:comment "Must be one of: CRITICAL, HIGH, MEDIUM, LOW" ;
+    rdfs:domain oc:KnowledgeNode .
+
 oc:timeout a owl:DatatypeProperty ;
     rdfs:label "timeout" ;
     rdfs:comment "Execution timeout in seconds" ;
@@ -206,15 +323,80 @@ oc:enables a owl:ObjectProperty ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill .
 
+oc:extends a owl:ObjectProperty,
+        owl:TransitiveProperty ;
+    rdfs:label "extends" ;
+    rdfs:comment "Skill extends another skill (inheritance)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range oc:Skill ;
+    owl:inverseOf oc:isExtendedBy .
+
+oc:impartsKnowledge a owl:AsymmetricProperty,
+        owl:IrreflexiveProperty,
+        owl:ObjectProperty ;
+    rdfs:label "imparts knowledge" ;
+    rdfs:comment "Links a skill to epistemic knowledge it imparts to the agent" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range oc:KnowledgeNode ;
+    rdfs:subPropertyOf oc:inheritsKnowledge .
+
+oc:inheritsKnowledge a owl:ObjectProperty ;
+    rdfs:label "inherits knowledge" ;
+    owl:propertyChainAxiom ( oc:extends oc:impartsKnowledge ) .
+
 oc:isExtendedBy a owl:ObjectProperty ;
     rdfs:label "is extended by" ;
     rdfs:comment "Inverse of extends" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill .
 
+oc:Observability a owl:Class ;
+    rdfs:label "Observability" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:ResilienceTactic a owl:Class ;
+    rdfs:label "ResilienceTactic" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:ResourceProfile a owl:Class ;
+    rdfs:label "ResourceProfile" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:TrustMetric a owl:Class ;
+    rdfs:label "TrustMetric" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:CognitiveBoundary a owl:Class ;
+    rdfs:label "CognitiveBoundary" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:ExecutionPhysics a owl:Class ;
+    rdfs:label "ExecutionPhysics" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:LifecycleHook a owl:Class ;
+    rdfs:label "LifecycleHook" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:NormativeRule a owl:Class ;
+    rdfs:label "NormativeRule" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:SecurityGuardrail a owl:Class ;
+    rdfs:label "SecurityGuardrail" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:StrategicInsight a owl:Class ;
+    rdfs:label "StrategicInsight" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
 oc:ExecutionPayload a owl:Class ;
     rdfs:label "Execution Payload" ;
     rdfs:comment "Container for executable code and execution metadata" .
+
+oc:KnowledgeNode a owl:Class ;
+    rdfs:label "Knowledge Node" ;
+    rdfs:comment "Epistemic knowledge imparted by a skill to an agent" .
 
 oc:State a owl:Class ;
     rdfs:label "State" ;
