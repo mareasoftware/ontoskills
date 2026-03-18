@@ -2,7 +2,7 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 
 <http://ontoclaw.marea.software/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-18T01:06:14.276209" ;
+    dcterms:created "2026-03-18T10:21:34.394958" ;
     dcterms:description "Index manifest referencing all compiled skill modules" ;
     dcterms:title "OntoClaw Skill Index" ;
     owl:imports <file:///Users/marcello/Developer/Marea/ontoclaw/ontoskills/office/ontoskill.ttl>,

@@ -10,12 +10,11 @@
 oc:skill_85daf4eef0ab9248 a oc:ExecutableSkill,
         oc:Skill ;
     oc:contentHash "85daf4eef0ab9248e078a81216396133bc50f5d1a543e02eaf9888e8ec49b9d7" ;
-    oc:differentia "Integrates openpyxl, pandas, and LibreOffice for comprehensive Excel workflows with formula preservation and validation" ;
+    oc:differentia "Provides comprehensive Excel file creation, editing, and analysis with formula preservation, financial modeling standards, and automated recalculation via LibreOffice" ;
     oc:generatedBy "glm-5" ;
     oc:handlesFailure oc:FileNotFound,
         oc:FormulaError,
-        oc:LibreOfficeError,
-        oc:PermissionDenied ;
+        oc:LibreOfficeUnavailable ;
     oc:hasPayload oc:payload_85daf4eef0ab9248 ;
     oc:hasRequirement oc:req_111f766b,
         oc:req_22a0b4bf,
@@ -24,53 +23,42 @@ oc:skill_85daf4eef0ab9248 a oc:ExecutableSkill,
         oc:req_7e9ca2f5,
         oc:req_a01cc226 ;
     oc:nature "Tool" ;
-    oc:requiresState oc:EnvironmentReady,
-        oc:PythonAvailable ;
+    oc:requiresState oc:FileExists,
+        oc:PythonInstalled ;
     oc:resolvesIntent "analyze spreadsheet data",
+        "create financial model",
         "create spreadsheet",
         "edit excel file",
-        "format financial models",
-        "preserve excel formulas",
-        "recalculate formulas",
-        "validate formula errors" ;
-    oc:yieldsState oc:DataAnalyzed,
-        oc:FormulasValidated,
+        "format financial data",
+        "preserve formulas in excel",
+        "recalculate formulas" ;
+    oc:yieldsState oc:FormulasRecalculated,
         oc:SpreadsheetCreated,
         oc:SpreadsheetModified ;
     dcterms:identifier "xlsx" ;
-    skos:broader "Spreadsheet manipulation toolkit" ;
+    skos:broader "Spreadsheet manipulation system" ;
     prov:wasDerivedFrom "/Users/marcello/Developer/Marea/ontoclaw/skills/office/public/xlsx" .
 
 oc:payload_85daf4eef0ab9248 a oc:ExecutionPayload ;
-    oc:code """# Main operations via openpyxl and pandas
-from openpyxl import Workbook, load_workbook
-import pandas as pd
+    oc:code """# Create new spreadsheet
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
-# Creation workflow
 wb = Workbook()
-ws = wb.active
-ws['A1'] = 'Value'
-ws['B1'] = '=SUM(A2:A10)'
+sheet = wb.active
+sheet['A1'] = 'Data'
+sheet['B1'] = 'Value'
+sheet['B2'] = '=SUM(B3:B10)'
 wb.save('output.xlsx')
 
-# Editing workflow
-wb = load_workbook('existing.xlsx')
-ws = wb.active
-ws['A1'] = 'New Value'
-wb.save('modified.xlsx')
-
-# Analysis workflow
-df = pd.read_excel('data.xlsx')
-print(df.describe())
-
-# Recalculation workflow
+# Recalculate formulas
 import subprocess
 result = subprocess.run(['python', 'recalc.py', 'output.xlsx'], capture_output=True, text=True)""" ;
     oc:executor "python" ;
     oc:timeout 60 .
 
 oc:req_111f766b a oc:RequirementTool ;
-    oc:isOptional false ;
+    oc:isOptional true ;
     oc:requirementValue "LibreOffice" .
 
 oc:req_22a0b4bf a oc:RequirementKnowledge ;

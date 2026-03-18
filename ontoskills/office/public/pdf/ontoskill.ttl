@@ -10,98 +10,110 @@
 oc:skill_49a660f1e7a50a30 a oc:ExecutableSkill,
         oc:Skill ;
     oc:contentHash "49a660f1e7a50a30383bcd58958edca0f89ce74997e603969bced0a56fe714a6" ;
-    oc:dependsOn "oc:NetworkAvailable",
-        "oc:SystemAuthenticated" ;
-    oc:differentia "Enables PDF manipulation via Python libraries and CLI tools" ;
+    oc:differentia "that enables comprehensive PDF operations including extraction, creation, merging, splitting, form filling, and conversion" ;
     oc:generatedBy "glm-5" ;
-    oc:handlesFailure oc:CorruptedFile,
-        oc:EncryptedFile,
+    oc:handlesFailure oc:CoordinateTransformationFailed,
         oc:FileNotFound,
-        oc:InvalidInput,
-        oc:OCRFailed,
+        oc:InvalidBoundingBox,
+        oc:InvalidFormField,
+        oc:PDFCorrupted,
+        oc:PDFEncrypted,
         oc:PermissionDenied ;
     oc:hasPayload oc:payload_49a660f1e7a50a30 ;
     oc:hasRequirement oc:req_060db269,
-        oc:req_2eda303f,
         oc:req_3b2e1010,
-        oc:req_3fcf652e,
         oc:req_70376ece,
-        oc:req_7cf00395,
         oc:req_7ec70d19,
+        oc:req_b5b5f0d8,
         oc:req_d87817a6,
+        oc:req_decf93db,
         oc:req_f08bdea9,
-        oc:req_fd635a4a ;
-    oc:nature "Tool" ;
-    oc:requiresState oc:EnvironmentReady,
-        oc:FileExists ;
+        oc:req_fd635a4a,
+        oc:req_fe56e945 ;
+    oc:nature "Work" ;
+    oc:requiresState oc:FileExists,
+        oc:PythonEnvironmentReady ;
     oc:resolvesIntent "add watermark to pdf",
+        "analyze pdf structure",
         "convert pdf to images",
         "create pdf",
-        "extract images from pdf",
         "extract pdf metadata",
         "extract tables from pdf",
         "extract text from pdf",
         "fill pdf form",
         "merge pdfs",
-        "ocr scanned pdf",
-        "protect pdf with password",
+        "password protect pdf",
+        "repair pdf",
         "rotate pdf pages",
         "split pdf" ;
-    oc:yieldsState oc:ImagesExtracted,
+    oc:yieldsState oc:PDFConvertedToImages,
         oc:PDFCreated,
-        oc:PDFFormsFilled,
-        oc:PDFModified,
-        oc:TablesExtracted,
+        oc:PDFFormFilled,
+        oc:PDFMerged,
+        oc:PDFProcessed,
+        oc:PDFSplit,
         oc:TextExtracted ;
     dcterms:identifier "pdf" ;
-    skos:broader "Document processor" ;
+    skos:broader "PDF manipulation toolkit" ;
     prov:wasDerivedFrom "/Users/marcello/Developer/Marea/ontoclaw/skills/office/public/pdf" .
 
 oc:payload_49a660f1e7a50a30 a oc:ExecutionPayload ;
-    oc:code """# PDF Processing execution framework
-# Supports: extraction, creation, merging, splitting, form filling
-import subprocess
-from pathlib import Path
+    oc:code """# PDF processing toolkit execution
+from pypdf import PdfReader, PdfWriter
+import pdfplumber
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
-# Use appropriate library based on operation type
-# - pypdf for merge/split/rotate
-# - pdfplumber for text/table extraction
-# - reportlab for creation
-# - Custom scripts for form filling (see scripts/)
-""" ;
+# Core operations available:
+# - Read/Write PDFs (pypdf)
+# - Extract text/tables (pdfplumber)
+# - Create PDFs (reportlab)
+# - Merge/Split PDFs (pypdf)
+# - Fill forms (pypdf + custom scripts)
+# - Convert to images (pdf2image)
+# - OCR scanned PDFs (pytesseract + pdf2image)
+
+# Command-line tools:
+# - qpdf: merge, split, rotate, encrypt
+# - pdftotext: extract text
+# - pdfimages: extract images
+
+# Form filling workflow:
+# 1. Check if fillable: python scripts/check_fillable_fields.py <pdf>
+# 2. Extract field info: python scripts/extract_form_field_info.py <pdf> <json>
+# 3. Fill fields: python scripts/fill_fillable_fields.py <pdf> <json> <output>
+# Or for non-fillable: python scripts/fill_pdf_form_with_annotations.py <pdf> <json> <output>""" ;
     oc:executor "python" .
 
 oc:req_060db269 a oc:RequirementTool ;
     oc:isOptional false ;
     oc:requirementValue "pypdf" .
 
-oc:req_2eda303f a oc:RequirementTool ;
-    oc:isOptional true ;
-    oc:requirementValue "pdf-lib" .
-
 oc:req_3b2e1010 a oc:RequirementTool ;
     oc:isOptional true ;
     oc:requirementValue "pytesseract" .
-
-oc:req_3fcf652e a oc:RequirementTool ;
-    oc:isOptional false ;
-    oc:requirementValue "python3" .
 
 oc:req_70376ece a oc:RequirementTool ;
     oc:isOptional true ;
     oc:requirementValue "pypdfium2" .
 
-oc:req_7cf00395 a oc:RequirementTool ;
-    oc:isOptional true ;
-    oc:requirementValue "poppler-utils" .
-
 oc:req_7ec70d19 a oc:RequirementTool ;
     oc:isOptional true ;
     oc:requirementValue "qpdf" .
 
+oc:req_b5b5f0d8 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pdftotext" .
+
 oc:req_d87817a6 a oc:RequirementTool ;
     oc:isOptional true ;
     oc:requirementValue "pdf2image" .
+
+oc:req_decf93db a oc:RequirementKnowledge ;
+    oc:isOptional false ;
+    oc:requirementValue "PDF coordinate system (origin at bottom-left)" .
 
 oc:req_f08bdea9 a oc:RequirementTool ;
     oc:isOptional false ;
@@ -110,4 +122,8 @@ oc:req_f08bdea9 a oc:RequirementTool ;
 oc:req_fd635a4a a oc:RequirementTool ;
     oc:isOptional false ;
     oc:requirementValue "reportlab" .
+
+oc:req_fe56e945 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pdfimages" .
 

@@ -7,81 +7,43 @@
 
 <http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/marcello/Developer/Marea/ontoclaw/ontoskills/ontoclaw-core.ttl> .
 
-oc:skill_3575d60d3212dce8 a oc:ExecutableSkill,
+oc:skill_3575d60d3212dce8 a oc:DeclarativeSkill,
         oc:Skill ;
     oc:contentHash "3575d60d3212dce8f7277b72ac590425807b16cd7854ab8d081d2658f8ebbe02" ;
-    oc:dependsOn "html",
-        "xml",
-        "zip-archives" ;
-    oc:differentia "Enables creation, modification, and analysis of .pptx files through three distinct workflows: HTML-to-PPTX conversion for new presentations, OOXML editing for existing presentations, and template-based generation with inventory/replace operations" ;
-    oc:extends "office-open-xml" ;
+    oc:differentia "Enables creation, editing, and analysis of PowerPoint files through HTML conversion and OOXML editing workflows" ;
     oc:generatedBy "glm-5" ;
-    oc:handlesFailure oc:ContentOverflow,
-        oc:FileNotFound,
-        oc:InvalidOOXML,
-        oc:TemplateMismatch,
-        oc:ValidationFailed ;
-    oc:hasPayload oc:payload_3575d60d3212dce8 ;
+    oc:handlesFailure oc:FileNotFound,
+        oc:InvalidInput,
+        oc:OverflowError,
+        oc:SchemaViolation ;
     oc:hasRequirement oc:req_111f766b,
         oc:req_35b52e17,
-        oc:req_37f5f5fd,
         oc:req_4cd3bc67,
         oc:req_54bd6ee6,
         oc:req_63145ec4,
-        oc:req_6652862f,
-        oc:req_75857e6b,
+        oc:req_6a8b02c8,
+        oc:req_755ee7ba,
         oc:req_7cf00395,
         oc:req_904a20c7,
-        oc:req_b518a391,
-        oc:req_b6b8e7db ;
-    oc:nature "Work" ;
-    oc:requiresState oc:FileSystemWritable,
-        oc:SystemAuthenticated,
-        oc:ToolInstalled ;
-    oc:resolvesIntent "analyze presentation content",
-        "convert HTML to PowerPoint",
+        oc:req_a74cdce8 ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:EnvironmentReady ;
+    oc:resolvesIntent "add charts to presentation",
+        "analyze presentation",
+        "convert html to powerpoint",
         "create presentation",
         "create slides from template",
         "edit presentation",
-        "extract presentation text",
-        "generate thumbnail grids",
-        "modify existing slides",
-        "pack edited PPTX files",
-        "replace presentation text",
-        "unpack PPTX for editing",
-        "validate presentation structure" ;
+        "extract presentation thumbnails",
+        "extract text from pptx",
+        "modify slide content",
+        "rearrange slides" ;
     oc:yieldsState oc:PresentationAnalyzed,
         oc:PresentationCreated,
-        oc:PresentationModified,
-        oc:TextExtracted,
-        oc:ThumbnailsGenerated ;
+        oc:PresentationModified ;
     dcterms:identifier "pptx" ;
-    skos:broader "Office Open XML presentation generator and editor" ;
+    skos:broader "Presentation manipulation system" ;
     prov:wasDerivedFrom "/Users/marcello/Developer/Marea/ontoclaw/skills/office/public/pptx" .
-
-oc:payload_3575d60d3212dce8 a oc:ExecutionPayload ;
-    oc:code """# PPTX Skill Execution Workflow
-# Three main workflows supported:
-
-# 1. HTML to PPTX (new presentations)
-# - Create HTML slides with proper dimensions
-# - Use html2pptx.js to convert to PowerPoint
-# - Add charts/tables via PptxGenJS API
-
-# 2. OOXML Editing (existing presentations)
-# - Unpack: python ooxml/scripts/unpack.py file.pptx output_dir
-# - Edit XML files in ppt/slides/
-# - Validate: python ooxml/scripts/validate.py dir --original file.pptx
-# - Pack: python ooxml/scripts/pack.py input_dir output.pptx
-
-# 3. Template-Based (using existing template)
-# - Extract text: python -m markitdown template.pptx
-# - Create thumbnails: python scripts/thumbnail.py template.pptx
-# - Inventory: python scripts/inventory.py file.pptx inventory.json
-# - Rearrange: python scripts/rearrange.py template.pptx output.pptx indices
-# - Replace: python scripts/replace.py input.pptx replacements.json output.pptx""" ;
-    oc:executor "python" ;
-    oc:timeout 300 .
 
 oc:req_111f766b a oc:RequirementTool ;
     oc:isOptional true ;
@@ -90,10 +52,6 @@ oc:req_111f766b a oc:RequirementTool ;
 oc:req_35b52e17 a oc:RequirementTool ;
     oc:isOptional false ;
     oc:requirementValue "react-icons" .
-
-oc:req_37f5f5fd a oc:RequirementKnowledge ;
-    oc:isOptional false ;
-    oc:requirementValue "HTML-to-PPTX conversion workflow" .
 
 oc:req_4cd3bc67 a oc:RequirementTool ;
     oc:isOptional false ;
@@ -107,13 +65,13 @@ oc:req_63145ec4 a oc:RequirementTool ;
     oc:isOptional false ;
     oc:requirementValue "sharp" .
 
-oc:req_6652862f a oc:RequirementKnowledge ;
+oc:req_6a8b02c8 a oc:RequirementKnowledge ;
     oc:isOptional false ;
-    oc:requirementValue "Template inventory and replacement workflow" .
+    oc:requirementValue "HTML to PPTX conversion" .
 
-oc:req_75857e6b a oc:RequirementKnowledge ;
+oc:req_755ee7ba a oc:RequirementTool ;
     oc:isOptional false ;
-    oc:requirementValue "OOXML schema compliance rules" .
+    oc:requirementValue "markitdown" .
 
 oc:req_7cf00395 a oc:RequirementTool ;
     oc:isOptional true ;
@@ -123,11 +81,7 @@ oc:req_904a20c7 a oc:RequirementTool ;
     oc:isOptional false ;
     oc:requirementValue "defusedxml" .
 
-oc:req_b518a391 a oc:RequirementKnowledge ;
+oc:req_a74cdce8 a oc:RequirementKnowledge ;
     oc:isOptional false ;
-    oc:requirementValue "Presentation design principles" .
-
-oc:req_b6b8e7db a oc:RequirementTool ;
-    oc:isOptional false ;
-    oc:requirementValue "markitdown[pptx]" .
+    oc:requirementValue "OOXML schema compliance" .
 

@@ -10,112 +10,76 @@
 oc:skill_9edb0243108eb53f a oc:ExecutableSkill,
         oc:Skill ;
     oc:contentHash "9edb0243108eb53f09e013fbb28154fc744c3ccda4e048985627d90b036b67cc" ;
-    oc:dependsOn "ooxml" ;
-    oc:differentia "that provides comprehensive Word document creation, editing, and analysis through OOXML manipulation with tracked changes support" ;
+    oc:differentia "Provides comprehensive creation, editing, analysis, and tracked changes capabilities for Word documents through OOXML manipulation" ;
     oc:generatedBy "glm-5" ;
-    oc:handlesFailure oc:CorruptedDocument,
-        oc:InvalidXML,
+    oc:handlesFailure oc:FileNotFound,
+        oc:InvalidOOXMLStructure,
         oc:PermissionDenied,
-        oc:SchemaValidationError ;
+        oc:SchemaValidationFailed,
+        oc:XMLMalformed ;
     oc:hasPayload oc:payload_9edb0243108eb53f ;
-    oc:hasRequirement oc:req_4e9e9908,
+    oc:hasRequirement oc:req_111f766b,
+        oc:req_1300f19f,
+        oc:req_300e9437,
+        oc:req_5c2a11c1,
         oc:req_7cf00395,
-        oc:req_7e9ca2f5,
-        oc:req_904a20c7,
-        oc:req_a74cdce8,
-        oc:req_af73c132,
-        oc:req_c2789dcc,
-        oc:req_fbdc5b5e ;
+        oc:req_bbe906e4,
+        oc:req_c2789dcc ;
     oc:nature "Tool" ;
     oc:requiresState oc:FileExists,
-        oc:PythonEnvironment,
         oc:ToolInstalled ;
-    oc:resolvesIntent "add comments to document",
-        "add tracked changes",
+    oc:resolvesIntent "add tracked changes",
         "analyze word document",
-        "convert document to images",
+        "convert docx to images",
+        "convert docx to markdown",
         "create word document",
-        "edit docx file",
+        "edit word document",
         "extract text from docx",
-        "review document with redlining" ;
-    oc:yieldsState oc:CommentsAdded,
-        oc:DocumentCreated,
+        "review document" ;
+    oc:yieldsState oc:DocumentCreated,
         oc:DocumentModified,
-        oc:TextExtracted,
-        oc:TrackedChangesAdded ;
+        oc:DocumentValidated,
+        oc:TextExtracted ;
     dcterms:identifier "docx" ;
-    skos:broader "Document processing toolkit" ;
+    skos:broader "Document processor" ;
     prov:wasDerivedFrom "/Users/marcello/Developer/Marea/ontoclaw/skills/office/public/docx" .
 
 oc:payload_9edb0243108eb53f a oc:ExecutionPayload ;
-    oc:code """# DOCX skill provides multiple execution paths depending on task:
-
-# 1. CREATE NEW DOCUMENT: Use docx-js (JavaScript)
-# const { Document, Packer, Paragraph, TextRun } = require('docx');
-# const doc = new Document({ sections: [{ children: [/* content */] }] });
-# Packer.toBuffer(doc).then(buffer => fs.writeFileSync('doc.docx', buffer));
-
-# 2. EXTRACT TEXT: Use pandoc (Shell)
-# pandoc --track-changes=all document.docx -o output.md
-
-# 3. EDIT DOCUMENT: Use Document library (Python)
-from skills.docx.scripts.document import Document
-
-# Unpack, edit, pack workflow:
-# python ooxml/scripts/unpack.py document.docx unpacked/
-
-doc = Document('unpacked', track_revisions=True)
-
-# Add tracked changes
-node = doc['word/document.xml'].get_node(tag='w:r', contains='old text')
-doc['word/document.xml'].replace_node(node, 
-    '<w:del><w:r><w:delText>old text</w:delText></w:r></w:del>'
-    '<w:ins><w:r><w:t>new text</w:t></w:r></w:ins>')
-
-# Add comments
-doc.add_comment(start=node, end=node, text='Review this change')
-
-# Save with validation
-doc.save()
-
-# Repack:
-# python ooxml/scripts/pack.py unpacked/ modified.docx
-
-# 4. CONVERT TO IMAGES (Shell):
-# soffice --headless --convert-to pdf document.docx
-# pdftoppm -jpeg -r 150 document.pdf page""" ;
+    oc:code """# Multiple workflows available:
+# 1. Create new: Use docx-js (JavaScript)
+# 2. Edit existing: Use Document library (Python)
+# 3. Extract text: pandoc --track-changes=all file.docx -o output.md
+# 4. Unpack: python ooxml/scripts/unpack.py file.docx output_dir
+# 5. Pack: python ooxml/scripts/pack.py input_dir file.docx
+# 6. Convert: soffice --headless --convert-to pdf file.docx && pdftoppm -jpeg file.pdf page""" ;
     oc:executor "python" ;
     oc:timeout 30000 .
 
-oc:req_4e9e9908 a oc:RequirementKnowledge ;
+oc:req_111f766b a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "LibreOffice" .
+
+oc:req_1300f19f a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "Python defusedxml" .
+
+oc:req_300e9437 a oc:RequirementKnowledge ;
     oc:isOptional false ;
-    oc:requirementValue "docx-js API" .
+    oc:requirementValue "OOXML structure" .
+
+oc:req_5c2a11c1 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "docx (npm package)" .
 
 oc:req_7cf00395 a oc:RequirementTool ;
     oc:isOptional true ;
     oc:requirementValue "poppler-utils" .
 
-oc:req_7e9ca2f5 a oc:RequirementTool ;
+oc:req_bbe906e4 a oc:RequirementKnowledge ;
     oc:isOptional false ;
-    oc:requirementValue "python" .
-
-oc:req_904a20c7 a oc:RequirementTool ;
-    oc:isOptional false ;
-    oc:requirementValue "defusedxml" .
-
-oc:req_a74cdce8 a oc:RequirementKnowledge ;
-    oc:isOptional false ;
-    oc:requirementValue "OOXML schema compliance" .
-
-oc:req_af73c132 a oc:RequirementTool ;
-    oc:isOptional true ;
-    oc:requirementValue "libreoffice" .
+    oc:requirementValue "Word document architecture" .
 
 oc:req_c2789dcc a oc:RequirementTool ;
-    oc:isOptional false ;
-    oc:requirementValue "pandoc" .
-
-oc:req_fbdc5b5e a oc:RequirementTool ;
     oc:isOptional true ;
-    oc:requirementValue "docx-js" .
+    oc:requirementValue "pandoc" .
 

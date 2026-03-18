@@ -6,7 +6,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 <http://ontoclaw.marea.software/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-18T10:08:31.078894" ;
+    dcterms:created "2026-03-18T10:23:47.690605" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoClaw Core Ontology" .
 
