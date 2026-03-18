@@ -255,23 +255,32 @@ impl Catalog {
 
         let store = Store::new().map_err(|err| CatalogError::Oxigraph(err.to_string()))?;
         let mut loaded_any = false;
+        let enabled_manifest = ontology_root.join("system").join("index.enabled.ttl");
+        let default_manifest = ontology_root.join("index.ttl");
 
-        for entry in WalkDir::new(ontology_root) {
-            let entry = entry?;
-            if !entry.file_type().is_file() {
-                continue;
+        if enabled_manifest.exists() {
+            let mut visited = HashSet::new();
+            load_manifest_tree(&store, &enabled_manifest, &mut visited)?;
+            loaded_any = !visited.is_empty();
+        } else if default_manifest.exists() {
+            let mut visited = HashSet::new();
+            load_manifest_tree(&store, &default_manifest, &mut visited)?;
+            loaded_any = !visited.is_empty();
+        } else {
+            for entry in WalkDir::new(ontology_root) {
+                let entry = entry?;
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                let path = entry.path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("ttl") {
+                    continue;
+                }
+
+                load_turtle_file(&store, path)?;
+                loaded_any = true;
             }
-
-            let path = entry.path();
-            if path.extension().and_then(|ext| ext.to_str()) != Some("ttl") {
-                continue;
-            }
-
-            let reader = BufReader::new(File::open(path)?);
-            store
-                .load_from_reader(RdfFormat::Turtle, reader)
-                .map_err(|err| CatalogError::Oxigraph(format!("{} ({})", err, path.display())))?;
-            loaded_any = true;
         }
 
         if !loaded_any {
@@ -1146,6 +1155,50 @@ impl Catalog {
     }
 }
 
+fn load_turtle_file(store: &Store, path: &Path) -> Result<(), CatalogError> {
+    let reader = BufReader::new(File::open(path)?);
+    store
+        .load_from_reader(RdfFormat::Turtle, reader)
+        .map_err(|err| CatalogError::Oxigraph(format!("{} ({})", err, path.display())))
+}
+
+fn load_manifest_tree(
+    store: &Store,
+    manifest_path: &Path,
+    visited: &mut HashSet<PathBuf>,
+) -> Result<(), CatalogError> {
+    let canonical = manifest_path.canonicalize()?;
+    if !visited.insert(canonical.clone()) {
+        return Ok(());
+    }
+
+    load_turtle_file(store, &canonical)?;
+
+    let content = std::fs::read_to_string(&canonical)?;
+    for imported in parse_import_paths(&content) {
+        if imported.exists() {
+            load_manifest_tree(store, &imported, visited)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_import_paths(content: &str) -> Vec<PathBuf> {
+    let mut imports = Vec::new();
+    for segment in content.split("owl:imports <file://").skip(1) {
+        if let Some(raw_path) = segment.split('>').next() {
+            let normalized = if raw_path.starts_with('/') {
+                raw_path.to_string()
+            } else {
+                format!("/{}", raw_path)
+            };
+            imports.push(PathBuf::from(normalized));
+        }
+    }
+    imports
+}
+
 enum PlannerAction {
     Continue,
     Push {
@@ -1491,6 +1544,52 @@ oc:skill_setup a oc:Skill, oc:ExecutableSkill ;
         fs::write(root.join("index.ttl"), ttl).unwrap();
     }
 
+    fn write_enabled_registry(root: &Path) {
+        fs::create_dir_all(root.join("system")).unwrap();
+        fs::write(
+            root.join("enabled.ttl"),
+            format!(
+                r#"
+@prefix oc: <{base}> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+oc:skill_enabled a oc:Skill, oc:DeclarativeSkill ;
+    dcterms:identifier "enabled-skill" ;
+    oc:nature "Enabled" .
+"#,
+                base = DEFAULT_BASE_URI
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("disabled.ttl"),
+            format!(
+                r#"
+@prefix oc: <{base}> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+oc:skill_disabled a oc:Skill, oc:DeclarativeSkill ;
+    dcterms:identifier "disabled-skill" ;
+    oc:nature "Disabled" .
+"#,
+                base = DEFAULT_BASE_URI
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("system").join("index.enabled.ttl"),
+            format!(
+                r#"
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file://{enabled}> .
+"#,
+                enabled = root.join("enabled.ttl").display()
+            ),
+        )
+        .unwrap();
+    }
+
     #[test]
     fn skill_context_includes_knowledge_nodes() {
         let dir = tempdir().unwrap();
@@ -1577,5 +1676,17 @@ oc:skill_setup a oc:Skill, oc:ExecutableSkill ;
         assert_eq!(evaluation.recommended_skill.as_deref(), Some("direct-pdf"));
         assert!(evaluation.applicable);
         assert_eq!(evaluation.plan_steps.len(), 1);
+    }
+
+    #[test]
+    fn catalog_prefers_enabled_index_manifest_when_present() {
+        let dir = tempdir().unwrap();
+        write_enabled_registry(dir.path());
+
+        let catalog = Catalog::load(dir.path()).unwrap();
+        let skills = catalog.list_skills().unwrap();
+
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].id, "enabled-skill");
     }
 }

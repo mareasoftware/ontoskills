@@ -21,7 +21,7 @@ from rdflib.namespace import DCTERMS, SKOS, PROV
 
 from compiler.schemas import ExtractedSkill
 from compiler.exceptions import OntologyLoadError, OntologyValidationError
-from compiler.config import BASE_URI, SKILLS_DIR, OUTPUT_DIR
+from compiler.config import BASE_URI, SKILLS_DIR, OUTPUT_DIR, resolve_ontology_root
 from compiler.core_ontology import get_oc_namespace
 from compiler.serialization import serialize_skill
 from compiler.validator import validate_and_raise
@@ -395,6 +395,7 @@ def generate_index_manifest(
         output_base = Path(OUTPUT_DIR).resolve()
     else:
         output_base = output_base.resolve()
+    ontology_root = resolve_ontology_root(output_base)
 
     oc = get_oc_namespace()
     g = Graph()
@@ -418,7 +419,7 @@ def generate_index_manifest(
     g.add((base_uri, DCTERMS.created, Literal(datetime.now().isoformat())))
 
     # Import core ontology
-    core_path = output_base / "ontoclaw-core.ttl"
+    core_path = ontology_root / "ontoclaw-core.ttl"
     if core_path.exists():
         g.add((base_uri, OWL.imports, URIRef(f"file://{core_path}")))
 
@@ -440,7 +441,14 @@ def generate_index_manifest(
 # =============================================================================
 
 # System-generated files that should never be considered orphans
-SYSTEM_FILES = {"ontoclaw-core.ttl", "index.ttl"}
+SYSTEM_FILES = {
+    "ontoclaw-core.ttl",
+    "index.ttl",
+    "index.enabled.ttl",
+    "index.installed.ttl",
+    "registry.lock.json",
+    "registry.sources.json",
+}
 
 
 def clean_orphaned_files(
@@ -465,6 +473,7 @@ def clean_orphaned_files(
         Count of orphaned files removed
     """
     orphans_removed = 0
+    protected_dirs = {"system", "official", "community"}
 
     # Find all files in output directory
     for output_file in output_dir.rglob("*"):
@@ -479,6 +488,9 @@ def clean_orphaned_files(
         try:
             rel_path = output_file.relative_to(output_dir)
         except ValueError:
+            continue
+
+        if rel_path.parts and rel_path.parts[0] in protected_dirs:
             continue
 
         # Determine expected source path based on output file type
@@ -507,5 +519,3 @@ def clean_orphaned_files(
         logger.info("No orphaned files found")
 
     return orphans_removed
-
-

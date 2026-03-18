@@ -24,6 +24,19 @@ from compiler.storage import (
     generate_index_manifest,
     clean_orphaned_files,
 )
+from compiler.registry import (
+    add_registry_source,
+    enable_skills,
+    disable_skills,
+    enabled_index_path,
+    ensure_registry_layout,
+    install_package_from_directory,
+    install_source_package_from_directory,
+    install_package_from_sources,
+    list_installed_packages,
+    list_registry_sources,
+    rebuild_registry_indexes,
+)
 from compiler.sparql import execute_sparql, format_results
 from compiler.exceptions import (
     SkillETLError,
@@ -31,7 +44,7 @@ from compiler.exceptions import (
     SPARQLError,
     SkillNotFoundError,
 )
-from compiler.config import SKILLS_DIR, OUTPUT_DIR
+from compiler.config import SKILLS_DIR, OUTPUT_DIR, resolve_ontology_root
 
 # Get version from pyproject.toml (single source of truth)
 try:
@@ -146,9 +159,11 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
+    ontology_root = resolve_ontology_root(output_path)
+    ensure_registry_layout(ontology_root)
 
     # Ensure core ontology exists
-    core_path = output_path / "ontoclaw-core.ttl"
+    core_path = ontology_root / "ontoclaw-core.ttl"
     if not core_path.exists():
         logger.info("Creating core ontology...")
         create_core_ontology(core_path)
@@ -320,8 +335,9 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
     all_skill_paths = list(output_path.rglob("ontoskill.ttl"))
 
     # Generate index manifest
-    index_path = output_path / "index.ttl"
-    generate_index_manifest(all_skill_paths, index_path, output_path)
+    index_path = ontology_root / "index.ttl"
+    generate_index_manifest(all_skill_paths, index_path, ontology_root)
+    rebuild_registry_indexes(ontology_root)
 
     # Summary output
     summary_parts = []
@@ -334,6 +350,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
 
     if summary_parts:
         console.print(f"\n[green]Processed {', '.join(summary_parts)} to {output_path}[/green]")
+        console.print(f"[green]Enabled index updated at {enabled_index_path(ontology_root)}[/green]")
     else:
         console.print(f"\n[yellow]No changes made[/yellow]")
 
@@ -364,7 +381,7 @@ def init_core(ctx, output_dir, force):
 
 @cli.command('query')
 @click.argument('query_string')
-@click.option('-o', '--ontology', 'ontology_file', default=OUTPUT_DIR + "/index.ttl",
+@click.option('-o', '--ontology', 'ontology_file', default=str(enabled_index_path(Path(resolve_ontology_root(OUTPUT_DIR)))),
               type=click.Path(exists=False), help='Ontology file or directory')
 @click.option('-f', '--format', 'output_format',
               type=click.Choice(['table', 'json', 'turtle']), default='table',
@@ -401,7 +418,7 @@ def query_cmd(ctx, query_string, ontology_file, output_format, verbose, quiet):
 
 
 @cli.command('list-skills')
-@click.option('-o', '--ontology', 'ontology_file', default=OUTPUT_DIR + "/index.ttl",
+@click.option('-o', '--ontology', 'ontology_file', default=str(enabled_index_path(Path(resolve_ontology_root(OUTPUT_DIR)))),
               type=click.Path(exists=False), help='Ontology file or directory')
 @click.option('-v', '--verbose', is_flag=True, help='Enable debug logging')
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
@@ -441,6 +458,160 @@ def list_skills(ctx, ontology_file, verbose, quiet):
 
     except SPARQLError as e:
         console.print(f"[red]Query error: {e}[/red]")
+
+
+@cli.command('install-package')
+@click.argument('package_path', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default=None)
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def install_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
+    """Install a package manifest from a local directory into the global ontology root."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = install_package_from_directory(package_path, root=root, trust_tier=trust_tier)
+    console.print(f"[green]Installed package {package.package_id}@{package.version}[/green]")
+    console.print(f"  Trust: {package.trust_tier}")
+    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
+    console.print(f"  Root: {package.install_root}")
+
+
+@cli.command('import-source-package')
+@click.argument('package_path', type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def import_source_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
+    """Import a raw source package and compile it into the ontology registry."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = install_source_package_from_directory(package_path, root=root, trust_tier=trust_tier)
+    console.print(f"[green]Imported source package {package.package_id}@{package.version}[/green]")
+    console.print(f"  Trust: {package.trust_tier}")
+    console.print(f"  Source kind: {package.source_kind}")
+    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
+    console.print("  Enabled skills: (none by default)")
+
+
+@cli.group('registry')
+def registry_group():
+    """Manage external registry sources."""
+
+
+@registry_group.command('add-source')
+@click.argument('name')
+@click.argument('index_url')
+@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
+@click.option('--source-kind', type=click.Choice(['ontology', 'source']), default='ontology')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def registry_add_source_cmd(ctx, name, index_url, trust_tier, source_kind, ontology_root_arg):
+    """Add or replace a configured registry source."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    sources = add_registry_source(name, index_url, root=root, trust_tier=trust_tier, source_kind=source_kind)
+    console.print(f"[green]Configured registry source {name}[/green]")
+    console.print(f"  Index: {index_url}")
+    console.print(f"  Total sources: {len(sources.sources)}")
+
+
+@registry_group.command('list')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def registry_list_cmd(ctx, ontology_root_arg):
+    """List configured registry sources."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    sources = list_registry_sources(root=root)
+    if not sources.sources:
+        console.print("[yellow]No registry sources configured[/yellow]")
+        return
+
+    for source in sources.sources:
+        console.print(f"\n[bold]{source.name}[/bold] [{source.trust_tier}]")
+        console.print(f"  kind: {source.source_kind}")
+        console.print(f"  index: {source.index_url}")
+
+
+@cli.command('install')
+@click.argument('package_id')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def install_cmd(ctx, package_id, ontology_root_arg):
+    """Install a package by id from configured registry sources."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = install_package_from_sources(package_id, root=root)
+    console.print(f"[green]Installed package {package.package_id}@{package.version}[/green]")
+    console.print(f"  Trust: {package.trust_tier}")
+    console.print(f"  Source kind: {package.source_kind}")
+    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
+
+
+@cli.command('enable')
+@click.argument('package_id')
+@click.argument('skill_ids', nargs=-1)
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def enable_cmd(ctx, package_id, skill_ids, ontology_root_arg):
+    """Enable all skills in a package or selected skills only."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = enable_skills(package_id, list(skill_ids) or None, root=root)
+    enabled = [skill.skill_id for skill in package.skills if skill.enabled]
+    console.print(f"[green]Enabled package {package.package_id}[/green]")
+    console.print(f"  Enabled skills: {', '.join(enabled) if enabled else '(none)'}")
+    console.print(f"  Index: {enabled_index_path(root)}")
+
+
+@cli.command('disable')
+@click.argument('package_id')
+@click.argument('skill_ids', nargs=-1)
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def disable_cmd(ctx, package_id, skill_ids, ontology_root_arg):
+    """Disable all skills in a package or selected skills only."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = disable_skills(package_id, list(skill_ids) or None, root=root)
+    enabled = [skill.skill_id for skill in package.skills if skill.enabled]
+    console.print(f"[green]Disabled package {package.package_id}[/green]")
+    console.print(f"  Still enabled: {', '.join(enabled) if enabled else '(none)'}")
+    console.print(f"  Index: {enabled_index_path(root)}")
+
+
+@cli.command('list-installed')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def list_installed_cmd(ctx, ontology_root_arg):
+    """List installed ontology packages and enabled skills."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    lock = list_installed_packages(root=root)
+    if not lock.packages:
+        console.print("[yellow]No installed packages[/yellow]")
+        return
+
+    for package in lock.packages.values():
+        console.print(f"\n[bold]{package.package_id}[/bold] {package.version} [{package.trust_tier}]")
+        console.print(f"  source_kind: {package.source_kind}")
+        enabled = [skill.skill_id for skill in package.skills if skill.enabled]
+        disabled = [skill.skill_id for skill in package.skills if not skill.enabled]
+        console.print(f"  enabled: {', '.join(enabled) if enabled else '(none)'}")
+        console.print(f"  disabled: {', '.join(disabled) if disabled else '(none)'}")
+
+
+@cli.command('rebuild-index')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def rebuild_index_cmd(ctx, ontology_root_arg):
+    """Rebuild installed/enabled indices for the global ontology root."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    installed, enabled = rebuild_registry_indexes(root=root)
+    console.print(f"[green]Rebuilt indices[/green]")
+    console.print(f"  installed: {installed}")
+    console.print(f"  enabled: {enabled}")
 
 
 @cli.command('security-audit')

@@ -14,7 +14,7 @@ from rdflib.namespace import DCTERMS, SKOS, PROV
 
 from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
 from compiler.exceptions import OntologyValidationError
-from compiler.config import BASE_URI, OUTPUT_DIR
+from compiler.config import BASE_URI, OUTPUT_DIR, resolve_ontology_root
 from compiler.core_ontology import get_oc_namespace
 from compiler.extractor import generate_skill_id
 from compiler.validator import validate_and_raise
@@ -186,7 +186,7 @@ def serialize_skill_to_module(
     else:
         output_base = Path(output_base).resolve()
 
-    core_ontology_path = output_base / "ontoclaw-core.ttl"
+    core_ontology_path = resolve_ontology_root(output_base) / "ontoclaw-core.ttl"
     if core_ontology_path.exists():
         g.add((URIRef(BASE_URI.rstrip('#')), OWL.imports, URIRef(f"file://{core_ontology_path}")))
 
