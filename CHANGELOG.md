@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## [0.7.0] - 2026-03-18
+
+### Changed
+
+#### CLI Tooling Updates for Knowledge Nodes
+
+Updated the PR #5 tooling to work with the current ontology structure (knowledge_nodes and requirements):
+
+- **core/explainer.py** — Updated `SkillSummary` to extract:
+  - `knowledge_nodes`: list of `KnowledgeNodeSummary` (node_type, directive_content, applies_to_context, has_rationale, severity_level)
+  - `requirements`: list of `RequirementSummary` (requirement_value, is_optional)
+  - Removed: `depends_on`, `extends`, `contradicts` (not used in current skills)
+
+- **core/differ.py** — Updated drift detection:
+  - Fixed `_diff_requirements()` to use `oc:hasRequirement` instead of `oc:requires`
+  - Added `_diff_knowledge_nodes()` to track `oc:impartsKnowledge` changes (cosmetic)
+  - Updated SPARQL queries in suggestions to use correct properties
+
+- **core/linter.py** — Updated checks:
+  - Replaced `orphan-skill` with `unreachable-state` check (skills with unreachable required states)
+  - Kept: `dead-state`, `circular-dep`, `duplicate-intent` (still valid)
+
+- **core/graph_export.py** — Changed from dependency graph to state transition graph:
+  - Edges now show: Skill A `yieldsState` X → Skill B `requiresState` X
+  - Visualizes actual execution flow between skills
+
+- **core/tests/** — Updated all test files for the new functionality
+
 ## [0.6.0] - 2026-03-18
 
 ### Added

@@ -2,13 +2,13 @@
 Static analysis linter for OntoClaw ontologies.
 
 Analyses the compiled ontology (or a set of .ttl files) without calling the
-Anthropic API and reports four categories of structural issues:
+Anthropic API and reports structural issues:
 
   - dead_states      : a skill requiresState X but no skill yieldsState X
-  - circular_deps    : A dependsOn B dependsOn … dependsOn A
+  - circular_deps    : A dependsOn B dependsOn ... dependsOn A
   - duplicate_intents: two different skills resolve the same intent string
-  - orphan_skills    : no other skill depends on this skill and it has no
-                       required state that another skill yields (isolated leaf)
+  - unreachable_skills: skill with requiresState but no skill yields those states
+                        and the skill has no entry-point intents
 
 Each issue is returned as a LintIssue dataclass so callers can format the
 output however they like (Rich terminal, JSON, CI log).
@@ -74,7 +74,7 @@ def lint_ontology(ttl_path: str | Path) -> LintResult:
     result.issues += _check_dead_states(g)
     result.issues += _check_circular_deps(g)
     result.issues += _check_duplicate_intents(g)
-    result.issues += _check_orphan_skills(g)
+    result.issues += _check_unreachable_skills(g)
     return result
 
 
@@ -197,35 +197,47 @@ def _check_duplicate_intents(g: Graph) -> list[LintIssue]:
     return issues
 
 
-def _check_orphan_skills(g: Graph) -> list[LintIssue]:
+def _check_unreachable_skills(g: Graph) -> list[LintIssue]:
     """
-    Detect skills that no other skill depends on and that have no required state
-    that another skill yields (completely isolated nodes in the skill graph).
+    Detect skills that have preconditions (requiresState) but those states
+    are never yielded by any skill AND the skill doesn't look like an entry point.
 
-    An orphan skill is not necessarily a bug, but it is a common sign of a
-    forgotten skill or a skill that was never wired into the workflow.
+    Entry point indicators:
+    - No requiresState (can run from cold start)
+    - Has intents that suggest user-initiated actions (create, import, load, etc.)
     """
     all_skill_uris = list(g.subjects(OC.resolvesIntent))
     all_skill_ids  = {_local(s): s for s in all_skill_uris}
 
-    # Skills that are depended upon by at least one other skill
-    depended_upon = {_local(o) for _, o in g.subject_objects(OC.dependsOn)}
+    # All states that can be produced
+    all_yielded = {str(o) for o in g.objects(predicate=OC.yieldsState)}
+
+    # Entry point intent patterns (skills that start workflows)
+    entry_patterns = {'create', 'import', 'load', 'init', 'start', 'open', 'new'}
 
     issues: list[LintIssue] = []
-    for sid in all_skill_ids:
-        if sid not in depended_upon:
-            # Also check: does any skill yield a state this skill requires?
-            skill_uri   = all_skill_ids[sid]
-            required    = {str(o) for o in g.objects(skill_uri, OC.requiresState)}
-            all_yielded = {str(o) for o in g.objects(predicate=OC.yieldsState)}
-            reachable   = bool(required & all_yielded)
+    for sid, skill_uri in all_skill_ids.items():
+        required = {str(o) for o in g.objects(skill_uri, OC.requiresState)}
+        intents = [str(o).lower() for o in g.objects(skill_uri, OC.resolvesIntent)]
 
-            if not reachable and required:
-                issues.append(LintIssue(
-                    severity="info",
-                    code="orphan-skill",
-                    skill_id=sid,
-                    message=f"'{sid}' has no dependents and its required states are never yielded",
-                    detail="Consider adding oc:dependsOn edges or verify this skill is an entry point.",
-                ))
+        # Check if any required state is unreachable
+        unreachable = required - all_yielded
+
+        if unreachable:
+            # Check if this looks like an entry point
+            is_entry = any(
+                any(pattern in intent for pattern in entry_patterns)
+                for intent in intents
+            )
+
+            if not is_entry:
+                for state in unreachable:
+                    issues.append(LintIssue(
+                        severity="warning",
+                        code="unreachable-state",
+                        skill_id=sid,
+                        message=f"requiresState '{_local(state)}' is never yielded by any skill",
+                        detail="This skill may be unreachable unless the state is externally provided.",
+                    ))
+
     return issues

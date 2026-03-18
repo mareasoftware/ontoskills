@@ -22,6 +22,25 @@ OC = Namespace("https://ontoclaw.marea.software/ontology#")
 
 
 @dataclass
+class KnowledgeNodeSummary:
+    """Summary of a single knowledge node imparted by a skill."""
+    node_id: str                       # Local ID (e.g., "kn_21eaa806")
+    node_type: str                     # Type (e.g., "PreFlightCheck", "Heuristic")
+    directive_content: str             # The actual rule/guideline
+    applies_to_context: str            # When this rule applies
+    has_rationale: str                 # Why this rule exists
+    severity_level: str | None         # CRITICAL, HIGH, MEDIUM, LOW
+
+
+@dataclass
+class RequirementSummary:
+    """Summary of a skill requirement."""
+    requirement_id: str                # Local ID (e.g., "req_060db269")
+    requirement_value: str             # The actual requirement (e.g., "pypdf")
+    is_optional: bool                  # Whether the requirement is optional
+
+
+@dataclass
 class SkillSummary:
     skill_id: str
     skill_type: str                    # "ExecutableSkill" | "DeclarativeSkill" | "Skill"
@@ -30,9 +49,8 @@ class SkillSummary:
     requires_states: list[str]         = field(default_factory=list)
     yields_states: list[str]           = field(default_factory=list)
     handles_failures: list[str]        = field(default_factory=list)
-    depends_on: list[str]              = field(default_factory=list)
-    extends: list[str]                 = field(default_factory=list)
-    contradicts: list[str]             = field(default_factory=list)
+    knowledge_nodes: list[KnowledgeNodeSummary] = field(default_factory=list)
+    requirements: list[RequirementSummary] = field(default_factory=list)
     executor: str | None               = None
     content_hash: str | None           = None
     generated_by: str | None           = None
@@ -111,9 +129,12 @@ def _build_summary(g: Graph, skill_id: str) -> SkillSummary | None:
     requires_states = [_local(o) for o in g.objects(skill_uri, OC.requiresState)]
     yields_states   = [_local(o) for o in g.objects(skill_uri, OC.yieldsState)]
     handles_failures= [_local(o) for o in g.objects(skill_uri, OC.handlesFailure)]
-    depends_on      = [_local(o) for o in g.objects(skill_uri, OC.dependsOn)]
-    extends         = [_local(o) for o in g.objects(skill_uri, OC.extends)]
-    contradicts     = [_local(o) for o in g.objects(skill_uri, OC.contradicts)]
+
+    # Extract knowledge nodes
+    knowledge_nodes = _extract_knowledge_nodes(g, skill_uri)
+
+    # Extract requirements
+    requirements = _extract_requirements(g, skill_uri)
 
     # Executor lives inside oc:ExecutionPayload
     executor = None
@@ -134,10 +155,59 @@ def _build_summary(g: Graph, skill_id: str) -> SkillSummary | None:
         requires_states = sorted(requires_states),
         yields_states   = sorted(yields_states),
         handles_failures= sorted(handles_failures),
-        depends_on      = sorted(depends_on),
-        extends         = sorted(extends),
-        contradicts     = sorted(contradicts),
+        knowledge_nodes = knowledge_nodes,
+        requirements    = requirements,
         executor        = executor,
         content_hash    = str(hash_lit)[:8] if hash_lit else None,
         generated_by    = str(gen_lit) if gen_lit else None,
     )
+
+
+def _extract_knowledge_nodes(g: Graph, skill_uri) -> list[KnowledgeNodeSummary]:
+    """Extract all knowledge nodes imparted by a skill."""
+    nodes: list[KnowledgeNodeSummary] = []
+    for kn_uri in g.objects(skill_uri, OC.impartsKnowledge):
+        # Get the node type (the RDF class, e.g., oc:PreFlightCheck)
+        node_type = _get_node_type(g, kn_uri)
+
+        directive = g.value(kn_uri, OC.directiveContent)
+        context = g.value(kn_uri, OC.appliesToContext)
+        rationale = g.value(kn_uri, OC.hasRationale)
+        severity = g.value(kn_uri, OC.severityLevel)
+
+        nodes.append(KnowledgeNodeSummary(
+            node_id=_local(kn_uri),
+            node_type=node_type,
+            directive_content=str(directive) if directive else "",
+            applies_to_context=str(context) if context else "",
+            has_rationale=str(rationale) if rationale else "",
+            severity_level=str(severity) if severity else None,
+        ))
+    return nodes
+
+
+def _get_node_type(g: Graph, kn_uri) -> str:
+    """Get the knowledge node type (the specific subclass of KnowledgeNode)."""
+    from rdflib import RDF, RDFS
+    # Get all types and find the one that's a subclass of KnowledgeNode
+    for type_uri in g.objects(kn_uri, RDF.type):
+        type_local = _local(type_uri)
+        # Skip generic "KnowledgeNode" type, return the specific subtype
+        if type_local != "KnowledgeNode" and type_local != "Class":
+            return type_local
+    return "KnowledgeNode"
+
+
+def _extract_requirements(g: Graph, skill_uri) -> list[RequirementSummary]:
+    """Extract all requirements for a skill."""
+    reqs: list[RequirementSummary] = []
+    for req_uri in g.objects(skill_uri, OC.hasRequirement):
+        value = g.value(req_uri, OC.requirementValue)
+        optional = g.value(req_uri, OC.isOptional)
+
+        reqs.append(RequirementSummary(
+            requirement_id=_local(req_uri),
+            requirement_value=str(value) if value else "",
+            is_optional=str(optional).lower() == "true" if optional else False,
+        ))
+    return reqs

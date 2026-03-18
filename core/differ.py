@@ -129,7 +129,7 @@ class DriftReport:
                     sparql_query=(
                         f'PREFIX oc: <https://ontoclaw.marea.software/ontology#>\n'
                         f'SELECT ?skill WHERE {{\n'
-                        f'  ?skill oc:requires oc:{req_local} .\n'
+                        f'  ?skill oc:hasRequirement oc:{req_local} .\n'
                         f'}}'
                     ),
                     action=(
@@ -158,6 +158,7 @@ def compute_diff(old_ttl: str, new_ttl: str) -> DriftReport:
         _diff_intents(g_old, g_new, skill_uri, sid, report)
         _diff_states(g_old, g_new, skill_uri, sid, report)
         _diff_requirements(g_old, g_new, skill_uri, sid, report)
+        _diff_knowledge_nodes(g_old, g_new, skill_uri, sid, report)
 
     return report
 
@@ -248,8 +249,9 @@ def _diff_states(
 def _diff_requirements(
     g_old: Graph, g_new: Graph, skill_uri: URIRef, sid: str, report: DriftReport
 ) -> None:
-    old_reqs = {str(o) for o in g_old.objects(skill_uri, OC.requires)}
-    new_reqs = {str(o) for o in g_new.objects(skill_uri, OC.requires)}
+    """Diff oc:hasRequirement - added requirements are breaking (agents may lack them)."""
+    old_reqs = {str(o) for o in g_old.objects(skill_uri, OC.hasRequirement)}
+    new_reqs = {str(o) for o in g_new.objects(skill_uri, OC.hasRequirement)}
 
     for removed in old_reqs - new_reqs:
         report.additive.append(
@@ -271,3 +273,37 @@ def _diff_requirements(
                 new_value=added,
             )
         )
+
+
+def _diff_knowledge_nodes(
+    g_old: Graph, g_new: Graph, skill_uri: URIRef, sid: str, report: DriftReport
+) -> None:
+    """Diff oc:impartsKnowledge - knowledge changes are informational (cosmetic)."""
+    old_kn = {str(o) for o in g_old.objects(skill_uri, OC.impartsKnowledge)}
+    new_kn = {str(o) for o in g_new.objects(skill_uri, OC.impartsKnowledge)}
+
+    for removed in old_kn - new_kn:
+        report.cosmetic.append(
+            SkillChange(
+                skill_id=sid,
+                change_type='cosmetic',
+                category='knowledge',
+                description=f'Knowledge node removed: {_local_name_from_uri(removed)}',
+                old_value=removed,
+            )
+        )
+    for added in new_kn - old_kn:
+        report.cosmetic.append(
+            SkillChange(
+                skill_id=sid,
+                change_type='cosmetic',
+                category='knowledge',
+                description=f'Knowledge node added: {_local_name_from_uri(added)}',
+                new_value=added,
+            )
+        )
+
+
+def _local_name_from_uri(uri_str: str) -> str:
+    """Extract local name from a full URI string."""
+    return uri_str.split('#')[-1].split('/')[-1]

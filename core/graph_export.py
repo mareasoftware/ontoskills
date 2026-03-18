@@ -1,13 +1,15 @@
 """
-Dependency graph exporter for OntoClaw ontologies.
+State transition graph exporter for OntoClaw ontologies.
 
 Reads the compiled ontology and produces a visual representation of the
-skill relationship graph in Mermaid or DOT (Graphviz) format, covering
-three relationship types:
+skill state transition graph in Mermaid or DOT (Graphviz) format.
 
-  oc:dependsOn   — directed dependency edge  (solid arrow)
-  oc:extends     — inheritance edge          (dashed arrow)
-  oc:contradicts — mutual-exclusion edge     (dotted, bidirectional)
+The graph shows how skills connect through states:
+  - Skill A yieldsState X
+  - Skill B requiresState X
+  - Edge: A --> B (A enables B through state X)
+
+This visualizes the actual execution flow between skills.
 
 Usage:
     from compiler.graph_export import build_graph
@@ -29,7 +31,11 @@ def build_graph(
     skill_filter: str | None = None,
 ) -> str:
     """
-    Build a dependency graph from a compiled ontology file.
+    Build a state transition graph from a compiled ontology file.
+
+    The graph shows skill connectivity through shared states:
+    - An edge from Skill A to Skill B means A yieldsState X and B requiresState X
+    - This visualizes the execution flow: A must complete before B can run
 
     Args:
         ttl_path:     Path to the .ttl file to analyse.
@@ -61,25 +67,40 @@ def _extract_graph(
     g: Graph, skill_filter: str | None
 ) -> tuple[set[str], list[tuple[str, str, str]]]:
     """
-    Return the set of node IDs and edge list (src, dst, rel_type).
+    Return the set of node IDs and edge list (src, dst, state).
 
-    rel_type is one of: 'depends', 'extends', 'contradicts'.
+    Edges represent state transitions:
+    - src yieldsState X, dst requiresState X
+    - Edge: src --> dst (via state X)
     """
     edges: list[tuple[str, str, str]] = []
 
-    for s, o in g.subject_objects(OC.dependsOn):
-        edges.append((_local(s), _local(o), "depends"))
+    # Build mapping: state -> skills that yield it
+    state_to_producers: dict[str, list[str]] = {}
+    for skill_uri in g.subjects(OC.resolvesIntent):
+        skill_id = _local(skill_uri)
+        for state_uri in g.objects(skill_uri, OC.yieldsState):
+            state = _local(state_uri)
+            state_to_producers.setdefault(state, []).append(skill_id)
 
-    for s, o in g.subject_objects(OC.extends):
-        edges.append((_local(s), _local(o), "extends"))
+    # Build mapping: state -> skills that require it
+    state_to_consumers: dict[str, list[str]] = {}
+    for skill_uri in g.subjects(OC.resolvesIntent):
+        skill_id = _local(skill_uri)
+        for state_uri in g.objects(skill_uri, OC.requiresState):
+            state = _local(state_uri)
+            state_to_consumers.setdefault(state, []).append(skill_id)
 
-    # oc:contradicts is symmetric — avoid duplicate edges
-    seen_contradicts: set[frozenset[str]] = set()
-    for s, o in g.subject_objects(OC.contradicts):
-        pair = frozenset([_local(s), _local(o)])
-        if pair not in seen_contradicts:
-            seen_contradicts.add(pair)
-            edges.append((_local(s), _local(o), "contradicts"))
+    # Create edges: producer --> consumer (via state)
+    seen_edges: set[tuple[str, str, str]] = set()
+    for state, consumers in state_to_consumers.items():
+        producers = state_to_producers.get(state, [])
+        for producer in producers:
+            for consumer in consumers:
+                edge = (producer, consumer, state)
+                if edge not in seen_edges:
+                    seen_edges.add(edge)
+                    edges.append(edge)
 
     # Collect all nodes that have at least one intent (real skills)
     skill_ids = {_local(s) for s in g.subjects(OC.resolvesIntent)}
@@ -113,13 +134,9 @@ def _render_mermaid(nodes: set[str], edges: list[tuple[str, str, str]]) -> str:
     for node in sorted(nodes):
         lines.append(f'  {node}["{node}"]')
 
-    for src, dst, rel in edges:
-        if rel == "depends":
-            lines.append(f"  {src} --> {dst}")
-        elif rel == "extends":
-            lines.append(f"  {src} -.->|extends| {dst}")
-        elif rel == "contradicts":
-            lines.append(f"  {src} x--x {dst}")
+    for src, dst, state in edges:
+        # Edge shows which state enables the transition
+        lines.append(f"  {src} -->|{state}| {dst}")
 
     return "\n".join(lines)
 
@@ -135,15 +152,9 @@ def _render_dot(nodes: set[str], edges: list[tuple[str, str, str]]) -> str:
     for node in sorted(nodes):
         lines.append(f'  "{node}";')
 
-    for src, dst, rel in edges:
-        if rel == "depends":
-            lines.append(f'  "{src}" -> "{dst}" [label="dependsOn"];')
-        elif rel == "extends":
-            lines.append(f'  "{src}" -> "{dst}" [label="extends", style=dashed];')
-        elif rel == "contradicts":
-            lines.append(
-                f'  "{src}" -> "{dst}" [label="contradicts", style=dotted, dir=both];'
-            )
+    for src, dst, state in edges:
+        # Edge shows which state enables the transition
+        lines.append(f'  "{src}" -> "{dst}" [label="{state}"];')
 
     lines.append("}")
     return "\n".join(lines)

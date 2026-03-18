@@ -16,14 +16,24 @@ oc:CreatePDF a oc:ExecutableSkill ;
     oc:requiresState   oc:FileExists ;
     oc:yieldsState     oc:PDFCreated ;
     oc:handlesFailure  oc:OperationFailed ;
-    oc:dependsOn       oc:ReadFile ;
-    oc:extends         oc:BaseExport ;
+    oc:hasRequirement  oc:req_abc123 ;
+    oc:impartsKnowledge oc:kn_xyz789 ;
     oc:generatedBy     "claude-opus-4-6" ;
     oc:contentHash     "abc12345xyz" ;
     oc:hasPayload      oc:CreatePDFPayload .
 
 oc:CreatePDFPayload a oc:ExecutionPayload ;
     oc:executor "python" .
+
+oc:req_abc123 a oc:Requirement ;
+    oc:requirementValue "pypdf" ;
+    oc:isOptional false .
+
+oc:kn_xyz789 a oc:PreFlightCheck ;
+    oc:directiveContent "Always validate PDF structure before manipulation" ;
+    oc:appliesToContext "When opening PDF files for editing" ;
+    oc:hasRationale "Corrupted PDFs can cause silent data loss" ;
+    oc:severityLevel "HIGH" .
 
 oc:ReadFile a oc:DeclarativeSkill ;
     dcterms:identifier "read-file" ;
@@ -66,11 +76,23 @@ def test_explain_states(tmp_path):
     assert "OperationFailed" in summary.handles_failures
 
 
-def test_explain_relations(tmp_path):
-    """dependsOn and extends relationships should be present."""
+def test_explain_requirements(tmp_path):
+    """Requirements should be extracted from hasRequirement nodes."""
     summary = explain_skill(_write(tmp_path), "create-pdf")
-    assert "ReadFile" in summary.depends_on
-    assert "BaseExport" in summary.extends
+    assert len(summary.requirements) == 1
+    req = summary.requirements[0]
+    assert req.requirement_value == "pypdf"
+    assert req.is_optional is False
+
+
+def test_explain_knowledge_nodes(tmp_path):
+    """Knowledge nodes should be extracted from impartsKnowledge."""
+    summary = explain_skill(_write(tmp_path), "create-pdf")
+    assert len(summary.knowledge_nodes) == 1
+    kn = summary.knowledge_nodes[0]
+    assert kn.node_type == "PreFlightCheck"
+    assert "validate PDF structure" in kn.directive_content
+    assert kn.severity_level == "HIGH"
 
 
 def test_explain_executor(tmp_path):

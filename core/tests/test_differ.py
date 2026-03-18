@@ -87,7 +87,9 @@ def test_added_requirement_is_breaking(tmp_path):
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "create_pdf" ;
     oc:requiresState oc:Idle ;
-    oc:requires oc:APIKeySet .
+    oc:hasRequirement oc:req_apikey .
+oc:req_apikey a oc:Requirement ;
+    oc:requirementValue "api-key" .
 """)
 
     report = compute_diff(str(old_f), str(new_f))
@@ -142,7 +144,9 @@ def test_suggest_requirement_added(tmp_path):
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "create_pdf" ;
     oc:requiresState oc:Idle ;
-    oc:requires oc:APIKeySet .
+    oc:hasRequirement oc:req_apikey .
+oc:req_apikey a oc:Requirement ;
+    oc:requirementValue "api-key" .
 """)
 
     report = compute_diff(str(old_f), str(new_f))
@@ -150,8 +154,8 @@ oc:CreatePDF a oc:Skill ;
 
     assert any(s.category == 'requirement-added' for s in suggestions)
     req_sug = next(s for s in suggestions if s.category == 'requirement-added')
-    assert 'APIKeySet' in req_sug.summary
-    assert 'APIKeySet' in req_sug.sparql_query
+    assert 'req_apikey' in req_sug.summary
+    assert 'req_apikey' in req_sug.sparql_query
 
 
 def test_clean_diff_has_no_suggestions(tmp_path):
