@@ -54,6 +54,7 @@ class PackageManifest(BaseModel):
     modules: list[str] = Field(default_factory=list)
     skills: list[PackageSkillManifest]
     source_root: str | None = None
+    source_files: list[str] = Field(default_factory=list)
 
 
 class InstalledSkillState(BaseModel):
@@ -581,10 +582,21 @@ def install_package_from_manifest_ref(
         local_manifest = package_dir / "package.json"
         local_manifest.write_text(manifest_json, encoding="utf-8")
 
-        module_paths = list(dict.fromkeys([*manifest.modules, *(skill.path for skill in manifest.skills)]))
-        for relative in module_paths:
-            ref = _resolve_child_ref(manifest_ref, relative)
-            _copy_ref_to_path(ref, package_dir / relative)
+        if source_kind == "source":
+            if not manifest.source_root:
+                raise ValueError("Remote source packages require source_root in package.json")
+            if not manifest.source_files:
+                raise ValueError("Remote source packages require source_files in package.json")
+            for relative in manifest.source_files:
+                ref = _resolve_child_ref(manifest_ref, relative)
+                _copy_ref_to_path(ref, package_dir / relative)
+        else:
+            module_paths = list(
+                dict.fromkeys([*manifest.modules, *(skill.path for skill in manifest.skills)])
+            )
+            for relative in module_paths:
+                ref = _resolve_child_ref(manifest_ref, relative)
+                _copy_ref_to_path(ref, package_dir / relative)
 
         return install_package_from_directory(
             package_dir,

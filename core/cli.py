@@ -548,6 +548,24 @@ def install_cmd(ctx, package_id, ontology_root_arg):
     console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
 
 
+@cli.command('import-source')
+@click.argument('package_id')
+@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
+@click.pass_context
+def import_source_cmd(ctx, package_id, ontology_root_arg):
+    """Import a source package by id from configured registry sources."""
+    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
+    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
+    package = install_package_from_sources(package_id, root=root)
+    if package.source_kind != "source":
+        console.print(f"[yellow]Package {package.package_id} is not a source package[/yellow]")
+    console.print(f"[green]Imported source package {package.package_id}@{package.version}[/green]")
+    console.print(f"  Trust: {package.trust_tier}")
+    console.print(f"  Source kind: {package.source_kind}")
+    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
+    console.print("  Enabled skills: (none by default)")
+
+
 @cli.command('enable')
 @click.argument('package_id')
 @click.argument('skill_ids', nargs=-1)
