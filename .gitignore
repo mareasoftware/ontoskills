@@ -210,3 +210,5 @@ __marimo__/
 # Development workflow artifacts (GSD/superpowers)
 .planning/
 docs/superpowers/
+skills/
+ontoskills/

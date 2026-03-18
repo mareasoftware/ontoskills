@@ -4,7 +4,10 @@ use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
 
-use catalog::Catalog;
+use catalog::{
+    Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
+    SkillType,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -93,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "listChanged": false
                         }
                     },
-                    "instructions": "Use OntoClaw tools to discover skills, inspect payloads, and plan from semantic state transitions."
+                    "instructions": "Use the consolidated OntoClaw tools to discover skills, retrieve full skill context, evaluate execution plans, and query epistemic rules."
                 });
                 respond_ok(&mut writer, wire_mode, request.id, result)?;
             }
@@ -106,8 +109,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "tools/list" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let result = json!({ "tools": tool_definitions() });
-                respond_ok(&mut writer, wire_mode, request.id, result)?;
+                respond_ok(
+                    &mut writer,
+                    wire_mode,
+                    request.id,
+                    json!({ "tools": tool_definitions() }),
+                )?;
             }
             "resources/list" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
@@ -129,12 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "prompts/list" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                respond_ok(
-                    &mut writer,
-                    wire_mode,
-                    request.id,
-                    json!({ "prompts": [] }),
-                )?;
+                respond_ok(&mut writer, wire_mode, request.id, json!({ "prompts": [] }))?;
             }
             "tools/call" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
@@ -234,95 +236,53 @@ fn handle_tool_call(catalog: &Catalog, params: Value) -> Result<Value, String> {
         .unwrap_or_else(|| json!({}));
 
     let structured = match tool_name {
-        "list_skills" => json!(catalog.list_skills().map_err(|err| err.to_string())?),
-        "find_skills_by_intent" => {
-            let intent = required_string(&arguments, "intent")?;
+        "search_skills" => {
+            let params = SearchSkillsParams {
+                intent: optional_string(&arguments, "intent"),
+                requires_state: optional_string(&arguments, "requires_state"),
+                yields_state: optional_string(&arguments, "yields_state"),
+                skill_type: optional_skill_type(&arguments, "skill_type")?,
+                limit: optional_usize(&arguments, "limit").unwrap_or(25),
+            };
+            json!(catalog.search_skills(params).map_err(public_error)?)
+        }
+        "get_skill_context" => {
+            let skill_id = required_string(&arguments, "skill_id")?;
+            let include_inherited_knowledge =
+                optional_bool(&arguments, "include_inherited_knowledge").unwrap_or(true);
             json!(
                 catalog
-                    .find_skills_by_intent(intent)
-                    .map_err(|err| err.to_string())?
+                    .get_skill_context(skill_id, include_inherited_knowledge)
+                    .map_err(public_error)?
             )
         }
-        "get_skill" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            json!(catalog.get_skill(skill_id).map_err(|err| err.to_string())?)
-        }
-        "get_skill_requirements" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
+        "evaluate_execution_plan" => {
+            let params = EvaluateExecutionPlanParams {
+                intent: optional_string(&arguments, "intent"),
+                skill_id: optional_string(&arguments, "skill_id"),
+                current_states: string_list(&arguments, "current_states"),
+                max_depth: optional_usize(&arguments, "max_depth").unwrap_or(10),
+            };
             json!(
                 catalog
-                    .get_skill_requirements(skill_id)
-                    .map_err(|err| err.to_string())?
+                    .evaluate_execution_plan(params)
+                    .map_err(public_error)?
             )
         }
-        "get_skill_transitions" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            let details = catalog.get_skill(skill_id).map_err(|err| err.to_string())?;
-            json!({
-                "skill_id": details.id,
-                "requires_state": details.requires_state,
-                "yields_state": details.yields_state,
-                "handles_failure": details.handles_failure,
-            })
-        }
-        "get_skill_dependencies" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            let details = catalog.get_skill(skill_id).map_err(|err| err.to_string())?;
-            json!({
-                "skill_id": details.id,
-                "depends_on": details.depends_on,
-                "extends": details.extends,
-                "contradicts": details.contradicts,
-            })
-        }
-        "get_skill_conflicts" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            let details = catalog.get_skill(skill_id).map_err(|err| err.to_string())?;
-            json!({
-                "skill_id": details.id,
-                "contradicts": details.contradicts,
-            })
-        }
-        "find_skills_yielding_state" => {
-            let state = required_string(&arguments, "state")?;
+        "query_epistemic_rules" => {
+            let params = EpistemicQueryParams {
+                skill_id: optional_string(&arguments, "skill_id"),
+                kind: optional_string(&arguments, "kind"),
+                dimension: optional_string(&arguments, "dimension"),
+                severity_level: optional_string(&arguments, "severity_level"),
+                applies_to_context: optional_string(&arguments, "applies_to_context"),
+                include_inherited: optional_bool(&arguments, "include_inherited").unwrap_or(true),
+                limit: optional_usize(&arguments, "limit").unwrap_or(25),
+            };
             json!(
                 catalog
-                    .find_skills_yielding_state(state)
-                    .map_err(|err| err.to_string())?
-            )
-        }
-        "find_skills_requiring_state" => {
-            let state = required_string(&arguments, "state")?;
-            json!(
-                catalog
-                    .find_skills_requiring_state(state)
-                    .map_err(|err| err.to_string())?
-            )
-        }
-        "check_skill_applicability" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            let current_states = string_list(&arguments, "current_states");
-            json!(
-                catalog
-                    .check_skill_applicability(skill_id, &current_states)
-                    .map_err(|err| err.to_string())?
-            )
-        }
-        "plan_from_intent" => {
-            let intent = required_string(&arguments, "intent")?;
-            let current_states = string_list(&arguments, "current_states");
-            json!(
-                catalog
-                    .plan_from_intent(intent, &current_states)
-                    .map_err(|err| err.to_string())?
-            )
-        }
-        "get_skill_payload" => {
-            let skill_id = required_string(&arguments, "skill_id")?;
-            json!(
-                catalog
-                    .get_skill_payload(skill_id)
-                    .map_err(|err| err.to_string())?
+                    .query_epistemic_rules(params)
+                    .map_err(public_error)?
             )
         }
         _ => return Err(format!("Unknown tool: {tool_name}")),
@@ -349,11 +309,55 @@ fn normalize_structured_content(value: Value) -> Value {
     }
 }
 
+fn public_error(err: CatalogError) -> String {
+    match err {
+        CatalogError::SkillNotFound(skill_id) => format!("Skill not found: {skill_id}"),
+        CatalogError::InvalidInput(message) => format!("Invalid input: {message}"),
+        CatalogError::InvalidState(state) => format!("Invalid state value: {state}"),
+        CatalogError::MissingOntologyRoot(_) => "Ontology root not found".to_string(),
+        CatalogError::Io(_) | CatalogError::Walk(_) | CatalogError::Oxigraph(_) => {
+            "Ontology query failed".to_string()
+        }
+    }
+}
+
 fn required_string<'a>(value: &'a Value, key: &str) -> Result<&'a str, String> {
     value
         .get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| format!("Missing required string field '{key}'"))
+}
+
+fn optional_string(value: &Value, key: &str) -> Option<String> {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+}
+
+fn optional_bool(value: &Value, key: &str) -> Option<bool> {
+    value.get(key).and_then(Value::as_bool)
+}
+
+fn optional_usize(value: &Value, key: &str) -> Option<usize> {
+    value
+        .get(key)
+        .and_then(Value::as_u64)
+        .and_then(|number| usize::try_from(number).ok())
+}
+
+fn optional_skill_type(value: &Value, key: &str) -> Result<Option<SkillType>, String> {
+    let Some(raw) = value.get(key).and_then(Value::as_str) else {
+        return Ok(None);
+    };
+
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "executable" => Ok(Some(SkillType::Executable)),
+        "declarative" => Ok(Some(SkillType::Declarative)),
+        _ => Err(format!(
+            "Invalid skill_type '{raw}'. Expected 'executable' or 'declarative'"
+        )),
+    }
 }
 
 fn string_list(value: &Value, key: &str) -> Vec<String> {
@@ -468,141 +472,61 @@ fn respond_error(
 fn tool_definitions() -> Vec<Value> {
     vec![
         tool(
-            "list_skills",
-            "List all OntoClaw skills available in the global ontology catalog.",
-            json!({
-                "type": "object",
-                "properties": {}
-            }),
-        ),
-        tool(
-            "find_skills_by_intent",
-            "Find skills that resolve a given user intent.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "intent": { "type": "string", "description": "Intent literal to match against oc:resolvesIntent." }
-                },
-                "required": ["intent"]
-            }),
-        ),
-        tool(
-            "get_skill",
-            "Fetch the complete semantic description of a skill by skill_id.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string", "description": "Stable human-readable skill identifier." }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "get_skill_requirements",
-            "Fetch the requirements attached to a skill.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string" }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "get_skill_transitions",
-            "Return requires/yields/failure states for a skill.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string" }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "get_skill_dependencies",
-            "Return dependsOn, extends, and contradicts relations for a skill.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string" }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "get_skill_conflicts",
-            "Return only contradicts relations for a skill.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string" }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "find_skills_yielding_state",
-            "Find skills that produce a given state via oc:yieldsState.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "state": { "type": "string", "description": "State URI or oc:StateName compact value." }
-                },
-                "required": ["state"]
-            }),
-        ),
-        tool(
-            "find_skills_requiring_state",
-            "Find skills that require a given state via oc:requiresState.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "state": { "type": "string", "description": "State URI or oc:StateName compact value." }
-                },
-                "required": ["state"]
-            }),
-        ),
-        tool(
-            "check_skill_applicability",
-            "Check whether a skill can run given the caller's current states.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string" },
-                    "current_states": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "Current runtime states already satisfied by the caller."
-                    }
-                },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "plan_from_intent",
-            "Create a semantically grounded plan from an intent and the caller's current states.",
+            "search_skills",
+            "Discover skills with optional filters for intent, required state, yielded state, and skill type.",
             json!({
                 "type": "object",
                 "properties": {
                     "intent": { "type": "string" },
-                    "current_states": {
-                        "type": "array",
-                        "items": { "type": "string" }
-                    }
-                },
-                "required": ["intent"]
+                    "requires_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
+                    "yields_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
+                    "skill_type": { "type": "string", "enum": ["executable", "declarative"] },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+                }
             }),
         ),
         tool(
-            "get_skill_payload",
-            "Return the execution payload of a skill for the agent to run locally.",
+            "get_skill_context",
+            "Fetch the full execution context for a skill, including requirements, transitions, payload, dependencies, and knowledge nodes.",
             json!({
                 "type": "object",
                 "properties": {
-                    "skill_id": { "type": "string" }
+                    "skill_id": { "type": "string" },
+                    "include_inherited_knowledge": { "type": "boolean", "default": true }
                 },
                 "required": ["skill_id"]
+            }),
+        ),
+        tool(
+            "evaluate_execution_plan",
+            "Evaluate whether an intent or skill can be executed from the current states and return the full plan plus warnings.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "intent": { "type": "string" },
+                    "skill_id": { "type": "string" },
+                    "current_states": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "max_depth": { "type": "integer", "minimum": 1, "maximum": 10 }
+                }
+            }),
+        ),
+        tool(
+            "query_epistemic_rules",
+            "Query normalized knowledge nodes with guided filters such as kind, dimension, severity, context, and skill.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "skill_id": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "dimension": { "type": "string" },
+                    "severity_level": { "type": "string" },
+                    "applies_to_context": { "type": "string" },
+                    "include_inherited": { "type": "boolean", "default": true },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+                }
             }),
         ),
     ]

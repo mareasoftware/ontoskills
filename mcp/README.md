@@ -28,10 +28,10 @@ flowchart LR
 
 The MCP server is intentionally focused on:
 
-- **Skill discovery** — Find skills by intent, state, or capability
-- **Semantic lookup** — Query dependencies, conflicts, and transitions
-- **Planning** — Generate execution plans from `requiresState`/`yieldsState`
-- **Payload retrieval** — Return `oc:code` or `oc:executionPath` for execution
+- **Skill discovery** — Search skills by intent, state, and type
+- **Skill context retrieval** — Return execution payload, transitions, dependencies, and knowledge nodes in one call
+- **Planning** — Evaluate whether a skill or intent is executable from the current state set
+- **Epistemic retrieval** — Query normalized `KnowledgeNode` rules by kind, dimension, severity, and context
 
 The server does **not** execute skill payloads. Payload execution is delegated to the calling agent in its current runtime context.
 
@@ -41,7 +41,7 @@ The server does **not** execute skill payloads. Payload execution is delegated t
 
 ```mermaid
 flowchart LR
-    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>12 semantic tools<br/>list_skills, plan..."]
+    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>4 consolidated tools<br/>search, context, plan, rules"]
     TOOLS -->|"SPARQL"| SPARQL["oxigraph<br/>━━━━━━━━━━<br/>SPARQL 1.1 engine<br/>in-memory store"]
     SPARQL -->|"query"| GRAPH["RDF Graph<br/>━━━━━━━━━━<br/>Loaded .ttl files<br/>OntoSkills catalog"]
 
@@ -66,18 +66,10 @@ flowchart LR
 
 | Tool | Purpose |
 |------|---------|
-| `list_skills` | List all available skills |
-| `find_skills_by_intent` | Find skills matching a user intent |
-| `get_skill` | Get full skill details by ID |
-| `get_skill_requirements` | Get skill dependencies and prerequisites |
-| `get_skill_transitions` | Get state transitions (requires/yields/handles) |
-| `get_skill_dependencies` | Get skills this one depends on |
-| `get_skill_conflicts` | Get skills that contradict this one |
-| `find_skills_yielding_state` | Find skills that produce a given state |
-| `find_skills_requiring_state` | Find skills that need a given state |
-| `check_skill_applicability` | Check if skill can run with current states |
-| `plan_from_intent` | Generate execution plan from intent |
-| `get_skill_payload` | Get execution code/path for a skill |
+| `search_skills` | Discover skills with optional filters for intent, required state, yielded state, and type |
+| `get_skill_context` | Return the complete execution context for a skill, including payload and knowledge nodes |
+| `evaluate_execution_plan` | Evaluate applicability and generate a plan for a target intent or skill |
+| `query_epistemic_rules` | Query normalized knowledge nodes across the ontology with guided filters |
 
 ---
 
@@ -129,10 +121,10 @@ After registration, Claude Code can call:
 
 ```mermaid
 flowchart LR
-    CLAUDE["Claude Code"] -->|"list_skills"| TOOLS["ontoclaw MCP"]
-    CLAUDE -->|"find_skills_by_intent"| TOOLS
-    CLAUDE -->|"plan_from_intent"| TOOLS
-    CLAUDE -->|"get_skill_payload"| TOOLS
+    CLAUDE["Claude Code"] -->|"search_skills"| TOOLS["ontoclaw MCP"]
+    CLAUDE -->|"get_skill_context"| TOOLS
+    CLAUDE -->|"evaluate_execution_plan"| TOOLS
+    CLAUDE -->|"query_epistemic_rules"| TOOLS
 
     style CLAUDE fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
     style TOOLS fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
@@ -150,9 +142,9 @@ cargo test
 ```
 
 **Rust test coverage**:
-- Intent lookup
-- Payload lookup
-- Planning with preparatory skills
+- Skill search
+- Skill context retrieval with knowledge nodes
+- Guided epistemic rule filtering
 - Planner preference for direct skills over setup-heavy alternatives
 
 ---
