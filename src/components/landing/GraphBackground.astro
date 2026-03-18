@@ -20,12 +20,15 @@
   let isMobile = window.matchMedia('(max-width: 768px)').matches;
 
   const config = {
-    nodeCount: 60,
     connectionDistance: 150,
     mouseRadius: 200,
     nodeSpeed: 0.3,
     colors: ['#6dc9ee', '#9763e1', '#abf9cc', '#92eff4']
   };
+
+  function getNodeCount(): number {
+    return Math.floor((width * height) / 12000); // density based on screen area
+  }
 
   class Node {
     x: number;
@@ -95,7 +98,8 @@
   function init() {
     resize();
     nodes = [];
-    for (let i = 0; i < config.nodeCount; i++) {
+    const nodeCount = getNodeCount();
+    for (let i = 0; i < nodeCount; i++) {
       nodes.push(new Node());
     }
   }
