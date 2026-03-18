@@ -18,6 +18,7 @@ from compiler.env import load_local_env
 from compiler.schemas import ExtractedSkill
 from compiler.exceptions import ExtractionError
 from compiler.config import ANTHROPIC_MODEL, MAX_ITERATIONS, EXTRACTION_TIMEOUT, CORE_STATES, FAILURE_STATES
+from compiler.prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -25,78 +26,6 @@ load_local_env()
 
 # Configuration
 COMPLETION_TOOL = "extract_skill"
-
-# System prompt following Knowledge Architecture framework
-SYSTEM_PROMPT = """You are an Ontological Architect. Your task is to analyze agent skills
-and extract their essential structure using the Knowledge Architecture framework.
-
-## KNOWLEDGE ARCHITECTURE FRAMEWORK
-
-### Categories of Being
-- Tool: Enables action
-- Concept: A framework, methodology
-- Work: A created artifact generator
-
-### Genus and Differentia
-"A is a B that C" - classical definition structure
-
-### Relations as First-Class Citizens
-- depends-on: Cannot function without
-- extends: Builds upon
-- contradicts: In tension with
-- implements: Realizes abstraction
-- exemplifies: Instance of pattern
-
-### Essential vs Accidental
-Essential: Remove it → becomes something else
-Accidental: Could be different without changing identity
-
-## STATE TRANSITION EXTRACTION (CRITICAL)
-
-Extract the skill's logic as a state machine using URIs, NOT strings.
-
-### requiresState (Pre-conditions)
-What must be true BEFORE this skill can run?
-- Prefer predefined URIs: oc:SystemAuthenticated, oc:NetworkAvailable, oc:FileExists,
-  oc:DirectoryWritable, oc:APIKeySet, oc:ToolInstalled, oc:EnvironmentReady
-- Create novel URIs for domain-specific states: oc:DocumentCreated, oc:NetworkScanned
-
-### yieldsState (Success outcomes)
-What becomes true AFTER successful execution?
-- Examples: oc:DocumentCreated, oc:NetworkDiscovered, oc:FileDownloaded
-
-### handlesFailure (Failure states)
-What states indicate this skill FAILED?
-- Examples: oc:PermissionDenied, oc:NetworkTimeout, oc:FileNotFound, oc:InvalidInput
-
-CRITICAL: Output URIs (oc:StateName), NOT string literals.
-
-## INTENT EXTRACTION (MANDATORY)
-
-CRITICAL: You MUST extract at least one intent for EVERY skill. An intent is a user-facing goal this skill addresses.
-
-Common intent patterns:
-- "create X" / "generate X" / "make X" (creation intents)
-- "edit X" / "modify X" / "update X" (modification intents)
-- "analyze X" / "extract from X" / "read X" (analysis intents)
-- "convert X to Y" / "transform X" (conversion intents)
-
-Examples:
-- For xlsx skill: "create spreadsheet", "analyze excel data", "edit xlsx file"
-- For pdf skill: "create pdf", "extract text from pdf", "merge pdfs"
-- For pptx skill: "create presentation", "edit powerpoint"
-
-If you cannot identify at least one intent, the skill is incomplete and you should note this.
-
-## YOUR TASK
-
-1. Use list_files to discover all files in the skill directory
-2. Use read_file to read SKILL.md and any reference files
-3. Identify at least ONE intent the skill resolves
-4. Analyze the skill and extract its structure
-5. Call extract_skill with the structured data (including at least one intent)
-
-Be thorough but concise. Focus on the essential nature of the skill."""
 
 # Tool definitions
 TOOLS = [
