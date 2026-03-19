@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.9.0] - 2026-03-19
+## [0.7.0] - 2026-03-19
 
 ### Changed
 
@@ -16,8 +16,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Env vars**: `ONTOCLAW_*` → `ONTOSKILLS_*`
 - **README**: Restored clean 121-line version with docs links
 - **docs/registry.md**: New file for registry documentation
-
-## [0.8.0] - 2026-03-19
 
 ### Added
 
@@ -41,15 +39,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `index.installed.ttl`
   - `index.enabled.ttl`
 
-## [0.7.0] - 2026-03-18
+## [0.6.0] - 2026-03-18
 
 ### Added
 
 - Documentation restructure: README reduced, docs/ expanded
 - docs/architecture.md — system design, OWL properties, security
 - docs/knowledge-extraction.md — focus on knowledge nodes
-
-## [0.6.0] - 2026-03-18
 
 ### Added
 
