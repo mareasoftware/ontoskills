@@ -99,7 +99,7 @@ ontoskills query "SELECT ?skill WHERE { ?skill oc:resolvesIntent 'create_pdf' }"
 | **OntoCore** | Python | ✅ Ready | Skill compiler to OWL 2 ontology |
 | **OntoMCP** | Rust | ✅ Ready | MCP server for semantic skill discovery |
 | **OntoStore** | TBD | 📋 Planned | Versioned skill registry |
-| `skills/` | Markdown | Input | Human-authored skill definitions |
+| `skills/` | Markdown | Input | Natural language skill definitions |
 | `ontoskills/` | Turtle | Output | Compiled, self-contained ontologies |
 
 ---
