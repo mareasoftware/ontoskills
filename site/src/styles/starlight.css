@@ -1,0 +1,126 @@
+/* OntoSkills Starlight Theme */
+
+:root {
+  /* Background colors */
+  --sl-color-bg: #0d0d14;
+  --sl-color-bg-nav: #0d0d14;
+  --sl-color-bg-sidebar: #1a1a2e;
+  --sl-color-bg-inline-code: #1a1a2e;
+
+  /* Text colors */
+  --sl-color-text: #f0f0f5;
+  --sl-color-text-muted: #8b8ba3;
+  --sl-color-text-accent: #6dc9ee;
+
+  /* Accent colors */
+  --sl-color-accent-low: #1a1a2e;
+  --sl-color-accent: #6dc9ee;
+  --sl-color-accent-high: #92eff4;
+
+  /* Border colors */
+  --sl-color-border: #2a2a3e;
+  --sl-color-border-accent: #6dc9ee;
+
+  /* Fonts */
+  --sl-font: 'Inter', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Content width */
+  --sl-content-width: 75ch;
+  --sl-sidebar-width: 16rem;
+}
+
+/* Dark mode is default, no changes needed */
+:root[data-theme='dark'] {
+  --sl-color-bg: #0d0d14;
+  --sl-color-bg-nav: #0d0d14;
+  --sl-color-bg-sidebar: #1a1a2e;
+  --sl-color-text: #f0f0f5;
+  --sl-color-text-muted: #8b8ba3;
+  --sl-color-accent: #6dc9ee;
+}
+
+/* Light mode */
+:root[data-theme='light'] {
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f5f5f7;
+  --sl-color-text: #0d0d14;
+  --sl-color-text-muted: #6b6b7b;
+  --sl-color-accent: #6dc9ee;
+  --sl-color-border: #e5e5ea;
+}
+
+/* Header styling */
+header {
+  border-bottom: 1px solid var(--sl-color-border) !important;
+  background: var(--sl-color-bg-nav) !important;
+}
+
+/* Sidebar styling */
+.sidebar {
+  border-right: 1px solid var(--sl-color-border) !important;
+}
+
+/* Code blocks */
+pre {
+  background: #1a1a2e !important;
+  border: 1px solid var(--sl-color-border) !important;
+  border-radius: 0.5rem !important;
+}
+
+code {
+  font-family: var(--sl-font-mono) !important;
+}
+
+/* Links */
+a {
+  color: var(--sl-color-accent);
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--sl-color-accent-high);
+}
+
+/* Tables */
+table {
+  border: 1px solid var(--sl-color-border) !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden;
+}
+
+th {
+  background: #1a1a2e !important;
+}
+
+td, th {
+  border: 1px solid var(--sl-color-border) !important;
+}
+
+/* Mermaid diagrams */
+.mermaid {
+  background: transparent !important;
+}
+
+/* Search */
+[data-search] {
+  background: #1a1a2e !important;
+  border: 1px solid var(--sl-color-border) !important;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #6dc9ee 0%, #9763e1 50%, #abf9cc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card styling */
+.card {
+  background: #1a1a2e;
+  border: 1px solid var(--sl-color-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}

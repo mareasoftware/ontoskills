@@ -1,0 +1,71 @@
+---
+import Button from '../ui/Button.astro';
+---
+
+<section class="py-20 bg-bg-secondary">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid md:grid-cols-2 gap-12">
+      <!-- Problem -->
+      <div class="space-y-6">
+        <h2 class="text-3xl font-bold text-text-primary">
+          The <span class="text-red-400">Determinism</span> Problem
+        </h2>
+        <p class="text-text-muted leading-relaxed">
+          LLMs read skills probabilistically. Same query, different results.
+          Long skill files are expensive for large models and confusing for small ones.
+        </p>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Non-deterministic reading</strong> — LLMs interpret text differently each time
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Token waste</strong> — Large models burn tokens reading long skill files
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Small model limits</strong> — Complex skills are unreadable by edge models
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Solution -->
+      <div class="space-y-6">
+        <h2 class="text-3xl font-bold text-text-primary">
+          The <span class="gradient-text">OntoCore</span> Solution
+        </h2>
+        <p class="text-text-muted leading-relaxed">
+          Transform skills into formal ontologies. Query with SPARQL.
+          Deterministic answers, entailment reasoning, democratized intelligence.
+        </p>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Deterministic queries</strong> — SPARQL returns exact answers, every time
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Entailment reasoning</strong> — Infer dependencies, conflicts, capabilities
+            </span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
+            <span class="text-text-muted">
+              <strong class="text-text-primary">Democratized intelligence</strong> — Small models query what large models read
+            </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

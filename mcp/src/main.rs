@@ -11,7 +11,7 @@ use catalog::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-const SERVER_NAME: &str = "ontoclaw-mcp";
+const SERVER_NAME: &str = "ontoskills-mcp";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-11-25";
 const SUPPORTED_PROTOCOLS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "listChanged": false
                         }
                     },
-                    "instructions": "Use the consolidated OntoClaw tools to discover skills, retrieve full skill context, evaluate execution plans, and query epistemic rules."
+                    "instructions": "Use the consolidated OntoSkills tools to discover skills, retrieve full skill context, evaluate execution plans, and query epistemic rules."
                 });
                 respond_ok(&mut writer, wire_mode, request.id, result)?;
             }
@@ -173,7 +173,7 @@ fn parse_ontology_root() -> PathBuf {
         }
     }
 
-    if let Ok(path) = env::var("ONTOCLAW_MCP_ONTOLOGY_ROOT") {
+    if let Ok(path) = env::var("ONTOSKILLS_MCP_ONTOLOGY_ROOT") {
         return PathBuf::from(path);
     }
 

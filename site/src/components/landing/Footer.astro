@@ -1,0 +1,39 @@
+---
+import logo from '../../assets/ontoskills-logo.png';
+
+const links = [
+  { label: 'Docs', href: '/docs/' },
+  { label: 'GitHub', href: 'https://github.com/mareasoftware/ontoskills' },
+  { label: 'Marea Software', href: 'https://marea.software' }
+];
+---
+
+<footer class="border-t border-border py-12 bg-bg-secondary">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2">
+        <img src={logo.src} alt="OntoSkills" class="h-6 w-auto" />
+        <span class="font-semibold text-text-primary">OntoSkills</span>
+      </a>
+
+      <!-- Links -->
+      <nav class="flex items-center gap-6">
+        {links.map((link) => (
+          <a
+            href={link.href}
+            class="text-text-muted hover:text-accent-cyan transition-colors text-sm"
+            {...(link.href.startsWith('http') && { target: '_blank', rel: 'noopener' })}
+          >
+            {link.label}
+          </a>
+        ))}
+      </nav>
+
+      <!-- Copyright -->
+      <div class="text-text-muted text-sm">
+        © 2026 Marea Software
+      </div>
+    </div>
+  </div>
+</footer>

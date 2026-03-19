@@ -1,0 +1,59 @@
+---
+import Card from '../ui/Card.astro';
+
+const features = [
+  {
+    title: 'LLM Extraction',
+    description: 'Claude extracts structured knowledge from SKILL.md files with tool-use.',
+    icon: '🧠'
+  },
+  {
+    title: 'Knowledge Architecture',
+    description: 'Follows "A is a B that C" definition pattern (genus + differentia) for precise classification.',
+    icon: '🏛️'
+  },
+  {
+    title: 'OWL 2 Serialization',
+    description: 'Outputs valid OWL 2 DL ontologies in RDF/Turtle format with formal semantics.',
+    icon: '📊'
+  },
+  {
+    title: 'SHACL Validation',
+    description: 'Constitutional gatekeeper ensures logical validity before any write operation.',
+    icon: '✅'
+  },
+  {
+    title: 'State Machines',
+    description: 'Skills define preconditions, postconditions, and failure handlers for robust execution.',
+    icon: '⚙️'
+  },
+  {
+    title: 'Security Pipeline',
+    description: 'Defense-in-depth: Unicode normalization + regex patterns + LLM review for threat detection.',
+    icon: '🔒'
+  }
+];
+---
+
+<section id="features" class="py-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+        Key <span class="gradient-text">Capabilities</span>
+      </h2>
+      <p class="text-text-muted max-w-2xl mx-auto">
+        Everything you need to build deterministic, queryable skill ontologies.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {features.map((feature) => (
+        <Card
+          title={feature.title}
+          description={feature.description}
+          icon={feature.icon}
+        />
+      ))}
+    </div>
+  </div>
+</section>

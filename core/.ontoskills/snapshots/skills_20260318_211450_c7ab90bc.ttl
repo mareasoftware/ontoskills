@@ -1,0 +1,10 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+<http://ontoskills.sh/ontology> a owl:Ontology ;
+    dcterms:created "2026-03-18T21:14:50.198979" ;
+    dcterms:description "Index manifest referencing all compiled skill modules" ;
+    dcterms:title "OntoSkills Skill Index" ;
+    owl:imports <file:///private/var/folders/f3/vgmbz_1j6c375y52l9k_9l980000gn/T/pytest-of-marcello/pytest-110/test_force_flag_bypasses_hash0/output/ontoskills-core.ttl>,
+        <file:///private/var/folders/f3/vgmbz_1j6c375y52l9k_9l980000gn/T/pytest-of-marcello/pytest-110/test_force_flag_bypasses_hash0/output/test-skill/ontoskill.ttl> .
+

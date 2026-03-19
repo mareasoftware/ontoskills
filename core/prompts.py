@@ -1,5 +1,5 @@
 """
-System prompts for OntoClaw extraction module.
+System prompts for OntoSkills extraction module.
 """
 
 SYSTEM_PROMPT = """You are an Ontological Architect. Your task is to analyze agent skills

@@ -80,7 +80,7 @@ def test_real_compile_xlsx(xlsx_skill_dir, tmp_path):
     output_dir.mkdir(parents=True)
 
     # Create core ontology
-    core_path = output_dir / "ontoclaw-core.ttl"
+    core_path = output_dir / "ontoskills-core.ttl"
     print(f"\nCreating core ontology at {core_path}")
     create_core_ontology(core_path)
     assert core_path.exists(), "Core ontology should be created"

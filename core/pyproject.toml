@@ -1,7 +1,7 @@
 [project]
-name = "ontocore"
-version = "0.5.0"
-description = "OntoCore — The skill compiler for the OntoClaw ecosystem. Compiles SKILL.md into validated OWL 2 ontologies."
+name = "ontoskills"
+version = "0.7.0"
+description = "OntoSkills — Neuro-symbolic skill compiler. Compiles SKILL.md into validated OWL 2 ontologies."
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.1.0",
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-ontoclaw = "compiler.cli:main"
+ontoskills = "compiler.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]

@@ -79,7 +79,7 @@ def test_serialize_skill_to_module_with_output_base(tmp_path):
     output_base.mkdir(parents=True, exist_ok=True)
 
     # Create a minimal core ontology file
-    core_ontology_path = output_base / "ontoclaw-core.ttl"
+    core_ontology_path = output_base / "ontoskills-core.ttl"
     core_graph = Graph()
     oc = get_oc_namespace()
     core_graph.bind("oc", oc)

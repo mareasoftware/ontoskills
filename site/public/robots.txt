@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ontoskills.marea.software/sitemap-index.xml

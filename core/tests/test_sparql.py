@@ -9,7 +9,7 @@ from compiler.sparql import execute_sparql, format_results
 def sample_ontology(tmp_path):
     """Create a sample ontology for testing."""
     # Create core ontology
-    core_path = tmp_path / "ontoclaw-core.ttl"
+    core_path = tmp_path / "ontoskills-core.ttl"
     graph = create_core_ontology(core_path)
 
     # Add some test skills
@@ -35,7 +35,7 @@ def sample_ontology(tmp_path):
 
 def test_execute_sparql_select(sample_ontology):
     """Test basic SELECT query."""
-    query = "SELECT ?s ?n WHERE { ?s <http://ontoclaw.marea.software/ontology#nature> ?n }"
+    query = "SELECT ?s ?n WHERE { ?s <http://ontoskills.sh/ontology#nature> ?n }"
     results, vars = execute_sparql(sample_ontology, query)
     assert len(results) == 2
 

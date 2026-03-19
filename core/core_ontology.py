@@ -1,7 +1,7 @@
 """
 Core Ontology Module.
 
-Contains the OntoClaw namespace and core ontology creation functions.
+Contains the OntoSkills namespace and core ontology creation functions.
 This module defines the TBox (terminology) for the skill ontology including:
 - Core classes (Skill, ExecutableSkill, DeclarativeSkill, State, Attempt, ExecutionPayload)
 - State transition properties (requiresState, yieldsState, handlesFailure, hasStatus)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_oc_namespace() -> Namespace:
-    """Get the OntoClaw namespace using configured BASE_URI."""
+    """Get the OntoSkills namespace using configured BASE_URI."""
     return Namespace(BASE_URI)
 
 
@@ -88,9 +88,9 @@ def _add_knowledge_rbox(g: Graph, oc: Namespace) -> None:
 
 def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     """
-    Create the core OntoClaw ontology (TBox) with state transition system.
+    Create the core OntoSkills ontology (TBox) with state transition system.
 
-    Generates ontoclaw-core.ttl containing:
+    Generates ontoskills-core.ttl containing:
     - Core classes (Skill, State, Attempt, ExecutionPayload)
     - State transition properties (requiresState, yieldsState, handlesFailure, hasStatus)
     - Execution payload properties (hasPayload, executor, code, timeout)
@@ -98,14 +98,14 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     - Predefined core and failure states
 
     Args:
-        output_path: Path where ontoclaw-core.ttl will be saved (default: OUTPUT_DIR/ontoclaw-core.ttl)
+        output_path: Path where ontoskills-core.ttl will be saved (default: OUTPUT_DIR/ontoskills-core.ttl)
 
     Returns:
         Graph with core ontology definitions
     """
     if output_path is None:
         output_base = Path(OUTPUT_DIR).resolve()
-        output_path = output_base / "ontoclaw-core.ttl"
+        output_path = output_base / "ontoskills-core.ttl"
 
     oc = get_oc_namespace()
     g = Graph()
@@ -122,7 +122,7 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     # Ontology header
     base_uri = URIRef(BASE_URI.rstrip('#'))
     g.add((base_uri, RDF.type, OWL.Ontology))
-    g.add((base_uri, DCTERMS.title, Literal("OntoClaw Core Ontology")))
+    g.add((base_uri, DCTERMS.title, Literal("OntoSkills Core Ontology")))
     g.add((base_uri, DCTERMS.description, Literal(
         "Core TBox ontology for skill state transitions and execution"
     )))

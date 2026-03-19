@@ -28,6 +28,7 @@ from compiler.registry import (
     add_registry_source,
     enable_skills,
     disable_skills,
+    ensure_registry_layout,
     enabled_index_path,
     import_source_repository,
     install_package_from_directory,
@@ -43,6 +44,12 @@ from compiler.exceptions import (
     SPARQLError,
     SkillNotFoundError,
 )
+from compiler.differ import compute_diff
+from compiler.drift_report import print_report, export_json, print_suggestions
+from compiler.snapshot import save_snapshot, get_latest_snapshot
+from compiler.linter import lint_ontology, LintIssue
+from compiler.graph_export import build_graph
+from compiler.explainer import explain_skill, list_skill_ids
 from compiler.config import SKILLS_DIR, OUTPUT_DIR, resolve_ontology_root
 
 # Get version from pyproject.toml (single source of truth)

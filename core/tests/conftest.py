@@ -1,4 +1,4 @@
-"""Pytest configuration for OntoClaw compiler tests."""
+"""Pytest configuration for OntoSkills compiler tests."""
 import sys
 from pathlib import Path
 

@@ -32,7 +32,7 @@ def test_init_core_command(tmp_path):
     result = runner.invoke(cli, ['init-core', '-o', str(output_dir)])
 
     assert result.exit_code == 0
-    assert (output_dir / "ontoclaw-core.ttl").exists()
+    assert (output_dir / "ontoskills-core.ttl").exists()
     assert "created core ontology" in result.output.lower()
 
 
@@ -46,7 +46,7 @@ def test_init_core_idempotent(tmp_path):
     result1 = runner.invoke(cli, ['init-core', '-o', str(output_dir)])
     assert result1.exit_code == 0
 
-    core_path = output_dir / "ontoclaw-core.ttl"
+    core_path = output_dir / "ontoskills-core.ttl"
     import hashlib
     content1 = core_path.read_text()
     hash1 = hashlib.sha256(content1.encode()).hexdigest()
@@ -112,6 +112,170 @@ def test_security_audit_no_skills(tmp_path):
     assert "not found" in result.output.lower()
 
 
+def test_diff_command_in_help():
+    """Test that the diff command is listed in the CLI help output."""
+    from cli import cli
+    runner = CliRunner()
+    result = runner.invoke(cli, ['--help'])
+    assert result.exit_code == 0
+    assert 'diff' in result.output
+
+
+def test_diff_no_snapshot(tmp_path):
+    """Test that diff fails gracefully when no snapshot exists."""
+    from cli import cli
+    runner = CliRunner()
+    # Point to a non-existent snapshot dir so get_latest_snapshot returns None
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli, [
+            'diff',
+            '--to', str(tmp_path / 'nonexistent.ttl'),
+        ])
+    assert result.exit_code != 0
+    assert 'snapshot' in result.output.lower() or 'no snapshot' in result.output.lower()
+
+
+def test_diff_clean(tmp_path):
+    """Test that diffing identical files reports no drift and exits 0."""
+    from cli import cli
+    runner = CliRunner()
+
+    ttl_content = """
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "do_thing" .
+"""
+    ttl_file = tmp_path / 'skills.ttl'
+    ttl_file.write_text(ttl_content)
+
+    result = runner.invoke(cli, [
+        'diff',
+        '--from', str(ttl_file),
+        '--to', str(ttl_file),
+    ])
+
+    assert result.exit_code == 0
+    assert 'no drift' in result.output.lower() or 'consistent' in result.output.lower()
+
+
+def test_diff_breaking_exits_9(tmp_path):
+    """Test that breaking changes cause exit code 9."""
+    from cli import cli
+    runner = CliRunner()
+
+    old_ttl = tmp_path / 'old.ttl'
+    new_ttl = tmp_path / 'new.ttl'
+
+    old_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "create_pdf" .
+""")
+    new_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "generate_pdf" .
+""")
+
+    result = runner.invoke(cli, [
+        'diff',
+        '--from', str(old_ttl),
+        '--to', str(new_ttl),
+    ])
+
+    assert result.exit_code == 9
+
+
+def test_diff_breaking_only_flag(tmp_path):
+    """Test that --breaking-only suppresses additive changes in output."""
+    from cli import cli
+    runner = CliRunner()
+
+    old_ttl = tmp_path / 'old.ttl'
+    new_ttl = tmp_path / 'new.ttl'
+
+    old_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:SkillA a oc:Skill ;
+    oc:resolvesIntent "task_a" .
+""")
+    # Only an additive change: new skill added, nothing removed
+    new_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:SkillA a oc:Skill ;
+    oc:resolvesIntent "task_a" .
+oc:SkillB a oc:Skill ;
+    oc:resolvesIntent "task_b" .
+""")
+
+    result = runner.invoke(cli, [
+        'diff',
+        '--from', str(old_ttl),
+        '--to', str(new_ttl),
+        '--breaking-only',
+    ])
+
+    # No breaking changes, so exit 0 and summary shows 0 breaking
+    assert result.exit_code == 0
+    assert '0 breaking' in result.output.lower()
+
+
+def test_diff_json_output(tmp_path):
+    """Test that --format json writes a valid JSON drift report."""
+    import json as json_mod
+    from cli import cli
+    runner = CliRunner()
+
+    ttl_file = tmp_path / 'skills.ttl'
+    ttl_file.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "do_thing" .
+""")
+    output_file = tmp_path / 'report.json'
+
+    runner.invoke(cli, [
+        'diff',
+        '--from', str(ttl_file),
+        '--to', str(ttl_file),
+        '--format', 'json',
+        '--output', str(output_file),
+    ])
+
+    assert output_file.exists()
+    data = json_mod.loads(output_file.read_text())
+    assert 'has_breaking' in data
+    assert 'breaking' in data
+    assert 'additive' in data
+
+
+def test_diff_suggest_shows_migration_guidance(tmp_path):
+    """--suggest should print migration guidance when breaking changes exist."""
+    from cli import cli
+    runner = CliRunner()
+
+    old_ttl = tmp_path / 'old.ttl'
+    new_ttl = tmp_path / 'new.ttl'
+    old_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:SkillA a oc:Skill ; oc:resolvesIntent "old_intent" .
+""")
+    new_ttl.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:SkillA a oc:Skill ; oc:resolvesIntent "new_intent" .
+""")
+
+    result = runner.invoke(cli, [
+        'diff',
+        '--from', str(old_ttl),
+        '--to', str(new_ttl),
+        '--suggest',
+    ])
+
+    assert result.exit_code == 9
+    assert 'migration' in result.output.lower() or 'action' in result.output.lower()
+
+
 def test_force_flag_accepted():
     """Test that --force flag appears in compile --help output."""
     from cli import cli
@@ -159,7 +323,7 @@ skill:test-skill a oc:Skill ;
     output_skill_path.write_text(existing_ttl, encoding="utf-8")
 
     # Create core ontology
-    core_path = output_dir / "ontoclaw-core.ttl"
+    core_path = output_dir / "ontoskills-core.ttl"
     core_path.parent.mkdir(parents=True, exist_ok=True)
     core_path.write_text(f"@prefix oc: <{BASE_URI}> .", encoding="utf-8")
 

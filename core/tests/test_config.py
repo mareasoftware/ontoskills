@@ -8,22 +8,22 @@ def test_default_base_uri():
     """Verify default BASE_URI when environment variable is not set."""
     # Ensure the env var is not set
     with patch.dict(os.environ, {}, clear=False):
-        # Remove ONTOCLAW_BASE_URI if it exists
-        os.environ.pop('ONTOCLAW_BASE_URI', None)
+        # Remove ONTOSKILLS_BASE_URI if it exists
+        os.environ.pop('ONTOSKILLS_BASE_URI', None)
 
         # Need to reload the config module to pick up new env vars
         import importlib
         import config
         importlib.reload(config)
 
-        assert config.BASE_URI == 'http://ontoclaw.marea.software/ontology#'
+        assert config.BASE_URI == 'http://ontoskills.sh/ontology#'
 
 
 def test_custom_base_uri():
     """Verify custom BASE_URI value from environment variable."""
     custom_uri = 'http://custom.example.org/ontology#'
 
-    with patch.dict(os.environ, {'ONTOCLAW_BASE_URI': custom_uri}):
+    with patch.dict(os.environ, {'ONTOSKILLS_BASE_URI': custom_uri}):
         import importlib
         import config
         importlib.reload(config)
@@ -35,8 +35,8 @@ def test_default_paths():
     """Verify default SKILLS_DIR and OUTPUT_DIR when env vars not set."""
     with patch.dict(os.environ, {}, clear=False):
         # Remove path env vars if they exist
-        os.environ.pop('ONTOCLAW_SKILLS_DIR', None)
-        os.environ.pop('ONTOCLAW_OUTPUT_DIR', None)
+        os.environ.pop('ONTOSKILLS_SKILLS_DIR', None)
+        os.environ.pop('ONTOSKILLS_OUTPUT_DIR', None)
 
         import importlib
         import config
@@ -51,7 +51,7 @@ def test_custom_skills_dir():
     """Verify custom SKILLS_DIR from environment variable."""
     custom_dir = '/custom/skills/path/'
 
-    with patch.dict(os.environ, {'ONTOCLAW_SKILLS_DIR': custom_dir}):
+    with patch.dict(os.environ, {'ONTOSKILLS_SKILLS_DIR': custom_dir}):
         import importlib
         import config
         importlib.reload(config)
@@ -63,7 +63,7 @@ def test_custom_output_dir():
     """Verify custom OUTPUT_DIR from environment variable."""
     custom_dir = '/custom/output/path/'
 
-    with patch.dict(os.environ, {'ONTOCLAW_OUTPUT_DIR': custom_dir}):
+    with patch.dict(os.environ, {'ONTOSKILLS_OUTPUT_DIR': custom_dir}):
         import importlib
         import config
         importlib.reload(config)

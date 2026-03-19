@@ -1,0 +1,32 @@
+---
+import Button from '../ui/Button.astro';
+import GraphBackground from './GraphBackground.astro';
+---
+
+<section class="relative overflow-hidden">
+  <!-- Animated Graph Background -->
+  <GraphBackground />
+
+  <!-- Content -->
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 text-center">
+    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+      <span class="text-text-primary">Skills become</span>
+      <br />
+      <span class="gradient-text">queryable knowledge</span>
+    </h1>
+
+    <p class="text-lg sm:text-xl text-text-muted max-w-2xl mx-auto mb-8">
+      <span class="text-accent-cyan font-medium">OntoCore</span> compiles natural language skills into OWL 2 ontologies.
+      SPARQL queries instead of probabilistic reading. Deterministic intelligence for any model size.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <Button href="/overview/" size="lg">
+        Get Started
+      </Button>
+      <Button href="https://github.com/mareasoftware/ontoskills" variant="secondary" size="lg">
+        View on GitHub
+      </Button>
+    </div>
+  </div>
+</section>

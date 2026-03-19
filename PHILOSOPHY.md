@@ -1,14 +1,14 @@
-# OntoClaw Philosophy
+# OntoSkills Philosophy
 
 ## 0. Neuro-Symbolic AI Agent Platform
 
-OntoClaw is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
+OntoSkills is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
 
 ```mermaid
 flowchart LR
     CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
     CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
-    MCP <-->|"queries"| AGENT["OntoClaw<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
+    MCP <-->|"queries"| AGENT["OntoSkills<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
     CENTER <-->|"distributes"| STORE["OntoStore<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
 
     style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
@@ -20,7 +20,7 @@ flowchart LR
 
 ### The Vision
 
-**OntoClaw** is inspired by OpenClaw, Claude Code, and Cursor — but built for **enterprise** with a focus on:
+**OntoSkills** is inspired by OpenClaw, Claude Code, and Cursor — but built for **enterprise** with a focus on:
 
 - **Determinism**: OWL 2 Description Logics guarantee decidable reasoning
 - **Speed**: Rust-based runtime (OntoMCP) for blazing-fast SPARQL queries
@@ -80,42 +80,106 @@ This separation enables:
 
 Large Language Models are powerful but **non-deterministic**. The same prompt can yield different outputs across runs. When an agent must navigate dozens of skills, it faces:
 
+### Context and Scale
+
 - **Context rot**: Loading 50+ SKILL.md files consumes context window
 - **Hallucination risk**: Information scattered across files is easily misremembered
 - **No verifiable structure**: "Does skill A depend on skill B?" requires reading both files
 
-This is the **knowledge retrieval problem** in the age of LLMs.
+### The Small Model Problem
+
+This is where the problem becomes **critical**: smaller models (7B-14B parameters) are increasingly deployed for:
+
+- **Edge computing**: On-device inference without cloud dependency
+- **Cost reduction**: $0.001/1K tokens vs $0.015/1K tokens for frontier models
+- **Privacy**: Sensitive data never leaves the local machine
+- **Latency**: Sub-100ms response times for real-time applications
+
+**But small models cannot load 50 skill files.** Consider:
+
+| Model | Context Window | Practical Capacity |
+|-------|---------------|-------------------|
+| Claude Opus 4 | 200K tokens | ~100 skill files |
+| Claude Sonnet | 200K tokens | ~100 skill files |
+| Llama 3.1 8B | 128K tokens | ~60 skill files |
+| Mistral 7B | 32K tokens | ~15 skill files |
+| Phi-3 Mini | 4K tokens | ~2 skill files |
+
+A 7B model can barely load a **single skill ecosystem** before running out of context. And even when context fits:
+
+- **Comprehension degrades**: Small models struggle to extract structured relationships from unstructured text
+- **Reasoning breaks**: "Which skills can handle state X?" requires multi-file reasoning that small models fail at
+- **Consistency fails**: The same query about skill dependencies may return different answers across runs
+
+### The Cost Spiral
+
+For enterprises running agents at scale, token consumption directly impacts the bottom line:
+
+| Scenario | Tokens | Cost per 1M queries (Opus 4.6) | Cost per 1M queries (Sonnet 4.6) |
+|----------|--------|-------------------------------|--------------------------------|
+| Load all 50 skills | ~300K | $2,500 | $1,500 |
+| SPARQL query to ontology | ~1.5K | $17.50 | $10.50 |
+
+*Pricing: Opus 4.6 ($5/MTok input, $25/MTok output), Sonnet 4.6 ($3/MTok input, $15/MTok output)*
+
+The ontology approach reduces costs by **~150x** for Sonnet.
+
+### The Retry Problem
+
+Non-deterministic reasoning creates a hidden cost multiplier: **stupid retries**.
+
+When an LLM agent interprets skill metadata, it makes unpredictable mistakes:
+
+**Examples of wasteful retries:**
+- **Wrong tool calls**: Agent calls `list_skills` instead of `find_skills_by_intent`
+- **Scattershot approach**: Tries 3-4 different skills before finding one that works
+- **Hallucinated capabilities**: "This skill can probably handle images" — when it cannot
+- **Looping on understanding**: Re-reads skill descriptions trying to "get it"
+- **Context overflow**: Loads entire skill file just to answer "what does this require?"
+
+Each retry consumes the full context window. With 50+ skills, this adds up fast.
+
+**With deterministic SPARQL:**
+- Same input → same result (zero interpretation variance)
+- Skill selection is **exact**, not probabilistic
+- **No "thinking" overhead** — query returns answer directly
+- **No hallucination** — the ontology is the single source of truth
+- **Predictable costs** — you know exactly how many tokens each query costs
+
+**Determinism isn't just about correctness — it's about eliminating waste.**
+
+### The Consistency Gap
+
+Even large models suffer from **inconsistent skill interpretation**:
+
+- **Ambiguous language**: "This skill requires authentication" — is that a precondition or a feature?
+- **Implicit relationships**: Skill A mentions "use Skill B for validation" — is that a dependency? An extension?
+- **Scattered metadata**: Intent strings, state requirements, and execution hints are buried in prose
+
+Without formal semantics, every LLM query about skills is a **gamble on interpretation**.
+
+---
+
+This is the **knowledge retrieval problem** in the age of LLMs — and OntoSkills solves it by making skills **queryable, not readable**.
 
 ---
 
 ## 3. The Ontological Solution
 
-OntoClaw applies **Description Logics (DL)** — specifically the **$\mathcal{SROIQ}^{(D)}$** fragment underlying OWL 2 DL — to transform unstructured skill definitions into **formal, queryable knowledge graphs**.
+OntoSkills applies **Description Logics (DL)** — specifically the **$\mathcal{SROIQ}^{(D)}$** fragment underlying OWL 2 DL — to transform unstructured skill definitions into **formal, queryable knowledge graphs**.
 
-Key properties:
+### Why $\mathcal{SROIQ}^{(D)}$?
 
-| DL Feature | OntoClaw Mapping |
-|------------|------------------|
-| **Concepts (𝒞)** | `oc:Skill`, `oc:ExecutableSkill`, `oc:DeclarativeSkill` |
-| **Roles (ℛ)** | `oc:dependsOn`, `oc:extends`, `oc:contradicts` |
-| **Individuals (𝒪)** | Each compiled skill instance |
-| **Datatypes (𝒟)** | Literals: strings, integers, IRIs |
+Each letter represents a capability that solves a specific problem in skill modeling:
 
-### The $\mathcal{SROIQ}^{(D)}$ Fragment
-
-Each letter in $\mathcal{SROIQ}^{(D)}$ represents a specific expressive capability:
-
-- **$\mathcal{S}$** — Basic logic ($\mathcal{ALC}$) extended with transitive properties. Essential for OntoClaw: if skill A extends B, and B extends C, the reasoner knows A extends C.
-
-- **$\mathcal{R}$** — Complex role inclusions and disjoint properties. Allows expressing that `dependsOn` and `contradicts` are mutually exclusive.
-
-- **$\mathcal{O}$** — Nominals. The ability to define a class by enumerating its specific individuals.
-
-- **$\mathcal{I}$** — Inverse properties. Fundamental for OntoCore: if A dependsOn B, the graph database automatically deduces that B enables A without explicit declaration.
-
-- **$\mathcal{Q}$** — Qualified cardinality restrictions. What our SHACL gatekeeper enforces: e.g., an ExecutableSkill must have exactly 1 hasPayload node.
-
-- **$\mathcal{D}$** — Datatype support (strings, integers, booleans for our literals).
+| Feature | Capability | OntoSkills Example |
+|---------|------------|------------------|
+| **$\mathcal{S}$** | Transitive properties | `A extends B extends C` → A extends C automatically |
+| **$\mathcal{R}$** | Complex role inclusions | `dependsOn` and `contradicts` are mutually exclusive |
+| **$\mathcal{O}$** | Nominals (enumerated classes) | Define `EntryPoints = {create, import, init}` |
+| **$\mathcal{I}$** | Inverse properties | `A dependsOn B` ↔ `B enables A` (auto-derived) |
+| **$\mathcal{Q}$** | Cardinality restrictions | `ExecutableSkill` has exactly 1 `hasPayload` |
+| **$\mathcal{D}$** | Datatypes | Strings, integers, booleans for literals |
 
 **Decidability**: OWL 2 DL is decidable — reasoning algorithms terminate in finite time with correct answers. This contrasts with the open-ended nature of LLM reasoning.
 
@@ -123,7 +187,7 @@ Each letter in $\mathcal{SROIQ}^{(D)}$ represents a specific expressive capabili
 
 ## 4. Neuro-Symbolic Architecture
 
-OntoClaw is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
+OntoSkills is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
 
 ```mermaid
 flowchart LR
@@ -160,7 +224,7 @@ This is especially valuable for:
 
 Before querying, an LLM needs to know: **"What can I ask?"**
 
-OntoClaw exposes the **TBox** (terminological box) — the schema of classes and properties — separately from the **ABox** (assertional box) of individual skills.
+OntoSkills exposes the **TBox** (terminological box) — the schema of classes and properties — separately from the **ABox** (assertional box) of individual skills.
 
 ```mermaid
 flowchart LR
@@ -193,7 +257,7 @@ The gap widens with scale.
 
 ## 7. Schema-First Querying
 
-Traditional skill systems require the LLM to "guess" what information exists. OntoClaw inverts this:
+Traditional skill systems require the LLM to "guess" what information exists. OntoSkills inverts this:
 
 1. **First**: Query the TBox to understand available classes and properties
 2. **Then**: Construct precise ABox queries with known predicates
@@ -215,11 +279,11 @@ This enables **informed querying** — the LLM knows the ontology's structure be
 
 ## 8. Enterprise Focus
 
-OntoClaw is designed for **production enterprise environments**:
+OntoSkills is designed for **production enterprise environments**:
 
 ### Determinism Over Flexibility
 
-While other agents optimize for flexibility, OntoClaw optimizes for **predictable, reproducible behavior**:
+While other agents optimize for flexibility, OntoSkills optimizes for **predictable, reproducible behavior**:
 
 - Same input → same skill selection (via SPARQL, not LLM judgment)
 - Same dependencies → same execution order (via `oc:dependsOn` edges)
@@ -244,28 +308,25 @@ Every compiled skill carries:
 
 ## 9. Research Foundations
 
-OntoClaw builds on decades of research in Knowledge Representation and Reasoning:
+OntoSkills builds on decades of research in Knowledge Representation, Logical Reasoning, and modern AI:
 
-### Description Logics
-- Baader, F., et al. (2003). *The Description Logic Handbook*. Cambridge University Press.
-- Horrocks, I., et al. (2006). "OWL 1.1: The Next Steps". *ISWC*.
+**Description Logics & Reasoning**
+* Baader, F., Calvanese, D., McGuinness, D., Nardi, D., & Patel-Schneider, P. (2003). *The Description Logic Handbook*. Cambridge University Press.
+* Horrocks, I., Kutz, O., & Sattler, U. (2006). "The Even More Irresistible SROIQ". *Proceedings of KR-2006*. (The mathematical foundation of OWL 2).
 
-### OWL 2 Specification
-- W3C OWL 2 Web Ontology Language (2009). [https://www.w3.org/TR/owl2-overview/](https://www.w3.org/TR/owl2-overview/)
-- Motik, B., et al. (2009). "OWL 2: The Next Generation". *Journal of Web Semantics*.
+**Ontologies & Validation (W3C)**
+* W3C OWL 2 Web Ontology Language (2009). https://www.w3.org/TR/owl2-overview/
+* Cuenca Grau, B., Horrocks, I., Motik, B., et al. (2008). "OWL 2: The next step for OWL". *Journal of Web Semantics*.
+* Knublauch, H., & Kontokostas, D. (2017). "Shapes Constraint Language (SHACL)". *W3C Recommendation*.
 
-### Knowledge Representation
-- Brachman, R., Levesque, H. (2004). *Knowledge Representation and Reasoning*. Morgan Kaufmann.
-- Sowa, J. (2000). *Knowledge Representation*. Brooks/Cole.
+**Knowledge Representation**
+* Brachman, R., Levesque, H. (2004). *Knowledge Representation and Reasoning*. Morgan Kaufmann.
+* Sowa, J. (2000). *Knowledge Representation: Logical, Philosophical, and Computational Foundations*. Brooks/Cole.
 
-### Neuro-Symbolic AI
-- d'Avila Garcez, A., Lamb, L. (2020). "Neurosymbolic AI: The 3rd Wave". *arXiv:2012.05876*.
-- Raaijmakers, S. (2023). *AI Generation: Rendering the Future*. (Neuro-symbolic chapter)
+**Neuro-Symbolic AI & Semantic Web**
+* d'Avila Garcez, A., Lamb, L. (2020). "Neurosymbolic AI: The 3rd Wave". *arXiv:2012.05876*.
+* Pan, S., et al. (2024). "Unifying Large Language Models and Knowledge Graphs: A Roadmap". *IEEE TKDE*.
+* Heath, T., Bizer, C. (2011). "Linked Data: Evolving the Web into a Global Data Space". *Synthesis Lectures on the Semantic Web*.
+* SPARQL 1.1 Query Language (2013). https://www.w3.org/TR/sparql11-query/
 
-### Semantic Web Technologies
-- Heath, T., Bizer, C. (2011). "Linked Data: Evolving the Web into a Global Data Space". *Synthesis Lectures on the Semantic Web*.
-- SPARQL 1.1 Query Language (2013). [https://www.w3.org/TR/sparql11-query/](https://www.w3.org/TR/sparql11-query/)
-
----
-
-*OntoClaw is the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*
+*OntoSkills is the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*

@@ -25,3 +25,8 @@ class SkillNotFoundError(SkillETLError):
 class OntologyValidationError(SkillETLError):
     """Raised when skill ontology fails SHACL validation."""
     exit_code = 8
+
+
+class DriftDetectedError(SkillETLError):
+    """Raised when breaking semantic drift is detected in the ontology."""
+    exit_code = 9

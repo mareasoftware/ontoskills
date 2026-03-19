@@ -1,8 +1,8 @@
 [package]
-name = "ontoclaw-mcp"
+name = "ontoskills-mcp"
 version = "0.1.0"
 edition = "2024"
-description = "Local MCP server for OntoClaw ontologies"
+description = "Local MCP server for OntoSkills ontologies"
 license = "MIT"
 
 [dependencies]

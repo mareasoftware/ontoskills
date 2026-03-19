@@ -1,0 +1,60 @@
+---
+// Font imports from npm packages
+import '@fontsource-variable/inter';
+import '@fontsource-variable/jetbrains-mono';
+
+import { ViewTransitions } from 'astro:transitions';
+import Analytics from '@vercel/analytics/astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'OntoSkills - Semantic Infrastructure for the Agentic Web',
+  description = 'Empower your AI agents with schema-first querying. Compile human-readable skills into modular, deterministic ontologies.'
+} = Astro.props;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "OntoSkills",
+  "description": description,
+  "url": "https://ontoskills.marea.software",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "Marea Software",
+    "url": "https://marea.software"
+  }
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/png" href="/ontoskills-logo.png" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>{title}</title>
+    <ViewTransitions />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body class="min-h-screen bg-bg-primary">
+    <slot />
+    <Analytics />
+  </body>
+</html>

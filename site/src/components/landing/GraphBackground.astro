@@ -1,0 +1,169 @@
+---
+// Graph background with animated nodes and connections
+---
+
+<div id="graph-bg" class="absolute inset-0 z-0 opacity-40"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-bg-primary/30 via-bg-primary/70 to-bg-primary z-0"></div>
+
+<script>
+  const canvas = document.createElement('canvas');
+  const container = document.getElementById('graph-bg');
+  if (container) {
+    container.appendChild(canvas);
+  }
+
+  const ctx = canvas.getContext('2d');
+  let width = 0;
+  let height = 0;
+  let nodes: Node[] = [];
+  let mouse = { x: -1000, y: -1000 };
+  let isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+  const config = {
+    connectionDistance: 150,
+    mouseRadius: 200,
+    nodeSpeed: 0.3,
+    colors: ['#6dc9ee', '#9763e1', '#abf9cc', '#92eff4']
+  };
+
+  function getNodeCount(): number {
+    return Math.floor((width * height) / 8000); // density based on screen area
+  }
+
+  class Node {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    radius: number;
+    color: string;
+
+    constructor() {
+      this.x = Math.random() * width;
+      this.y = Math.random() * height;
+      this.vx = (Math.random() - 0.5) * config.nodeSpeed;
+      this.vy = (Math.random() - 0.5) * config.nodeSpeed;
+      this.radius = Math.random() * 2 + 1;
+      this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
+    }
+
+    update() {
+      // Mouse interaction (desktop only)
+      if (!isMobile && mouse.x > 0 && mouse.y > 0) {
+        const dx = mouse.x - this.x;
+        const dy = mouse.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < config.mouseRadius) {
+          const force = (config.mouseRadius - dist) / config.mouseRadius;
+          this.vx += dx * force * 0.002;
+          this.vy += dy * force * 0.002;
+        }
+      }
+
+      // Apply velocity with damping
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vx *= 0.99;
+      this.vy *= 0.99;
+
+      // Add slight random movement
+      this.vx += (Math.random() - 0.5) * 0.02;
+      this.vy += (Math.random() - 0.5) * 0.02;
+
+      // Bounce off edges
+      if (this.x < 0 || this.x > width) this.vx *= -1;
+      if (this.y < 0 || this.y > height) this.vy *= -1;
+
+      // Keep in bounds
+      this.x = Math.max(0, Math.min(width, this.x));
+      this.y = Math.max(0, Math.min(height, this.y));
+    }
+
+    draw() {
+      if (!ctx) return;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+    }
+  }
+
+  function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  function init() {
+    resize();
+    nodes = [];
+    const nodeCount = getNodeCount();
+    for (let i = 0; i < nodeCount; i++) {
+      nodes.push(new Node());
+    }
+  }
+
+  function drawConnections() {
+    if (!ctx) return;
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < config.connectionDistance) {
+          const opacity = (1 - dist / config.connectionDistance) * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.strokeStyle = `rgba(109, 201, 238, ${opacity})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function animate() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, width, height);
+
+    drawConnections();
+
+    for (const node of nodes) {
+      node.update();
+      node.draw();
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // Event listeners
+  window.addEventListener('resize', () => {
+    resize();
+    isMobile = window.matchMedia('(max-width: 768px)').matches;
+  });
+
+  if (!isMobile) {
+    window.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+
+    window.addEventListener('mouseleave', () => {
+      mouse.x = -1000;
+      mouse.y = -1000;
+    });
+  }
+
+  // Start
+  init();
+  animate();
+</script>
+
+<style>
+  #graph-bg canvas {
+    display: block;
+  }
+</style>

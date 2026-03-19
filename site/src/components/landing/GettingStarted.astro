@@ -1,0 +1,51 @@
+---
+
+const steps = [
+  {
+    number: '1',
+    title: 'Install',
+    code: `git clone https://github.com/mareasoftware/ontoskills.git
+cd ontoskills/core
+pip install -e ".[dev]"`
+  },
+  {
+    number: '2',
+    title: 'Initialize',
+    code: `ontoskills init-core`
+  },
+  {
+    number: '3',
+    title: 'Compile',
+    code: `ontoskills compile`
+  }
+];
+---
+
+<section class="py-20 bg-bg-secondary">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+        Getting <span class="gradient-text">Started</span>
+      </h2>
+      <p class="text-text-muted max-w-2xl mx-auto">
+        Three commands to transform your skills into ontologies.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8">
+      {steps.map((step) => (
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-accent-cyan/20 text-accent-cyan font-bold flex items-center justify-center text-lg">
+              {step.number}
+            </div>
+            <h3 class="text-xl font-semibold text-text-primary">{step.title}</h3>
+          </div>
+          <div class="bg-bg-tertiary border border-border rounded-lg p-4 font-mono text-sm text-text-muted overflow-x-auto">
+            <pre class="whitespace-pre-wrap">{step.code}</pre>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

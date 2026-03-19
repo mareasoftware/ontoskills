@@ -1,7 +1,7 @@
 """
 Tests for the core_ontology module.
 
-These tests verify the OntoClaw core ontology (TBox) creation including:
+These tests verify the OntoSkills core ontology (TBox) creation including:
 - Namespace configuration
 - Core class definitions (Skill, State, Attempt, ExecutionPayload)
 - State transition properties
@@ -42,33 +42,33 @@ class TestCreateCoreOntology:
 
     def test_creates_graph(self, tmp_path):
         """Test that create_core_ontology returns a Graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         assert isinstance(graph, Graph)
 
     def test_creates_file(self, tmp_path):
         """Test that create_core_ontology creates the output file."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         create_core_ontology(output_path)
         assert output_path.exists()
 
     def test_creates_parent_directories(self, tmp_path):
         """Test that create_core_ontology creates parent directories if needed."""
-        output_path = tmp_path / "nested" / "dir" / "ontoclaw-core.ttl"
+        output_path = tmp_path / "nested" / "dir" / "ontoskills-core.ttl"
         create_core_ontology(output_path)
         assert output_path.exists()
         assert output_path.parent.is_dir()
 
     def test_uses_default_output_path(self, tmp_path):
         """Test that create_core_ontology uses default path when None provided."""
-        # When output_path is None, it uses OUTPUT_DIR/ontoclaw-core.ttl
+        # When output_path is None, it uses OUTPUT_DIR/ontoskills-core.ttl
         # This test verifies the function doesn't error with None
         graph = create_core_ontology(None)
         assert isinstance(graph, Graph)
 
     def test_graph_has_triples(self, tmp_path):
         """Test that the created graph has triples."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         assert len(graph) > 0
 
@@ -79,13 +79,13 @@ class TestCoreClasses:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_skill_class_defined(self, core_ontology, oc):
@@ -122,13 +122,13 @@ class TestStateTransitionProperties:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_requires_state_property(self, core_ontology, oc):
@@ -162,13 +162,13 @@ class TestExecutionPayloadProperties:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_has_payload_property(self, core_ontology, oc):
@@ -199,13 +199,13 @@ class TestSkillRelationshipProperties:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_depends_on_property(self, core_ontology, oc):
@@ -239,13 +239,13 @@ class TestAdditionalSkillProperties:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_generated_by_property(self, core_ontology, oc):
@@ -285,13 +285,13 @@ class TestPredefinedStates:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_core_states_defined(self, core_ontology, oc):
@@ -329,7 +329,7 @@ class TestOntologyHeader:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
@@ -371,13 +371,13 @@ class TestKnowledgeNodeHierarchy:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_knowledge_node_base_class_defined(self, core_ontology, oc):
@@ -425,13 +425,13 @@ class TestKnowledgeNodeProperties:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_imparts_knowledge_object_property(self, core_ontology, oc):
@@ -467,13 +467,13 @@ class TestKnowledgeRBoxAxioms:
     @pytest.fixture
     def core_ontology(self, tmp_path):
         """Fixture that creates core ontology and returns graph."""
-        output_path = tmp_path / "ontoclaw-core.ttl"
+        output_path = tmp_path / "ontoskills-core.ttl"
         graph = create_core_ontology(output_path)
         return graph
 
     @pytest.fixture
     def oc(self):
-        """Fixture that returns the OntoClaw namespace."""
+        """Fixture that returns the OntoSkills namespace."""
         return get_oc_namespace()
 
     def test_imparts_knowledge_asymmetric(self, core_ontology, oc):

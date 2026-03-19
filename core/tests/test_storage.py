@@ -77,7 +77,7 @@ def sample_skill_with_payload():
 @pytest.fixture
 def core_ontology(tmp_path):
     """Create a core ontology for tests that need it."""
-    core_path = tmp_path / "ontoclaw-core.ttl"
+    core_path = tmp_path / "ontoskills-core.ttl"
     create_core_ontology(core_path)
     return core_path
 
@@ -741,7 +741,7 @@ def test_clean_orphaned_files_preserves_system_files(tmp_path, core_ontology, sa
     output_dir = tmp_path / "ontoskills"
 
     # Create system files that have no source
-    core_path = output_dir / "ontoclaw-core.ttl"
+    core_path = output_dir / "ontoskills-core.ttl"
     index_path = output_dir / "index.ttl"
 
     create_core_ontology(core_path)
@@ -855,6 +855,6 @@ def test_clean_orphaned_files_preserves_auxiliary_with_source(tmp_path):
 
 def test_system_files_constant():
     """Test that SYSTEM_FILES constant contains expected files."""
-    assert "ontoclaw-core.ttl" in SYSTEM_FILES
+    assert "ontoskills-core.ttl" in SYSTEM_FILES
     assert "index.ttl" in SYSTEM_FILES
     assert len(SYSTEM_FILES) == 2

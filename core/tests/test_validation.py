@@ -18,7 +18,7 @@ def test_validate_and_raise_raises_for_invalid():
     from compiler.validator import validate_and_raise
     from compiler.exceptions import OntologyValidationError
 
-    oc = Namespace("http://ontoclaw.marea.software/ontology#")
+    oc = Namespace("http://ontoskills.sh/ontology#")
     g = Graph()
 
     # Add a skill without required properties (invalid)
@@ -61,7 +61,7 @@ def test_load_core_ontology_returns_none_if_missing():
 
     # This test assumes core ontology might not exist in test environment
     result = load_core_ontology()
-    # Result could be None or a Graph depending on whether ontoclaw-core.ttl exists
+    # Result could be None or a Graph depending on whether ontoskills-core.ttl exists
     if result is None:
         assert True  # Expected if file doesn't exist
     else:

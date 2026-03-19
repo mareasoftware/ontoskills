@@ -1,0 +1,30 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  icon?: string;
+  href?: string;
+}
+
+const { title, description, icon, href } = Astro.props;
+
+const baseStyles = 'group p-6 bg-bg-secondary border border-border rounded-xl transition-all duration-200 hover:border-accent-cyan/50 hover:bg-bg-tertiary';
+---
+
+{href ? (
+  <a href={href} class={baseStyles}>
+    {icon && <div class="text-3xl mb-4" set:html={icon} />}
+    <h3 class="text-lg font-semibold text-text-primary mb-2 group-hover:text-accent-cyan transition-colors">
+      {title}
+    </h3>
+    <p class="text-text-muted text-sm leading-relaxed">{description}</p>
+  </a>
+) : (
+  <div class={baseStyles}>
+    {icon && <div class="text-3xl mb-4" set:html={icon} />}
+    <h3 class="text-lg font-semibold text-text-primary mb-2 group-hover:text-accent-cyan transition-colors">
+      {title}
+    </h3>
+    <p class="text-text-muted text-sm leading-relaxed">{description}</p>
+  </div>
+)}

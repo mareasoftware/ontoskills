@@ -1,16 +1,16 @@
-# OntoClaw MCP With Claude Code
+# OntoSkills MCP With Claude Code
 
 ## Overview
 
 This guide explains how to:
 
-- build the OntoClaw MCP server
+- build the OntoSkills MCP server
 - run it manually
 - register it in Claude Code
 - verify that Claude Code sees it as connected
 - understand where ontology data comes from
 
-The OntoClaw MCP server is a **local stdio server**.
+The OntoSkills MCP server is a **local stdio server**.
 It is not an HTTP service and it does not listen on a TCP port.
 
 Claude Code starts it as a subprocess and talks to it over `stdin/stdout`.
@@ -43,7 +43,7 @@ cargo build --manifest-path mcp/Cargo.toml
 The binary will be available at:
 
 ```text
-./mcp/target/debug/ontoclaw-mcp
+./mcp/target/debug/ontoskills-mcp
 ```
 
 ## Run Manually
@@ -65,7 +65,7 @@ cargo run --manifest-path mcp/Cargo.toml -- --ontology-root ./ontoskills
 Direct binary:
 
 ```bash
-./mcp/target/debug/ontoclaw-mcp --ontology-root ./ontoskills
+./mcp/target/debug/ontoskills-mcp --ontology-root ./ontoskills
 ```
 
 ## How Ontology Root Resolution Works
@@ -73,7 +73,7 @@ Direct binary:
 The server resolves ontology input in this order:
 
 1. `--ontology-root /path/to/ontoskills`
-2. `ONTOCLAW_MCP_ONTOLOGY_ROOT=/path/to/ontoskills`
+2. `ONTOSKILLS_MCP_ONTOLOGY_ROOT=/path/to/ontoskills`
 3. auto-discovery of `ontoskills/` from the current directory and its parents
 4. fallback to `./ontoskills`
 
@@ -82,16 +82,16 @@ The server resolves ontology input in this order:
 Recommended command from the repository root:
 
 ```bash
-claude mcp add --scope local ontoclaw \
-  /absolute/path/to/ontoclaw/mcp/target/debug/ontoclaw-mcp \
-  -- --ontology-root /absolute/path/to/ontoclaw/ontoskills
+claude mcp add --scope local ontoskills \
+  /absolute/path/to/ontoskills/mcp/target/debug/ontoskills-mcp \
+  -- --ontology-root /absolute/path/to/ontoskills/ontoskills
 ```
 
 If you want to rely on auto-discovery:
 
 ```bash
-claude mcp add --scope local ontoclaw \
-  /absolute/path/to/ontoclaw/mcp/target/debug/ontoclaw-mcp
+claude mcp add --scope local ontoskills \
+  /absolute/path/to/ontoskills/mcp/target/debug/ontoskills-mcp
 ```
 
 Notes:
@@ -104,7 +104,7 @@ Notes:
 Check one server:
 
 ```bash
-claude mcp get ontoclaw
+claude mcp get ontoskills
 ```
 
 Expected output includes:
@@ -122,7 +122,7 @@ claude mcp list
 You should see something like:
 
 ```text
-ontoclaw: /absolute/path/to/ontoclaw/mcp/target/debug/ontoclaw-mcp ... ✓ Connected
+ontoskills: /absolute/path/to/ontoskills/mcp/target/debug/ontoskills-mcp ... ✓ Connected
 ```
 
 ## Remove Or Replace The Server
@@ -130,14 +130,14 @@ ontoclaw: /absolute/path/to/ontoclaw/mcp/target/debug/ontoclaw-mcp ... ✓ Conne
 Remove it:
 
 ```bash
-claude mcp remove -s local ontoclaw
+claude mcp remove -s local ontoskills
 ```
 
 Re-add it with a different ontology root if needed.
 
 ## What Claude Code Uses
 
-Once connected, Claude Code can call tools exposed by OntoClaw, including:
+Once connected, Claude Code can call tools exposed by OntoSkills, including:
 
 - `list_skills`
 - `find_skills_by_intent`
@@ -191,7 +191,7 @@ older background MCP process. Reconnecting forces it to spawn the rebuilt binary
 Run with an explicit path:
 
 ```bash
-./mcp/target/debug/ontoclaw-mcp --ontology-root ./ontoskills
+./mcp/target/debug/ontoskills-mcp --ontology-root ./ontoskills
 ```
 
 ### I only have `SKILL.md`
