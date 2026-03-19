@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 
+## [0.8.0] - 2026-03-19
+
+### Added
+
+- **Website** (`site/`) — Astro + Starlight documentation site
+  - Landing page with animated graph background
+  - Documentation powered by Starlight
+  - Responsive design, dark theme
+  - docs/ symlinked from root for single source of truth
+
+### Changed
+
+- **Documentation restructure** — docs/ is now the source of truth
+  - README.md reduced from 600 → ~100 lines (pitch + links)
+  - docs/overview.md expanded with more depth
+  - docs/architecture.md new — system design, OWL properties, security
+  - docs/knowledge-extraction.md new — focus on extracting knowledge from skills
+  - docs/roadmap.md updated naming (OntoClaw → OntoSkills)
+  - site/README.md reduced to tech stack only
+
 ## [0.7.0] - 2026-03-18
 
 ### Changed

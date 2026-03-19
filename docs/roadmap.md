@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-description: From core to autonomous agent — the OntoClaw ecosystem
+description: From core to autonomous agent — the OntoSkills ecosystem
 ---
 
 > This roadmap evolves with the project.

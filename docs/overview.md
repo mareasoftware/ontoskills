@@ -5,6 +5,8 @@ description: Neuro-symbolic skill core for the Agentic Web
 
 **OntoSkills** is a complete neuro-symbolic platform for building deterministic, enterprise-grade AI agents. It transforms natural language skill definitions into **validated OWL 2 ontologies** — queryable knowledge graphs that enable deterministic reasoning.
 
+---
+
 ## Why OntoSkills?
 
 ### The Determinism Problem
@@ -14,6 +16,7 @@ LLMs read skills probabilistically. Same query, different results. Long skill fi
 - **Non-deterministic reading** — LLMs interpret text differently each time
 - **Token waste** — Large models burn tokens parsing long documentation
 - **Small model limits** — Complex skills are unreadable by edge models
+- **No verifiable structure** — Relationships between skills are implicit
 
 ### The Ontological Solution
 
@@ -22,6 +25,7 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 - **Deterministic queries** — SPARQL returns exact answers, every time
 - **Entailment reasoning** — Infer dependencies, conflicts, capabilities
 - **Democratized intelligence** — Small models query what large models read
+- **Formal semantics** — No ambiguity in skill relationships
 
 ### Performance Comparison
 
@@ -31,11 +35,29 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 | Check dependencies | Parse each file | Follow `dependsOn` edges |
 | Detect conflicts | Compare all pairs | Single SPARQL query |
 
-For 100 skills: **~500KB text scan → ~1KB query**
+**For 100 skills:** ~500KB text scan → ~1KB query
+
+---
 
 ## How It Works
 
 <img src="/architecture.webp" alt="OntoCore Architecture" style="max-height: 500px; width: auto; max-width: 100%; display: block; margin: 0 auto;" />
+
+### The Compilation Pipeline
+
+1. **Extract** — Claude reads SKILL.md and extracts structured knowledge
+2. **Validate** — Security pipeline checks for malicious content
+3. **Serialize** — Pydantic models → RDF triples
+4. **Verify** — SHACL gatekeeper ensures logical validity
+5. **Write** — Compiled `.ttl` files to `ontoskills/`
+
+### The Runtime
+
+- **OntoMCP** loads compiled `.ttl` files into an in-memory RDF graph
+- Agents query via SPARQL through the MCP protocol
+- Sub-millisecond queries for real-time interaction
+
+---
 
 ## Key Capabilities
 
@@ -43,28 +65,66 @@ For 100 skills: **~500KB text scan → ~1KB query**
 |------------|-------------|
 | **LLM Extraction** | Claude extracts structured knowledge from SKILL.md files |
 | **Knowledge Architecture** | Follows the "A is a B that C" definition pattern (genus + differentia) |
+| **Knowledge Nodes** | 10-dimensional epistemic taxonomy (Heuristic, AntiPattern, PreFlightCheck, etc.) |
 | **OWL 2 Serialization** | Outputs valid OWL 2 ontologies in RDF/Turtle format |
 | **SHACL Validation** | Constitutional gatekeeper ensures logical validity before write |
 | **State Machines** | Skills can define preconditions, postconditions, and failure handlers |
 | **Security Pipeline** | Defense-in-depth: regex patterns + LLM review for malicious content |
+| **Static Linting** | Detects dead states, circular deps, duplicate intents |
+| **Drift Detection** | Semantic diff between ontology versions |
+
+---
+
+## What Gets Compiled
+
+Every skill is extracted with:
+
+- **Identity**: `nature`, `genus`, `differentia` (Knowledge Architecture)
+- **Intents**: What user intentions this skill resolves
+- **Requirements**: Dependencies (EnvVar, Tool, Hardware, API, Knowledge)
+- **Knowledge Nodes**: Epistemic knowledge (8-12 nodes per skill)
+- **Execution Payload**: Optional code to execute
+- **State Transitions**: `requiresState`, `yieldsState`, `handlesFailure`
+- **Provenance**: `generatedBy` attestation (LLM model used)
+
+---
 
 ## Components
 
 | Component | Language | Status | Description |
 |-----------|----------|--------|-------------|
-| **OntoCore** | Python | ✅ Ready | Skill core to OWL 2 ontology |
+| **OntoCore** | Python | ✅ Ready | Skill compiler to OWL 2 ontology |
 | **OntoSkills** | Turtle | Generated | Compiled ontology output |
 | **OntoMCP** | Rust | ✅ Ready | MCP server with 12 semantic tools |
 | **OntoStore** | TBD | 🚧 Planned | Versioned skill registry |
-| **OntoClaw** | Python/Rust | 📋 Planned | Enterprise AI agent (future phase) |
-| **skills/** | Markdown | ✅ Ready | Input skill definitions |
-| **specs/** | Turtle | ✅ Ready | SHACL shapes constitution |
+| `skills/` | Markdown | Input | Human-authored skill definitions |
+| `ontoskills/` | Turtle | Output | Compiled, self-contained ontologies |
+| `specs/` | Turtle | Constitution | SHACL shapes for validation |
 
-## Get Started
+---
 
-[Get Started](/getting-started/) with OntoSkills in minutes.
+## Use Cases
+
+| Use Case | How OntoSkills Helps |
+|----------|---------------------|
+| **Enterprise AI Agents** | Deterministic skill selection via SPARQL queries |
+| **Edge Deployment** | Smaller models query large skill ecosystems |
+| **Multi-Agent Systems** | Shared ontology as coordination layer |
+| **Compliance & Audit** | Every skill carries attestation and content hash |
+| **Skill Marketplaces** | OntoStore enables plug-and-play distribution |
+
+---
+
+## Next Steps
+
+- **[Getting Started](/getting-started/)** — Install and compile your first skill
+- **[Architecture](/architecture/)** — Deep dive into the system design
+- **[Knowledge Extraction](/knowledge-extraction/)** — Understanding knowledge nodes
+- **[Roadmap](/roadmap/)** — See what's coming next
+
+---
 
 ## Links
 
 - [GitHub Repository](https://github.com/mareasoftware/ontoskills)
-- [Roadmap](/roadmap/)
+- [Philosophy](https://github.com/mareasoftware/ontoskills/blob/main/PHILOSOPHY.md)
