@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  Neuro-symbolic architecture for the Agentic Web — <span style="color:#00bf63;font-weight:bold">OntoCore</span> • <span style="color:#2196F3;font-weight:bold">OntoMCP</span> • <span style="color:#9333EA;font-weight:bold">OntoStore</span>
+  Neuro-symbolic architecture for the Agentic Web — <span style="color:#00bf63;font-weight:bold">OntoCore</span> • <span style="color:#2196F3;font-weight:bold">OntoMCP</span> • <span style="color:#9333EA;font-weight:bold">OntoSkillRegistry</span>
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ flowchart LR
     CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
     CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
     MCP <-->|"queries"| AGENT["OntoClaw<br/>━━━━━━━━━━<br/>Enterprise Agent<br/>deterministic"]
-    CENTER <-->|"distributes"| STORE["OntoStore<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
+    CENTER <-->|"distributes"| STORE["OntoSkillRegistry<br/>━━━━━━━━━━<br/>Registry<br/>versioning"]
 
     style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
     style CENTER fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
@@ -66,7 +66,7 @@ flowchart LR
 | **Edge Deployment** | Smaller models query large skill ecosystems without loading all files |
 | **Multi-Agent Systems** | Shared OWL 2 ontology as coordination and knowledge layer |
 | **Compliance & Audit** | Every skill carries `oc:generatedBy` attestation and content hash |
-| **Skill Marketplaces** | OntoStore enables versioned, plug-and-play skill distribution |
+| **Skill Marketplaces** | OntoSkillRegistry enables versioned, plug-and-play skill distribution |
 
 ---
 
@@ -196,7 +196,7 @@ The classification is **automatic** - you don't specify it. If a skill has code 
 |-----------|----------|--------|-------|-------------|
 | **OntoCore** (`core/`) | Python | ✅ Ready | Design Time | Skill compiler to OWL 2 ontology |
 | **OntoMCP** (`mcp/`) | Rust | ✅ Ready | Runtime | MCP server for semantic skill discovery and planning |
-| **OntoStore** | TBD | 📋 Roadmap | Distribution | Versioned skill registry |
+| **OntoSkillRegistry** | GitHub | 🚧 In Progress | Distribution | Versioned compiled skill registry |
 | **OntoClaw** | Python/Rust | 📋 Roadmap | Agent | Enterprise AI agent |
 | `skills/` | Markdown | ✅ Ready | Design Time | **Source code** — human-authored skill definitions |
 | `ontoskills/` | Turtle | Generated | Runtime | **Artifact** — compiled, self-contained ontologies |
@@ -209,7 +209,7 @@ The classification is **automatic** - you don't specify it. If a skill has code 
 ```bash
 # Runtime-only install via npm/npx
 npx ontoskill install mcp
-npx ontoskill registry add-source official https://raw.githubusercontent.com/mareasoftware/ontostore/main/index.json
+npx ontoskill registry add-source official https://raw.githubusercontent.com/mareasoftware/OntoSkillRegistry/main/index.json
 npx ontoskill install marea.greeting/hello
 npx ontoskill enable marea.greeting/hello
 ```
@@ -299,7 +299,7 @@ ontoclaw list-skills
 ontoclaw security-audit
 
 # Configure registry sources
-npx ontoskill registry add-source official https://raw.githubusercontent.com/mareasoftware/ontostore/main/index.json
+npx ontoskill registry add-source official https://raw.githubusercontent.com/mareasoftware/OntoSkillRegistry/main/index.json
 npx ontoskill registry list
 
 # Search and install a remote compiled skill
@@ -358,6 +358,8 @@ Important runtime files:
 
 - **Registry packages** distribute compiled `.ttl` modules and are published from a static GitHub repo
 - **Source repositories** are imported directly from a path or Git URL; `ontoskill` clones/copies them into `~/.ontoskills/skills/vendor/`, discovers `SKILL.md`, and compiles them into `~/.ontoskills/ontoskills/vendor/`
+
+The official registry is built in by default. `registry add-source` is meant for additional registries maintained by other users or organizations.
 
 ### Identity Model
 

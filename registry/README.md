@@ -1,6 +1,6 @@
-# OntoStore Registry Blueprint
+# OntoSkillRegistry Blueprint
 
-This directory is the local blueprint for the future official OntoStore mono-repo.
+This directory is the local blueprint for the official OntoSkillRegistry repo.
 
 It defines:
 - the registry index format

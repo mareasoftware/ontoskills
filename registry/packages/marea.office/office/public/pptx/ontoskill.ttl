@@ -1,0 +1,146 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+
+oc:skill_pptx a oc:DeclarativeSkill,
+        oc:Skill ;
+    oc:contentHash "3575d60d3212dce8f7277b72ac590425807b16cd7854ab8d081d2658f8ebbe02" ;
+    oc:differentia "enables creation, editing, and analysis of PowerPoint presentations through OOXML manipulation and HTML conversion workflows" ;
+    oc:extends oc:skill_office ;
+    oc:generatedBy "glm-5" ;
+    oc:handlesFailure oc:OverflowDetected,
+        oc:PermissionDenied,
+        oc:SchemaViolation,
+        oc:ValidationFailed ;
+    oc:hasRequirement oc:req_111f766b,
+        oc:req_3fcf652e,
+        oc:req_4cd3bc67,
+        oc:req_54bd6ee6,
+        oc:req_63145ec4,
+        oc:req_755ee7ba,
+        oc:req_7cf00395,
+        oc:req_ef32454a ;
+    oc:impartsKnowledge oc:kn_42fc3345,
+        oc:kn_536885e1,
+        oc:kn_546f819c,
+        oc:kn_5e5a8dc5,
+        oc:kn_60ee19a5,
+        oc:kn_78eeeb04,
+        oc:kn_88442b54,
+        oc:kn_92fa8201,
+        oc:kn_9f6a1cb0,
+        oc:kn_a6e35119 ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:DirectoryWritable,
+        oc:FileExists ;
+    oc:resolvesIntent "analyze pptx content",
+        "convert html to slides",
+        "create presentation",
+        "design presentation layouts",
+        "edit powerpoint",
+        "extract text from presentation",
+        "modify slide content",
+        "work with templates" ;
+    oc:yieldsState oc:DocumentCreated,
+        oc:DocumentModified ;
+    dcterms:identifier "pptx" ;
+    skos:broader "office document processor" ;
+    prov:wasDerivedFrom "/Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/skills/office/public/pptx" .
+
+oc:kn_42fc3345 a oc:WorkflowStrategy ;
+    oc:appliesToContext "When creating presentations from templates" ;
+    oc:directiveContent "For template-based presentations: (1) Extract template text AND create thumbnail grid, (2) Analyze and save inventory, (3) Create outline with template mapping, (4) Use rearrange.py to duplicate/reorder slides, (5) Extract ALL text with inventory.py, (6) Generate replacement JSON with proper formatting, (7) Apply with replace.py." ;
+    oc:hasRationale "Systematic workflow prevents errors like referencing non-existent shapes, mismatching layouts, or breaking template structure." ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_536885e1 a oc:Constraint ;
+    oc:appliesToContext "When designing presentation content" ;
+    oc:directiveContent "Use ONLY web-safe fonts (Arial, Helvetica, Times New Roman, Georgia, Courier New, Verdana, Tahoma, Trebuchet MS, Impact). Never use custom fonts, Segoe UI, SF Pro, or Roboto." ;
+    oc:hasRationale "Web-safe fonts are universally available across systems and PowerPoint versions, preventing font substitution and rendering issues." ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_546f819c a oc:PreFlightCheck ;
+    oc:appliesToContext "When editing existing .pptx files" ;
+    oc:directiveContent "Before editing existing presentations: (1) Unpack using ooxml/scripts/unpack.py, (2) Edit XML files carefully, (3) Validate immediately after each edit with ooxml/scripts/validate.py, (4) Fix all validation errors before proceeding." ;
+    oc:hasRationale "Validation catches schema violations early, preventing creation of corrupted PowerPoint files that cannot be opened." ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_5e5a8dc5 a oc:Heuristic ;
+    oc:appliesToContext "When creating data-heavy slides" ;
+    oc:directiveContent "For slides with charts or tables, use two-column layout (header spanning full width, then text/bullets in one column and featured content in the other) or full-slide layout. NEVER vertically stack charts/tables below text." ;
+    oc:hasRationale "Side-by-side layouts provide better balance, readability, and visual hierarchy compared to cramped vertical stacking." ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_60ee19a5 a oc:Constraint ;
+    oc:appliesToContext "When creating HTML slides for conversion" ;
+    oc:directiveContent "ALL text MUST be inside <p>, <h1>-<h6>, <ul>, or <ol> tags. Text in <div> or <span> without a text tag will be silently ignored and NOT appear in PowerPoint." ;
+    oc:hasRationale "The html2pptx converter only processes text within semantic HTML text elements, ensuring proper text rendering in PowerPoint." ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_78eeeb04 a oc:RecoveryTactic ;
+    oc:appliesToContext "When replace.py reports overflow errors" ;
+    oc:directiveContent "When template-based text replacement causes overflow errors, use inventory.py to extract current text, verify shape dimensions, and reduce content length or adjust font size to fit within shape bounds." ;
+    oc:hasRationale "Overflow errors indicate text doesn't fit; inventory extraction provides precise measurements to guide content adjustment." ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_88442b54 a oc:AntiPattern ;
+    oc:appliesToContext "When using html2pptx workflow" ;
+    oc:directiveContent "NEVER use CSS gradients (linear-gradient, radial-gradient) in HTML slides - they don't convert to PowerPoint. Always rasterize gradients as PNG images using Sharp first, then reference in HTML." ;
+    oc:hasRationale "CSS gradients are browser-rendered effects with no PowerPoint equivalent, causing conversion failures or missing visual elements." ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_92fa8201 a oc:KnownIssue ;
+    oc:appliesToContext "When styling HTML slides" ;
+    oc:directiveContent "Backgrounds, borders, and shadows only work on <div> elements, NOT on text elements (<p>, <h1>-<h6>, <ul>, <ol>). Applying these styles to text elements will cause validation errors." ;
+    oc:hasRationale "PowerPoint's object model separates shape formatting from text formatting, requiring different elements for visual effects." ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_9f6a1cb0 a oc:AntiPattern ;
+    oc:appliesToContext "When creating HTML slides" ;
+    oc:directiveContent "NEVER use manual bullet symbols (•, -, *) in text - use <ul> or <ol> lists instead. Manual bullets break conversion and appear as literal characters in PowerPoint." ;
+    oc:hasRationale "Proper list elements ensure correct bullet rendering, indentation, and formatting in the final PowerPoint presentation." ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_a6e35119 a oc:DesignPrinciple ;
+    oc:appliesToContext "When creating new presentations without templates" ;
+    oc:directiveContent "Always analyze content and choose design elements BEFORE creating slides - consider subject matter, branding, mood, and target audience to select appropriate color palettes, fonts, and visual hierarchy." ;
+    oc:hasRationale "Content-informed design creates more cohesive, professional presentations that resonate with the audience rather than generic, disconnected visuals." ;
+    oc:severityLevel "HIGH" .
+
+oc:req_111f766b a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "LibreOffice" .
+
+oc:req_3fcf652e a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "python3" .
+
+oc:req_4cd3bc67 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "pptxgenjs" .
+
+oc:req_54bd6ee6 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "playwright" .
+
+oc:req_63145ec4 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "sharp" .
+
+oc:req_755ee7ba a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "markitdown" .
+
+oc:req_7cf00395 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "poppler-utils" .
+
+oc:req_ef32454a a oc:RequirementAPI ;
+    oc:isOptional false ;
+    oc:requirementValue "defusedxml" .
+

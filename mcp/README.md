@@ -179,7 +179,7 @@ cargo test
 |-----------|----------|-------------|
 | **OntoCore** | Python | Design-time compiler |
 | **OntoMCP** | Rust | Runtime server (this) |
-| **OntoStore** | TBD | Skill registry (planned) |
+| **OntoSkillRegistry** | GitHub | Compiled skill registry |
 | **OntoClaw** | Python/Rust | Enterprise AI agent (planned) |
 
 ---

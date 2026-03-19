@@ -1,0 +1,162 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+
+oc:skill_pdf a oc:ExecutableSkill,
+        oc:Skill ;
+    oc:contentHash "49a660f1e7a50a30383bcd58958edca0f89ce74997e603969bced0a56fe714a6" ;
+    oc:differentia "that creates, extracts, transforms, and manipulates Portable Document Format files" ;
+    oc:extends oc:skill_office ;
+    oc:generatedBy "glm-5" ;
+    oc:handlesFailure oc:CorruptedPDF,
+        oc:FileNotFound,
+        oc:InvalidInput,
+        oc:PermissionDenied ;
+    oc:hasPayload oc:payload_49a660f1e7a50a30 ;
+    oc:hasRequirement oc:req_060db269,
+        oc:req_2eda303f,
+        oc:req_3b2e1010,
+        oc:req_70376ece,
+        oc:req_7cf00395,
+        oc:req_7ec70d19,
+        oc:req_d87817a6,
+        oc:req_f08bdea9,
+        oc:req_fd635a4a ;
+    oc:impartsKnowledge oc:kn_01c505b7,
+        oc:kn_1c46fbd6,
+        oc:kn_3dead45d,
+        oc:kn_6369f5dc,
+        oc:kn_7d8d12d9,
+        oc:kn_a7e9202f,
+        oc:kn_aa5707a9,
+        oc:kn_b8eea27d,
+        oc:kn_c8c73c0f ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:FileExists,
+        oc:ToolInstalled ;
+    oc:resolvesIntent "add annotations to pdf",
+        "add watermark to pdf",
+        "convert pdf to images",
+        "create pdf",
+        "encrypt pdf",
+        "extract images from pdf",
+        "extract pdf metadata",
+        "extract tables from pdf",
+        "extract text from pdf",
+        "fill pdf form",
+        "merge pdfs",
+        "ocr scanned pdf",
+        "rotate pdf pages",
+        "split pdf" ;
+    oc:yieldsState oc:DocumentCreated,
+        oc:FormFilled,
+        oc:ImagesConverted,
+        oc:TextExtracted ;
+    dcterms:identifier "pdf" ;
+    skos:broader "Document Processing System" ;
+    prov:wasDerivedFrom "/Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/skills/office/public/pdf" .
+
+oc:kn_01c505b7 a oc:PreFlightCheck ;
+    oc:appliesToContext "After creating fields.json but before filling the PDF" ;
+    oc:directiveContent "Always run check_bounding_boxes.py and visually inspect validation images before applying annotations to PDFs" ;
+    oc:hasRationale "Validation catches coordinate errors and prevents malformed output that could make forms unusable" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_1c46fbd6 a oc:PerformanceProfile ;
+    oc:appliesToContext "When processing PDFs with 100+ pages" ;
+    oc:directiveContent "For large PDFs, use streaming approaches, process pages individually with pypdfium2, or split with qpdf before processing" ;
+    oc:hasRationale "Loading entire large PDFs in memory causes performance degradation and potential out-of-memory errors" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_3dead45d a oc:DesignPrinciple ;
+    oc:appliesToContext "Before filling any PDF form" ;
+    oc:directiveContent "Always check if a PDF has fillable form fields before attempting to fill it - use check_fillable_fields.py script" ;
+    oc:hasRationale "Fillable fields can be programmatically populated, but non-fillable PDFs require visual analysis and text annotation positioning" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_6369f5dc a oc:RecoveryTactic ;
+    oc:appliesToContext "When encountering malformed or unreadable PDFs" ;
+    oc:directiveContent "Use qpdf --check and qpdf --fix-qdf to repair corrupted PDF structures before attempting other operations" ;
+    oc:hasRationale "qpdf can repair many common PDF structure issues that prevent other tools from reading the file" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_7d8d12d9 a oc:SideEffect ;
+    oc:appliesToContext "When modifying PDFs with annotations or form data" ;
+    oc:directiveContent "Adding annotations or filling forms modifies the PDF structure and may cause viewers to show unsaved changes warnings" ;
+    oc:hasRationale "PDF modifications change internal structure flags that viewers interpret as requiring save confirmation" ;
+    oc:severityLevel "LOW" .
+
+oc:kn_a7e9202f a oc:Constraint ;
+    oc:appliesToContext "When creating fields.json for non-fillable PDF forms" ;
+    oc:directiveContent "Bounding boxes for text annotations must not intersect - label and entry boxes must be separate" ;
+    oc:hasRationale "Overlapping bounding boxes cause text to render incorrectly and can corrupt the form field structure" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_aa5707a9 a oc:SuccessIndicator ;
+    oc:appliesToContext "After filling fillable PDF forms with pypdf" ;
+    oc:directiveContent "For fillable forms, set need_appearances flag to ensure form values display correctly across all PDF viewers" ;
+    oc:hasRationale "Without this flag, some viewers may not render filled values correctly, though it may trigger save dialogs" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_b8eea27d a oc:Heuristic ;
+    oc:appliesToContext "When selecting tools for PDF operations" ;
+    oc:directiveContent "Use pdfplumber for table extraction, pypdf for merging/splitting, reportlab for creation, and poppler-utils for command-line operations" ;
+    oc:hasRationale "Each tool has different strengths - pdfplumber excels at structured data extraction, pypdf at manipulation, reportlab at generation" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_c8c73c0f a oc:KnownIssue ;
+    oc:appliesToContext "When using fill_fillable_fields.py with choice/dropdown fields" ;
+    oc:directiveContent "pypdf has a bug when setting selection list field values that requires monkey-patching get_inherited method" ;
+    oc:hasRationale "The bug causes TypeError when joining non-string values; the workaround patches the method to return value strings" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:payload_49a660f1e7a50a30 a oc:ExecutionPayload ;
+    oc:code """# PDF operations use multiple libraries
+from pypdf import PdfReader, PdfWriter
+import pdfplumber
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas""" ;
+    oc:executor "python" ;
+    oc:timeout 60000 .
+
+oc:req_060db269 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "pypdf" .
+
+oc:req_2eda303f a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pdf-lib" .
+
+oc:req_3b2e1010 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pytesseract" .
+
+oc:req_70376ece a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pypdfium2" .
+
+oc:req_7cf00395 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "poppler-utils" .
+
+oc:req_7ec70d19 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "qpdf" .
+
+oc:req_d87817a6 a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "pdf2image" .
+
+oc:req_f08bdea9 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "pdfplumber" .
+
+oc:req_fd635a4a a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "reportlab" .
+

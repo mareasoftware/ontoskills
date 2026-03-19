@@ -1,0 +1,70 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+
+oc:skill_office a oc:DeclarativeSkill,
+        oc:Skill ;
+    oc:contentHash "d65bf5d2c4408c4305cb5dbeb1d9fc8f83bd44f6a39277321505f900c7b6d07e" ;
+    oc:differentia "that groups document manipulation capabilities across multiple Office formats without executing code directly" ;
+    oc:generatedBy "glm-5" ;
+    oc:handlesFailure oc:DocumentCorrupted,
+        oc:InvalidFormat,
+        oc:SkillNotFound ;
+    oc:impartsKnowledge oc:kn_02ef7925,
+        oc:kn_1cc9a995,
+        oc:kn_7b8c7dea,
+        oc:kn_ab58ef25,
+        oc:kn_e6103a42 ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:EnvironmentReady,
+        oc:SystemAuthenticated ;
+    oc:resolvesIntent "analyze document data",
+        "automate office workflows",
+        "build spreadsheets",
+        "create office documents",
+        "create presentations",
+        "edit word documents",
+        "manipulate pdfs" ;
+    oc:yieldsState oc:DocumentCreated,
+        oc:DocumentEdited,
+        oc:PDFProcessed,
+        oc:PresentationCreated,
+        oc:SpreadsheetCreated ;
+    dcterms:identifier "office" ;
+    skos:broader "meta-skill orchestrator" ;
+    prov:wasDerivedFrom "/Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/skills/office" .
+
+oc:kn_02ef7925 a oc:Heuristic ;
+    oc:appliesToContext "When user requests document operations" ;
+    oc:directiveContent "Choose the appropriate sub-skill based on document type: docx for Word documents, xlsx for Excel spreadsheets, pptx for PowerPoint presentations, pdf for PDF documents." ;
+    oc:hasRationale "Each format has specialized tools and workflows that provide better results than generic approaches" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_1cc9a995 a oc:PreFlightCheck ;
+    oc:appliesToContext "Before using any sub-skill workflow" ;
+    oc:directiveContent "Read the entire SKILL.md file completely without range limits before proceeding with any document operation." ;
+    oc:hasRationale "SKILL.md files contain critical workflow steps, validation requirements, and dependencies that cannot be skipped" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_7b8c7dea a oc:Standard ;
+    oc:appliesToContext "When saving any document created by a skill" ;
+    oc:directiveContent "All skill-generated files must be written to outputs/<document-name>/ directory with descriptive, lowercase, hyphenated names." ;
+    oc:hasRationale "Maintains clean working directory and enables automation by providing consistent output locations" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_ab58ef25 a oc:WorkflowStrategy ;
+    oc:appliesToContext "Before any document manipulation operation" ;
+    oc:directiveContent "Before writing ANY code, check if a sub-skill exists for the task. If YES, immediately read and follow that skill's SKILL.md. If NO, only then proceed with custom code." ;
+    oc:hasRationale "Prevents reinventing workflows that already exist in the skills documentation, ensuring consistency and reliability" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_e6103a42 a oc:DesignPrinciple ;
+    oc:appliesToContext "When using the office meta-skill" ;
+    oc:directiveContent "This meta-skill does not execute code directly but serves as a category and router for format-specific sub-skills (docx, xlsx, pptx, pdf)." ;
+    oc:hasRationale "Maintains separation of concerns and allows each format to have specialized workflows and validation" ;
+    oc:severityLevel "HIGH" .
+

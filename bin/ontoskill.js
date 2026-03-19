@@ -27,7 +27,7 @@ const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoclaw-core.ttl");
 const DEFAULT_REPOSITORY = process.env.ONTOSKILL_RELEASE_REPO || "mareasoftware/ontoclaw";
 const DEFAULT_REGISTRY_URL =
   process.env.ONTOSKILL_REGISTRY_URL ||
-  "https://raw.githubusercontent.com/mareasoftware/ontostore/main/index.json";
+  "https://raw.githubusercontent.com/mareasoftware/OntoSkillRegistry/main/index.json";
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -69,7 +69,9 @@ function slugify(value) {
 }
 
 async function loadRegistrySources() {
-  return readJson(REGISTRY_SOURCES_PATH, { sources: [] });
+  return readJson(REGISTRY_SOURCES_PATH, {
+    sources: [{ name: "official", index_url: DEFAULT_REGISTRY_URL, trust_tier: "verified" }]
+  });
 }
 
 async function saveRegistrySources(data) {
@@ -237,15 +239,19 @@ function resolveChildRef(baseRef, childPath) {
 
 async function loadRegistryEntries() {
   const sources = await loadRegistrySources();
-  if (!sources.sources.length) {
-    fail(`No registry sources configured. Add one with: ontoskill registry add-source official ${DEFAULT_REGISTRY_URL}`);
-  }
   const entries = [];
   for (const source of sources.sources) {
-    const index = JSON.parse(await readTextFromRef(source.index_url));
-    for (const pkg of index.packages || []) {
-      entries.push({ source, package: pkg });
+    try {
+      const index = JSON.parse(await readTextFromRef(source.index_url));
+      for (const pkg of index.packages || []) {
+        entries.push({ source, package: pkg });
+      }
+    } catch (error) {
+      log(`registry source skipped: ${source.name} (${error.message || error})`);
     }
+  }
+  if (!entries.length) {
+    fail("No reachable registry sources available");
   }
   return entries;
 }

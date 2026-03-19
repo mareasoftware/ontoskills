@@ -1,0 +1,186 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+
+oc:skill_docx a oc:ExecutableSkill,
+        oc:Skill ;
+    oc:contentHash "9edb0243108eb53f09e013fbb28154fc744c3ccda4e048985627d90b036b67cc" ;
+    oc:differentia "that creates, edits, and analyzes Word documents with tracked changes support" ;
+    oc:extends oc:skill_office ;
+    oc:generatedBy "glm-5" ;
+    oc:handlesFailure oc:FileNotFound,
+        oc:InvalidXML,
+        oc:PermissionDenied,
+        oc:SchemaValidationFailed ;
+    oc:hasPayload oc:payload_9edb0243108eb53f ;
+    oc:hasRequirement oc:req_111f766b,
+        oc:req_2265348b,
+        oc:req_7cf00395,
+        oc:req_a74cdce8,
+        oc:req_aa94c0b4,
+        oc:req_b1672271,
+        oc:req_c2789dcc,
+        oc:req_d83ccc32 ;
+    oc:impartsKnowledge oc:kn_08c4aa06,
+        oc:kn_09af7f01,
+        oc:kn_169a8f60,
+        oc:kn_258ce9e7,
+        oc:kn_36c7a7b6,
+        oc:kn_631a9d74,
+        oc:kn_b573535f,
+        oc:kn_c01a6071,
+        oc:kn_e62cb69b,
+        oc:kn_fb3dd80f ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:FileExists,
+        oc:ToolInstalled ;
+    oc:resolvesIntent "add comments to document",
+        "add tracked changes",
+        "analyze document content",
+        "convert document to images",
+        "create word document",
+        "edit docx file",
+        "extract text from docx",
+        "review document with redlining" ;
+    oc:yieldsState oc:CommentsAdded,
+        oc:DocumentCreated,
+        oc:DocumentModified,
+        oc:TextExtracted,
+        oc:TrackedChangesAdded ;
+    dcterms:identifier "docx" ;
+    skos:broader "Document processing system" ;
+    prov:wasDerivedFrom "/Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/skills/office/public/docx" .
+
+oc:kn_08c4aa06 a oc:Constraint ;
+    oc:appliesToContext "When creating bulleted lists with docx-js" ;
+    oc:directiveContent "Always use LevelFormat.BULLET constant (not string 'bullet') with text: '•' for proper Word lists; never use unicode bullets or SymbolRun for list items" ;
+    oc:hasRationale "Unicode bullets create fake lists that don't work properly in Word - only proper numbering configuration creates real Word lists" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_09af7f01 a oc:AntiPattern ;
+    oc:appliesToContext "When editing documents with existing tracked changes" ;
+    oc:directiveContent "Never modify text inside another author's <w:ins> or <w:del> tags - always use nested deletions to reject their changes" ;
+    oc:hasRationale "Modifying another author's tracked changes corrupts the document history and breaks the audit trail" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_169a8f60 a oc:Heuristic ;
+    oc:appliesToContext "When implementing redlining workflow" ;
+    oc:directiveContent "Group related tracked changes into batches of 3-10 changes per script execution - this makes debugging manageable while maintaining efficiency" ;
+    oc:hasRationale "Smaller batches are easier to debug; larger batches maintain efficiency. Test each batch before moving to the next." .
+
+oc:kn_258ce9e7 a oc:WorkflowStrategy ;
+    oc:appliesToContext "When choosing document manipulation approach" ;
+    oc:directiveContent "Use docx-js for creating new documents from scratch; use Document library for editing existing documents; use redlining workflow for reviewing third-party documents" ;
+    oc:hasRationale "Different tools are optimized for different tasks - docx-js for creation, Python library for editing, and redlining preserves document integrity for collaborative review" .
+
+oc:kn_36c7a7b6 a oc:RecoveryTactic ;
+    oc:appliesToContext "When rejecting another author's tracked changes" ;
+    oc:directiveContent "Use revert_insertion() to reject insertions (wraps in deletion) and revert_deletion() to reject deletions (creates insertion to restore content) - never use suggest_deletion() on tracked changes" ;
+    oc:hasRationale "Using the wrong method corrupts the tracked change structure" .
+
+oc:kn_631a9d74 a oc:SuccessIndicator ;
+    oc:appliesToContext "After implementing tracked changes" ;
+    oc:directiveContent "Validate with pandoc conversion after all changes: grep for original phrases (should NOT find them) and replacement phrases (should find them)" ;
+    oc:hasRationale "Final verification catches missing changes and unintended modifications" .
+
+oc:kn_b573535f a oc:Constraint ;
+    oc:appliesToContext "Before any document operation" ;
+    oc:directiveContent "Mandatory documentation reading: Read docx-js.md (~500 lines) fully before creating documents; Read ooxml.md (~600 lines) fully before editing documents - never set range limits when reading these files" ;
+    oc:hasRationale "These documents contain critical formatting rules, XML patterns, and common pitfalls - skipping sections results in corrupted files or rendering issues" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_c01a6071 a oc:KnownIssue ;
+    oc:appliesToContext "When creating documents with docx-js" ;
+    oc:directiveContent "PageBreak must ALWAYS be inside a Paragraph - standalone PageBreak creates invalid XML that Word cannot open. Similarly, always use ShadingType.CLEAR for table cells, never ShadingType.SOLID which causes black backgrounds" ;
+    oc:hasRationale "These are documented bugs in the docx library that produce invalid OOXML" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_e62cb69b a oc:PreFlightCheck ;
+    oc:appliesToContext "Before implementing tracked changes" ;
+    oc:directiveContent "Always grep word/document.xml immediately before writing a script to get current line numbers and verify text content, as line numbers change after each script run" ;
+    oc:hasRationale "XML structure changes with each edit, so stale line numbers cause failures" .
+
+oc:kn_fb3dd80f a oc:DesignPrinciple ;
+    oc:appliesToContext "When implementing tracked changes" ;
+    oc:directiveContent "Only mark text that actually changes - keep ALL unchanged text outside <w:del>/<w:ins> tags and preserve original RSID attributes" ;
+    oc:hasRationale "Minimal, precise edits are easier to review and appear more professional than re-marking unchanged text" .
+
+oc:payload_9edb0243108eb53f a oc:ExecutionPayload ;
+    oc:code """# Document operations use different executors based on task:
+# - Creating new docs: Node.js with docx library
+# - Editing existing docs: Python with Document library
+# - Text extraction: Shell with pandoc
+# - Conversion to images: Shell with soffice and pdftoppm
+
+# Example: Creating a new document
+'''
+const { Document, Packer, Paragraph, TextRun } = require('docx');
+const fs = require('fs');
+
+const doc = new Document({
+  sections: [{
+    children: [
+      new Paragraph({
+        children: [new TextRun("Hello World")]
+      })
+    ]
+  }]
+});
+
+Packer.toBuffer(doc).then(buffer => {
+  fs.writeFileSync("document.docx", buffer);
+});
+'''
+
+# Example: Editing with tracked changes
+'''
+from skills.docx.scripts.document import Document
+
+doc = Document('unpacked', author="Claude", initials="C")
+node = doc["word/document.xml"].get_node(tag="w:r", contains="old text")
+doc["word/document.xml"].replace_node(
+  node,
+  '<w:del><w:r><w:delText>old text</w:delText></w:r></w:del><w:ins><w:r><w:t>new text</w:t></w:r></w:ins>'
+)
+doc.save()
+'''""" ;
+    oc:executor "python" ;
+    oc:timeout 60000 .
+
+oc:req_111f766b a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "LibreOffice" .
+
+oc:req_2265348b a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "defusedxml python package" .
+
+oc:req_7cf00395 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "poppler-utils" .
+
+oc:req_a74cdce8 a oc:RequirementKnowledge ;
+    oc:isOptional false ;
+    oc:requirementValue "OOXML schema compliance" .
+
+oc:req_aa94c0b4 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "docx npm package" .
+
+oc:req_b1672271 a oc:RequirementKnowledge ;
+    oc:isOptional false ;
+    oc:requirementValue "Python for document editing" .
+
+oc:req_c2789dcc a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "pandoc" .
+
+oc:req_d83ccc32 a oc:RequirementKnowledge ;
+    oc:isOptional false ;
+    oc:requirementValue "JavaScript/TypeScript for document creation" .
+

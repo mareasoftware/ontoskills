@@ -1,0 +1,136 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+
+oc:skill_xlsx a oc:ExecutableSkill,
+        oc:Skill ;
+    oc:contentHash "85daf4eef0ab9248e078a81216396133bc50f5d1a543e02eaf9888e8ec49b9d7" ;
+    oc:differentia "Provides Excel file creation, editing, and formula management with openpyxl and pandas" ;
+    oc:extends oc:skill_office ;
+    oc:generatedBy "glm-5" ;
+    oc:handlesFailure oc:FileNotFound,
+        oc:FormulaError,
+        oc:LibreOfficeNotAvailable,
+        oc:PermissionDenied ;
+    oc:hasPayload oc:payload_85daf4eef0ab9248 ;
+    oc:hasRequirement oc:req_111f766b,
+        oc:req_22a0b4bf,
+        oc:req_47a90164,
+        oc:req_746aacc9,
+        oc:req_a01cc226 ;
+    oc:impartsKnowledge oc:kn_44a1982e,
+        oc:kn_458b1bf1,
+        oc:kn_6b680953,
+        oc:kn_a1d05a9d,
+        oc:kn_c068d0a2,
+        oc:kn_d68b43de,
+        oc:kn_dac1714f,
+        oc:kn_f499b21d,
+        oc:kn_fd9d4ad3 ;
+    oc:nature "Tool" ;
+    oc:requiresState oc:ToolInstalled ;
+    oc:resolvesIntent "analyze spreadsheet data",
+        "create spreadsheet",
+        "edit excel file",
+        "format financial models",
+        "preserve excel formulas",
+        "recalculate formulas" ;
+    oc:yieldsState oc:DataAnalyzed,
+        oc:FormulasRecalculated,
+        oc:SpreadsheetCreated,
+        oc:SpreadsheetModified ;
+    dcterms:identifier "xlsx" ;
+    skos:broader "Spreadsheet manipulation and analysis tool" ;
+    prov:wasDerivedFrom "/Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/skills/office/public/xlsx" .
+
+oc:kn_44a1982e a oc:SideEffect ;
+    oc:appliesToContext "When reading calculated values from Excel files" ;
+    oc:directiveContent "Loading workbook with data_only=True and then saving permanently replaces formulas with calculated values" ;
+    oc:hasRationale "This data loss is irreversible and destroys the spreadsheet's computational logic" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_458b1bf1 a oc:PreFlightCheck ;
+    oc:appliesToContext "Before creating complex formulas across large ranges" ;
+    oc:directiveContent "Test 2-3 sample cell references to verify they pull correct values before building full model" ;
+    oc:hasRationale "Early testing prevents cascading errors from incorrect column mappings or row offsets" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_6b680953 a oc:DesignPrinciple ;
+    oc:appliesToContext "When building financial models or any calculation-heavy spreadsheet" ;
+    oc:directiveContent "Place all assumptions (growth rates, margins, multiples) in separate assumption cells and reference them in formulas instead of hardcoding values" ;
+    oc:hasRationale "Centralized assumptions enable easy scenario analysis and make model logic transparent and auditable" ;
+    oc:severityLevel "HIGH" .
+
+oc:kn_a1d05a9d a oc:Constraint ;
+    oc:appliesToContext "Before finalizing any spreadsheet delivery" ;
+    oc:directiveContent "Every Excel model MUST be delivered with zero formula errors (#REF!, #DIV/0!, #VALUE!, #N/A, #NAME?)" ;
+    oc:hasRationale "Formula errors indicate broken logic, invalid references, or data type mismatches that render the model unreliable" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_c068d0a2 a oc:Standard ;
+    oc:appliesToContext "When creating or formatting financial models" ;
+    oc:directiveContent "Use blue text for hardcoded inputs, black text for formulas, green text for internal worksheet links, red text for external file links" ;
+    oc:hasRationale "Industry-standard color coding enables users to quickly identify cell types and data flow" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_d68b43de a oc:Idempotency ;
+    oc:appliesToContext "After creating or modifying any spreadsheet with formulas" ;
+    oc:directiveContent "Formula recalculation using recalc.py is idempotent and safe to run multiple times" ;
+    oc:hasRationale "Running recalculation multiple times produces the same result and ensures formula values are always up-to-date" ;
+    oc:severityLevel "LOW" .
+
+oc:kn_dac1714f a oc:AntiPattern ;
+    oc:appliesToContext "When adding calculated values to any spreadsheet" ;
+    oc:directiveContent "Never calculate values in Python and hardcode them into Excel cells - always use Excel formulas instead" ;
+    oc:hasRationale "Hardcoded values break spreadsheet dynamic recalculation capability and prevent updates when source data changes" ;
+    oc:severityLevel "CRITICAL" .
+
+oc:kn_f499b21d a oc:Heuristic ;
+    oc:appliesToContext "When choosing which library to use for Excel operations" ;
+    oc:directiveContent "Use pandas for data analysis and bulk operations, openpyxl for complex formatting, formulas, and Excel-specific features" ;
+    oc:hasRationale "Each library has different strengths - pandas excels at data manipulation while openpyxl provides full Excel feature support" ;
+    oc:severityLevel "MEDIUM" .
+
+oc:kn_fd9d4ad3 a oc:RecoveryTactic ;
+    oc:appliesToContext "When formula recalculation returns status: errors_found" ;
+    oc:directiveContent "If recalc.py reports errors, check error_summary for specific error types and locations, then fix identified errors and recalculate again" ;
+    oc:hasRationale "Systematic error identification and correction ensures reliable formula evaluation" ;
+    oc:severityLevel "HIGH" .
+
+oc:payload_85daf4eef0ab9248 a oc:ExecutionPayload ;
+    oc:code """# Create/edit Excel with openpyxl
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill
+
+# For data analysis
+import pandas as pd
+
+# For formula recalculation
+# Run: python recalc.py <file.xlsx> [timeout]""" ;
+    oc:executor "python" .
+
+oc:req_111f766b a oc:RequirementTool ;
+    oc:isOptional true ;
+    oc:requirementValue "LibreOffice" .
+
+oc:req_22a0b4bf a oc:RequirementKnowledge ;
+    oc:isOptional false ;
+    oc:requirementValue "Excel formula syntax" .
+
+oc:req_47a90164 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "openpyxl" .
+
+oc:req_746aacc9 a oc:RequirementTool ;
+    oc:isOptional false ;
+    oc:requirementValue "pandas" .
+
+oc:req_a01cc226 a oc:RequirementKnowledge ;
+    oc:isOptional true ;
+    oc:requirementValue "Financial modeling conventions" .
+
