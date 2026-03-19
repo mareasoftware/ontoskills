@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Added bootstrap and publication flow for the official `OntoSkillRegistry` repository
+- Added a first remote demo package `marea.greeting/hello` to validate end-to-end registry installs
+
+### Changed
+
+- Changed the `ontoskill` product workflow so the official registry is built in by default and does not need manual `registry add-source` setup
+- Updated the user documentation to clarify the runtime flow:
+  - `search`
+  - `install`
+  - `enable`
+  - optional third-party registries via `registry add-source`
+
+### Verified
+
+- Verified remote install and activation of `marea.greeting/hello` from the public `OntoSkillRegistry` repository
+- Verified registry state generation under `~/.ontoskills/` for:
+  - `registry.lock.json`
+  - `index.installed.ttl`
+  - `index.enabled.ttl`
+
 ## [0.6.0] - 2026-03-18
 
 ### Added

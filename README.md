@@ -224,6 +224,14 @@ OntoSkill installs everything under:
   core/
 ```
 
+The official compiled registry is live at:
+
+- `https://github.com/mareasoftware/OntoSkillRegistry`
+
+The default `ontoskill` workflow already points there automatically. The first public demo package is:
+
+- `marea.greeting/hello`
+
 For compiler development from source:
 
 ```bash
@@ -371,6 +379,8 @@ npx ontoskill enable marea.greeting/hello
 ```
 
 No manual registry bootstrap is required for the official registry.
+
+This flow has been verified end-to-end against the public `OntoSkillRegistry` repository.
 
 ### Identity Model
 
