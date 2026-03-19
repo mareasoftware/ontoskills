@@ -1,12 +1,15 @@
-name: Release OntoCore
+name: Release OntoSkills Core
 
 on:
   release:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+
 jobs:
-  build-wheel:
+  build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +28,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ontocore-wheel
+          name: ontoskills-wheel
           path: core/dist/*
 
       - name: Upload release asset
@@ -33,3 +36,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: core/dist/*
+
+      - name: Publish to PyPI
+        if: github.event_name == 'release'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: core/dist/
