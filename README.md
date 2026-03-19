@@ -282,18 +282,14 @@ ontoclaw security-audit
 ontoclaw registry add-source official ./registry/index.json --trust-tier verified
 ontoclaw registry list
 
-# Install ontology package from registry
+# Install compiled ontology package from registry
 ontoclaw install marea.office
-
-# Import source package from registry
-ontoclaw import-source skillssh.office
 
 # Import a raw source repository directly from a local path or GitHub URL
 ontoclaw import-source-repo https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
 
-# Local package install/import
+# Install a local compiled package directory
 ontoclaw install-package /path/to/package-dir
-ontoclaw import-source-package /path/to/source-package-dir
 
 # Activation and index rebuild
 ontoclaw enable marea.office xlsx
@@ -319,12 +315,12 @@ ontoclaw rebuild-index
 
 ## Registry And Packages
 
-OntoClaw now supports a global ontology registry rooted in `ontoskills/` with:
+OntoClaw now supports a simplified registry and import model:
 
-- `local/` for local compiled skills
-- `official/` for verified imported packages
-- `community/` for community imported packages
-- `system/` for lockfiles and aggregated manifests
+- source skills live in `skills/`
+- imported source repositories are cloned into `skills/vendor/`
+- compiled imported packages live in `ontoskills/vendor/`
+- `ontoskills/system/` stores lockfiles and aggregated manifests
 
 Important runtime files:
 
@@ -335,16 +331,15 @@ Important runtime files:
 
 ### Package Types
 
-- **Ontology packages** distribute compiled `.ttl` modules
-- **Source packages** distribute raw skill sources and are compiled locally during import
-- **Source repositories** can also be imported directly; OntoClaw discovers `SKILL.md` files, compiles them locally, and registers the result as a community source package
+- **Registry packages** distribute compiled `.ttl` modules
+- **Source repositories** are imported directly from a path or Git URL; OntoClaw clones/copies them into `skills/vendor/`, discovers `SKILL.md`, and compiles them into `ontoskills/vendor/`
 
 ### Identity Model
 
 - Canonical identity: `package_id/skill_id`
 - Short ids like `xlsx` remain valid as lookup conveniences
 - Ambiguous short ids resolve with precedence:
-  - `verified > local > trusted > community`
+  - `local > verified > trusted > community`
 
 ### Blueprint
 

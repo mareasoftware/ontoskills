@@ -6,12 +6,10 @@ It defines:
 - the registry index format
 - the package manifest format
 - the folder layout for official verified packages
-- the separation between ontology packages and source packages
 
 The current compiler/runtime can already consume this model through:
 - `ontoclaw registry add-source`
 - `ontoclaw install`
-- `ontoclaw import-source`
 - `ontoclaw import-source-repo`
 
 ## Layout
@@ -23,13 +21,13 @@ registry/
   packages/
     marea.office/
       package.json
-    skillssh.office/
+    marea.greeting/
       package.json
 ```
 
-## Package Kinds
+## Package Kind
 
-### Ontology package
+### Compiled ontology package
 
 Contains already compiled `.ttl` artifacts.
 
@@ -39,22 +37,6 @@ Required fields:
 - `trust_tier`
 - `modules`
 - `skills`
-
-### Source package
-
-Contains raw source skills to compile locally.
-
-Required fields:
-- `package_id`
-- `version`
-- `trust_tier`
-- `source_root`
-- `source_files`
-- `skills`
-
-Runtime rule:
-- source packages are compiled locally and installed as `source_kind = "source"`
-- their skills remain disabled by default
 
 ### Direct source repository import
 
@@ -70,7 +52,9 @@ The importer:
 - clones or copies the repository
 - discovers every `SKILL.md`
 - compiles the discovered skills locally
-- registers the result as a community source package
+- stores the source under `skills/vendor/<slug>`
+- stores the compiled output under `ontoskills/vendor/<package_id>`
+- keeps imported skills disabled by default
 
 ## Registry Index
 
@@ -82,8 +66,7 @@ The registry index is a JSON document listing installable packages.
     {
       "package_id": "marea.office",
       "manifest_url": "https://example.invalid/packages/marea.office/package.json",
-      "trust_tier": "verified",
-      "source_kind": "ontology"
+      "trust_tier": "verified"
     }
   ]
 }
@@ -101,11 +84,11 @@ The registry index is a JSON document listing installable packages.
 - Canonical runtime identity is `package_id/skill_id`
 - Short ids are accepted only as lookup convenience
 - Ambiguous short ids resolve with precedence:
-  - `verified > local > trusted > community`
+  - `local > verified > trusted > community`
 
 ## Activation Rules
 
 - install unit: package
 - activation unit: skill
 - enabling a skill auto-enables required `extends` / `dependsOn`
-- source/community skills stay disabled until explicitly enabled
+- imported skills stay disabled until explicitly enabled

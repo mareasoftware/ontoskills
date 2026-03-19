@@ -25,10 +25,11 @@ from rdflib import Graph, RDF, URIRef
 from rdflib.namespace import DCTERMS
 
 from compiler.config import (
-    ONTOLOGY_COMMUNITY_DIR,
-    ONTOLOGY_OFFICIAL_DIR,
     ONTOLOGY_ROOT,
     ONTOLOGY_SYSTEM_DIR,
+    ONTOLOGY_VENDOR_DIR,
+    SKILLS_DIR,
+    SKILLS_VENDOR_DIR,
 )
 from compiler.core_ontology import get_oc_namespace
 from compiler.storage import generate_index_manifest
@@ -115,19 +116,26 @@ def ontology_root() -> Path:
     return Path(ONTOLOGY_ROOT).resolve()
 
 
+def skills_root(root: Path | None = None) -> Path:
+    if root is None:
+        return Path(SKILLS_DIR).resolve()
+    ontology_base = Path(root).resolve()
+    return (ontology_base.parent / "skills").resolve()
+
+
 def system_dir(root: Path | None = None) -> Path:
     base = ontology_root() if root is None else Path(root).resolve()
     return base / Path(ONTOLOGY_SYSTEM_DIR).name
 
 
-def official_dir(root: Path | None = None) -> Path:
-    base = ontology_root() if root is None else Path(root).resolve()
-    return base / Path(ONTOLOGY_OFFICIAL_DIR).name
+def skills_vendor_dir(root: Path | None = None) -> Path:
+    base = skills_root(root)
+    return base / Path(SKILLS_VENDOR_DIR).name
 
 
-def community_dir(root: Path | None = None) -> Path:
+def ontology_vendor_dir(root: Path | None = None) -> Path:
     base = ontology_root() if root is None else Path(root).resolve()
-    return base / Path(ONTOLOGY_COMMUNITY_DIR).name
+    return base / Path(ONTOLOGY_VENDOR_DIR).name
 
 
 def enabled_index_path(root: Path | None = None) -> Path:
@@ -149,9 +157,10 @@ def registry_sources_path(root: Path | None = None) -> Path:
 def ensure_registry_layout(root: Path | None = None) -> Path:
     base = ontology_root() if root is None else Path(root).resolve()
     base.mkdir(parents=True, exist_ok=True)
+    skills_root(base).mkdir(parents=True, exist_ok=True)
+    skills_vendor_dir(base).mkdir(parents=True, exist_ok=True)
     system_dir(base).mkdir(parents=True, exist_ok=True)
-    official_dir(base).mkdir(parents=True, exist_ok=True)
-    community_dir(base).mkdir(parents=True, exist_ok=True)
+    ontology_vendor_dir(base).mkdir(parents=True, exist_ok=True)
     return base
 
 
@@ -189,8 +198,9 @@ def discover_local_skill_paths(root: Path | None = None) -> list[Path]:
     base = ontology_root() if root is None else Path(root).resolve()
     excluded = {
         system_dir(base),
-        official_dir(base),
-        community_dir(base),
+        ontology_vendor_dir(base),
+        base / "official",
+        base / "community",
     }
     paths: list[Path] = []
     for path in base.rglob("ontoskill.ttl"):
@@ -198,6 +208,46 @@ def discover_local_skill_paths(root: Path | None = None) -> list[Path]:
             continue
         paths.append(path.resolve())
     return sorted(paths)
+
+
+def sync_local_package(lock: RegistryLock, root: Path) -> RegistryLock:
+    local_paths = discover_local_skill_paths(root)
+    existing = lock.packages.get("local")
+    previous_by_path = {
+        Path(skill.module_path).resolve(): skill
+        for skill in (existing.skills if existing else [])
+    }
+
+    local_skills: list[InstalledSkillState] = []
+    for module_path in local_paths:
+        skill_id, _ = _skill_relations(module_path)
+        if not skill_id:
+            continue
+        previous = previous_by_path.get(module_path.resolve())
+        local_skills.append(
+            InstalledSkillState(
+                skill_id=skill_id,
+                module_path=str(module_path.resolve()),
+                aliases=previous.aliases if previous else [],
+                enabled=previous.enabled if previous else True,
+                default_enabled=True,
+            )
+        )
+
+    if local_skills:
+        lock.packages["local"] = InstalledPackageState(
+            package_id="local",
+            version="workspace",
+            trust_tier="local",
+            source=None,
+            installed_at=datetime.now(UTC).isoformat(),
+            install_root=str(root),
+            manifest_path="",
+            skills=local_skills,
+        )
+    else:
+        lock.packages.pop("local", None)
+    return lock
 
 
 def iter_installed_skill_paths(lock: RegistryLock) -> list[Path]:
@@ -220,10 +270,11 @@ def iter_enabled_skill_paths(lock: RegistryLock) -> list[Path]:
 def rebuild_registry_indexes(root: Path | None = None) -> tuple[Path, Path]:
     base = ensure_registry_layout(root)
     lock = load_registry_lock(base)
+    lock = sync_local_package(lock, base)
+    save_registry_lock(lock, base)
 
-    local_paths = discover_local_skill_paths(base)
-    installed_paths = sorted({*local_paths, *iter_installed_skill_paths(lock)})
-    enabled_paths = sorted({*local_paths, *iter_enabled_skill_paths(lock)})
+    installed_paths = iter_installed_skill_paths(lock)
+    enabled_paths = iter_enabled_skill_paths(lock)
 
     generate_index_manifest(installed_paths, installed_index_path(base), output_base=base)
     generate_index_manifest(enabled_paths, enabled_index_path(base), output_base=base)
@@ -241,8 +292,7 @@ def install_package_from_directory(
     manifest = load_manifest(manifest_path)
 
     effective_trust = trust_tier or manifest.trust_tier
-    destination_base = official_dir(base) if effective_trust == "verified" else community_dir(base)
-    install_root = destination_base / manifest.package_id
+    install_root = ontology_vendor_dir(base) / manifest.package_id
 
     if install_root.exists():
         shutil.rmtree(install_root)
@@ -306,12 +356,12 @@ def install_source_package_from_directory(
     if not manifest.source_root:
         raise ValueError("Source packages require a source_root in package.json")
 
-    destination_base = official_dir(base) if trust_tier == "verified" else community_dir(base)
-    install_root = destination_base / manifest.package_id
-    if install_root.exists():
-        shutil.rmtree(install_root)
-    raw_root = install_root / "source"
-    compiled_root = install_root / "compiled"
+    raw_root = skills_vendor_dir(base) / manifest.package_id
+    compiled_root = ontology_vendor_dir(base) / manifest.package_id
+    if raw_root.exists():
+        shutil.rmtree(raw_root)
+    if compiled_root.exists():
+        shutil.rmtree(compiled_root)
     raw_root.mkdir(parents=True, exist_ok=True)
     compiled_root.mkdir(parents=True, exist_ok=True)
 
@@ -323,7 +373,7 @@ def install_source_package_from_directory(
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(item, destination)
 
-    copied_manifest = install_root / "package.json"
+    copied_manifest = compiled_root / "package.json"
     shutil.copy2(manifest_path, copied_manifest)
 
     compile_source_tree(raw_root, compiled_root)
@@ -349,7 +399,7 @@ def install_source_package_from_directory(
         source=manifest.source,
         source_kind="source",
         installed_at=datetime.now(UTC).isoformat(),
-        install_root=str(install_root),
+        install_root=str(compiled_root),
         manifest_path=str(copied_manifest),
         skills=skills,
     )
@@ -376,13 +426,12 @@ def import_source_repository(
         if not skill_entries:
             raise ValueError(f"No SKILL.md files found in source repository: {repo_ref}")
 
-        destination_base = official_dir(base) if trust_tier == "verified" else community_dir(base)
-        install_root = destination_base / resolved_package_id
-        if install_root.exists():
-            shutil.rmtree(install_root)
-
-        raw_root = install_root / "source"
-        compiled_root = install_root / "compiled"
+        raw_root = skills_vendor_dir(base) / resolved_package_id
+        compiled_root = ontology_vendor_dir(base) / resolved_package_id
+        if raw_root.exists():
+            shutil.rmtree(raw_root)
+        if compiled_root.exists():
+            shutil.rmtree(compiled_root)
         copy_source_tree(repo_path, raw_root)
         compiled_root.mkdir(parents=True, exist_ok=True)
         compile_source_tree(raw_root, compiled_root)
@@ -395,7 +444,7 @@ def import_source_repository(
             source=source_ref,
             source_kind="source",
             installed_at=datetime.now(UTC).isoformat(),
-            install_root=str(install_root),
+            install_root=str(compiled_root),
             manifest_path="",
             skills=[
                 InstalledSkillState(
@@ -414,7 +463,6 @@ def import_source_repository(
             "version": package_state.version,
             "trust_tier": package_state.trust_tier,
             "source": package_state.source,
-            "source_root": "source",
             "skills": [
                 {
                     "id": skill.skill_id,
@@ -425,7 +473,7 @@ def import_source_repository(
                 for skill in package_state.skills
             ],
         }
-        manifest_path = install_root / "package.json"
+        manifest_path = compiled_root / "package.json"
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(json.dumps(synthetic_manifest, indent=2), encoding="utf-8")
         package_state.manifest_path = str(manifest_path)
@@ -513,8 +561,8 @@ def infer_source_package_id(repo_ref: str, repo_path: Path) -> str:
         if len(parts) >= 2:
             owner = slugify_identifier(parts[0])
             repo = slugify_identifier(parts[1].removesuffix(".git"))
-            return f"github.{owner}.{repo}"
-    return f"source.{slugify_identifier(repo_path.name)}"
+            return f"{owner}.{repo}"
+    return slugify_identifier(repo_path.name)
 
 
 def slugify_identifier(value: str) -> str:
@@ -619,6 +667,7 @@ def enable_skills(
 ) -> InstalledPackageState:
     base = ensure_registry_layout(root)
     lock = load_registry_lock(base)
+    lock = sync_local_package(lock, base)
     package = lock.packages[package_id]
 
     selected = skill_ids or [skill.skill_id for skill in package.skills]
@@ -651,6 +700,7 @@ def disable_skills(
 ) -> InstalledPackageState:
     base = ensure_registry_layout(root)
     lock = load_registry_lock(base)
+    lock = sync_local_package(lock, base)
     package = lock.packages[package_id]
 
     target_keys = {
@@ -684,8 +734,11 @@ def disable_skills(
 
 
 def list_installed_packages(root: Path | None = None) -> RegistryLock:
-    ensure_registry_layout(root)
-    return load_registry_lock(root)
+    base = ensure_registry_layout(root)
+    lock = load_registry_lock(base)
+    lock = sync_local_package(lock, base)
+    save_registry_lock(lock, base)
+    return lock
 
 
 def add_registry_source(
@@ -772,20 +825,14 @@ def install_package_from_manifest_ref(
         local_manifest.write_text(manifest_json, encoding="utf-8")
 
         if source_kind == "source":
-            if not manifest.source_root:
-                raise ValueError("Remote source packages require source_root in package.json")
-            if not manifest.source_files:
-                raise ValueError("Remote source packages require source_files in package.json")
-            for relative in manifest.source_files:
-                ref = _resolve_child_ref(manifest_ref, relative)
-                _copy_ref_to_path(ref, package_dir / relative)
-        else:
-            module_paths = list(
-                dict.fromkeys([*manifest.modules, *(skill.path for skill in manifest.skills)])
-            )
-            for relative in module_paths:
-                ref = _resolve_child_ref(manifest_ref, relative)
-                _copy_ref_to_path(ref, package_dir / relative)
+            raise ValueError("Registry sources support compiled ontology packages only")
+
+        module_paths = list(
+            dict.fromkeys([*manifest.modules, *(skill.path for skill in manifest.skills)])
+        )
+        for relative in module_paths:
+            ref = _resolve_child_ref(manifest_ref, relative)
+            _copy_ref_to_path(ref, package_dir / relative)
 
         return install_package_from_directory(
             package_dir,

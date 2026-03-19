@@ -29,10 +29,8 @@ from compiler.registry import (
     enable_skills,
     disable_skills,
     enabled_index_path,
-    ensure_registry_layout,
     import_source_repository,
     install_package_from_directory,
-    install_source_package_from_directory,
     install_package_from_sources,
     list_installed_packages,
     list_registry_sources,
@@ -477,23 +475,6 @@ def install_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
     console.print(f"  Root: {package.install_root}")
 
 
-@cli.command('import-source-package')
-@click.argument('package_path', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
-@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
-@click.pass_context
-def import_source_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
-    """Import a raw source package and compile it into the ontology registry."""
-    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
-    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
-    package = install_source_package_from_directory(package_path, root=root, trust_tier=trust_tier)
-    console.print(f"[green]Imported source package {package.package_id}@{package.version}[/green]")
-    console.print(f"  Trust: {package.trust_tier}")
-    console.print(f"  Source kind: {package.source_kind}")
-    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
-    console.print("  Enabled skills: (none by default)")
-
-
 @cli.command('import-source-repo')
 @click.argument('repo_ref')
 @click.option('--package-id', default=None, help='Override the inferred package id')
@@ -501,7 +482,7 @@ def import_source_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def import_source_repo_cmd(ctx, repo_ref, package_id, trust_tier, ontology_root_arg):
-    """Import a raw source repository, compile discovered skills, and register the result."""
+    """Clone/copy a source skill repository into skills/vendor and compile it into ontoskills/vendor."""
     setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
     root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
     package = import_source_repository(repo_ref, root=root, trust_tier=trust_tier, package_id=package_id)
@@ -521,14 +502,13 @@ def registry_group():
 @click.argument('name')
 @click.argument('index_url')
 @click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
-@click.option('--source-kind', type=click.Choice(['ontology', 'source']), default='ontology')
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
-def registry_add_source_cmd(ctx, name, index_url, trust_tier, source_kind, ontology_root_arg):
-    """Add or replace a configured registry source."""
+def registry_add_source_cmd(ctx, name, index_url, trust_tier, ontology_root_arg):
+    """Add or replace a configured registry source for compiled ontology packages."""
     setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
     root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
-    sources = add_registry_source(name, index_url, root=root, trust_tier=trust_tier, source_kind=source_kind)
+    sources = add_registry_source(name, index_url, root=root, trust_tier=trust_tier, source_kind="ontology")
     console.print(f"[green]Configured registry source {name}[/green]")
     console.print(f"  Index: {index_url}")
     console.print(f"  Total sources: {len(sources.sources)}")
@@ -548,7 +528,6 @@ def registry_list_cmd(ctx, ontology_root_arg):
 
     for source in sources.sources:
         console.print(f"\n[bold]{source.name}[/bold] [{source.trust_tier}]")
-        console.print(f"  kind: {source.source_kind}")
         console.print(f"  index: {source.index_url}")
 
 
@@ -557,32 +536,13 @@ def registry_list_cmd(ctx, ontology_root_arg):
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def install_cmd(ctx, package_id, ontology_root_arg):
-    """Install a package by id from configured registry sources."""
+    """Install a compiled ontology package by id from configured registry sources."""
     setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
     root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
     package = install_package_from_sources(package_id, root=root)
     console.print(f"[green]Installed package {package.package_id}@{package.version}[/green]")
     console.print(f"  Trust: {package.trust_tier}")
-    console.print(f"  Source kind: {package.source_kind}")
     console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
-
-
-@cli.command('import-source')
-@click.argument('package_id')
-@click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
-@click.pass_context
-def import_source_cmd(ctx, package_id, ontology_root_arg):
-    """Import a source package by id from configured registry sources."""
-    setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
-    root = ontology_root_arg or Path(resolve_ontology_root(OUTPUT_DIR))
-    package = install_package_from_sources(package_id, root=root)
-    if package.source_kind != "source":
-        console.print(f"[yellow]Package {package.package_id} is not a source package[/yellow]")
-    console.print(f"[green]Imported source package {package.package_id}@{package.version}[/green]")
-    console.print(f"  Trust: {package.trust_tier}")
-    console.print(f"  Source kind: {package.source_kind}")
-    console.print(f"  Skills: {', '.join(skill.skill_id for skill in package.skills)}")
-    console.print("  Enabled skills: (none by default)")
 
 
 @cli.command('enable')
@@ -631,7 +591,6 @@ def list_installed_cmd(ctx, ontology_root_arg):
 
     for package in lock.packages.values():
         console.print(f"\n[bold]{package.package_id}[/bold] {package.version} [{package.trust_tier}]")
-        console.print(f"  source_kind: {package.source_kind}")
         enabled = [skill.skill_id for skill in package.skills if skill.enabled]
         disabled = [skill.skill_id for skill in package.skills if not skill.enabled]
         console.print(f"  enabled: {', '.join(enabled) if enabled else '(none)'}")

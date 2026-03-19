@@ -1442,18 +1442,11 @@ fn build_skill_record(
         .ok()
         .and_then(|path| path.components().next().map(|c| c.as_os_str().to_string_lossy().to_string()));
     let trust_tier = match rel.as_deref() {
-        Some("official") => "verified",
-        Some("community") => "community",
+        Some("vendor") => "community",
         _ => "local",
     }
     .to_string();
-    let package_id = if let Ok(relative) = module_path.strip_prefix(ontology_root.join("official")) {
-        relative
-            .components()
-            .next()
-            .map(|c| c.as_os_str().to_string_lossy().to_string())
-            .unwrap_or_else(|| "local".to_string())
-    } else if let Ok(relative) = module_path.strip_prefix(ontology_root.join("community")) {
+    let package_id = if let Ok(relative) = module_path.strip_prefix(ontology_root.join("vendor")) {
         relative
             .components()
             .next()
@@ -1644,8 +1637,8 @@ fn validate_skill_id(skill_id: &str) -> Result<(), CatalogError> {
 
 fn trust_rank(trust_tier: &str) -> usize {
     match trust_tier {
-        "verified" => 0,
-        "local" => 1,
+        "local" => 0,
+        "verified" => 1,
         "trusted" => 2,
         "community" => 3,
         _ => 4,
@@ -1878,10 +1871,10 @@ oc:skill_disabled a oc:Skill, oc:DeclarativeSkill ;
 
     fn write_ambiguous_registry(root: &Path) {
         fs::create_dir_all(root.join("system")).unwrap();
-        fs::create_dir_all(root.join("official").join("marea.office").join("skills")).unwrap();
-        fs::create_dir_all(root.join("local").join("xlsx")).unwrap();
+        fs::create_dir_all(root.join("vendor").join("marea.office").join("skills")).unwrap();
+        fs::create_dir_all(root.join("xlsx")).unwrap();
         fs::write(
-            root.join("official").join("marea.office").join("skills").join("xlsx.ttl"),
+            root.join("vendor").join("marea.office").join("skills").join("xlsx.ttl"),
             format!(
                 r#"
 @prefix oc: <{base}> .
@@ -1896,7 +1889,7 @@ oc:skill_xlsx_verified a oc:Skill, oc:ExecutableSkill ;
         )
         .unwrap();
         fs::write(
-            root.join("local").join("xlsx").join("ontoskill.ttl"),
+            root.join("xlsx").join("ontoskill.ttl"),
             format!(
                 r#"
 @prefix oc: <{base}> .
@@ -1932,7 +1925,7 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
             .replace(
                 "__MODULE__",
                 &root
-                    .join("official")
+                    .join("vendor")
                     .join("marea.office")
                     .join("skills")
                     .join("xlsx.ttl")
@@ -1951,12 +1944,12 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
     owl:imports <file://{local}> .
 "#,
                 verified = root
-                    .join("official")
+                    .join("vendor")
                     .join("marea.office")
                     .join("skills")
                     .join("xlsx.ttl")
                     .display(),
-                local = root.join("local").join("xlsx").join("ontoskill.ttl").display(),
+                local = root.join("xlsx").join("ontoskill.ttl").display(),
             ),
         )
         .unwrap();
@@ -2063,17 +2056,17 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
     }
 
     #[test]
-    fn catalog_resolves_short_id_with_verified_precedence_and_exact_qualified_id() {
+    fn catalog_resolves_short_id_with_local_precedence_and_exact_qualified_id() {
         let dir = tempdir().unwrap();
         write_ambiguous_registry(dir.path());
 
         let catalog = Catalog::load(dir.path()).unwrap();
         let preferred = catalog.get_skill("xlsx").unwrap();
-        let local = catalog.get_skill("local/xlsx").unwrap();
+        let imported = catalog.get_skill("marea.office/xlsx").unwrap();
 
-        assert_eq!(preferred.qualified_id, "marea.office/xlsx");
-        assert_eq!(preferred.trust_tier, "verified");
-        assert_eq!(local.qualified_id, "local/xlsx");
-        assert_eq!(local.trust_tier, "local");
+        assert_eq!(preferred.qualified_id, "local/xlsx");
+        assert_eq!(preferred.trust_tier, "local");
+        assert_eq!(imported.qualified_id, "marea.office/xlsx");
+        assert_eq!(imported.trust_tier, "verified");
     }
 }

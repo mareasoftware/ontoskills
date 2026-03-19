@@ -1,6 +1,6 @@
 # Registry Package Spec
 
-This document defines the current package format consumed by the OntoClaw registry pipeline.
+This document defines the current compiled package format consumed by the OntoClaw registry pipeline.
 
 ## Common Fields
 
@@ -44,20 +44,6 @@ An ontology package distributes compiled TTL files.
 Required additional field:
 - `modules`
 
-## Source Package
-
-A source package distributes raw source skills to compile locally.
-
-Required additional fields:
-- `source_root`
-- `source_files`
-
-Rules:
-- files in `source_files` are fetched/copied into the local source subtree
-- compilation happens locally through `ontoclaw compile`
-- installed package state is recorded as `source_kind = "source"`
-- skills remain disabled by default after install
-
 ## Registry Index Spec
 
 The registry index is a JSON file listing installable packages.
@@ -68,8 +54,7 @@ The registry index is a JSON file listing installable packages.
     {
       "package_id": "marea.office",
       "manifest_url": "https://example.invalid/packages/marea.office/package.json",
-      "trust_tier": "verified",
-      "source_kind": "ontology"
+      "trust_tier": "verified"
     }
   ]
 }
@@ -81,16 +66,17 @@ The registry index is a JSON file listing installable packages.
 - enable unit: skill
 - exact qualified id always wins
 - short id lookup precedence is:
-  - `verified > local > trusted > community`
+  - `local > verified > trusted > community`
 
 ## Direct Source Repository Import
 
-Besides manifest-based source packages, OntoClaw supports direct raw repository import.
+OntoClaw supports direct raw repository import outside the compiled registry.
 
 Expected behavior:
 - accept a local path or GitHub URL
 - clone/copy the repository
 - discover all `SKILL.md` files
 - compile them locally
-- register the result as `source_kind = "source"`
+- store the source under `skills/vendor/<slug>`
+- store the compiled output under `ontoskills/vendor/<package_id>`
 - keep imported skills disabled by default

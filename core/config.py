@@ -23,8 +23,8 @@ SKILLS_DIR = os.getenv('ONTOCLAW_SKILLS_DIR', str(PROJECT_ROOT / 'skills'))
 ONTOLOGY_ROOT = os.getenv('ONTOCLAW_ONTOLOGY_ROOT', str(PROJECT_ROOT / 'ontoskills'))
 OUTPUT_DIR = os.getenv('ONTOCLAW_OUTPUT_DIR', ONTOLOGY_ROOT)
 ONTOLOGY_SYSTEM_DIR = str(Path(ONTOLOGY_ROOT) / 'system')
-ONTOLOGY_OFFICIAL_DIR = str(Path(ONTOLOGY_ROOT) / 'official')
-ONTOLOGY_COMMUNITY_DIR = str(Path(ONTOLOGY_ROOT) / 'community')
+SKILLS_VENDOR_DIR = str(Path(SKILLS_DIR) / 'vendor')
+ONTOLOGY_VENDOR_DIR = str(Path(ONTOLOGY_ROOT) / 'vendor')
 
 
 def resolve_ontology_root(path: str | Path) -> Path:

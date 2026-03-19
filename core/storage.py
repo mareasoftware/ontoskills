@@ -473,7 +473,7 @@ def clean_orphaned_files(
         Count of orphaned files removed
     """
     orphans_removed = 0
-    protected_dirs = {"system", "official", "community"}
+    protected_dirs = {"system", "vendor", "official", "community"}
 
     # Find all files in output directory
     for output_file in output_dir.rglob("*"):
