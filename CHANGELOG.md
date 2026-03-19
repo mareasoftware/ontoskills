@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.3] - 2026-03-19
+
+### Fixed
+
+- Added `license` and `classifiers` metadata to `core/pyproject.toml` to fix missing Python and License badges on PyPI.
+- Copied `LICENSE` file into the `core/` package directory.
+
 ## [0.7.2] - 2026-03-19
 
 ### Fixed
