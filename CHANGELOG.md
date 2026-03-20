@@ -12,12 +12,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a first remote demo package `marea.greeting/hello` to validate end-to-end registry installs
 - Added a dedicated registry guide in `docs/registry.md`
 - Added a streamlined documentation layout with long-form guides under `docs/`
+- Added MCP runtime documentation in `docs/mcp.md`
+- Added client-specific MCP guides for Claude Code and Codex in `docs/mcp-claude-code.md` and `docs/mcp-codex.md`
 
 ### Changed
 
 - Changed the `ontoskills` product workflow so the official registry is built in by default and does not need manual `registry add-source` setup
 - Renamed the user-facing CLI from `ontoskill` to `ontoskills`
 - Standardized the ontology namespace and SHACL namespace on `https://ontoskills.marea.software/`
+- Updated the default registry source URL and local registry manifests to the new `mareasoftware/ontoskills-registry` repository
+- Restored the top-level `README.md` as a full project overview instead of a minimal landing-style summary
+- Moved the primary MCP setup and integration guides from `mcp/` into `docs/`, leaving compatibility pointers in the runtime folder
+- Updated the public site and Starlight navigation to expose MCP runtime, Claude Code, Codex, registry, and architecture pages coherently
 - Updated the user documentation to clarify the runtime flow:
   - `search`
   - `install`
@@ -32,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `registry.lock.json`
   - `index.installed.ttl`
   - `index.enabled.ttl`
+- Verified `cargo test --manifest-path mcp/Cargo.toml`
+- Verified `python3 -m py_compile core/cli.py core/config.py core/differ.py core/explainer.py core/graph_export.py core/linter.py core/serialization.py core/storage.py core/validator.py`
+- Verified `npm run build` for the site after the docs and MCP navigation reorganization
 
 ## [0.6.0] - 2026-03-18
 
