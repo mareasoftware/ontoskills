@@ -11,7 +11,7 @@ Tests for file I/O operations including:
 
 import pytest
 from pathlib import Path
-from rdflib import Graph, RDF, RDFS, OWL, Namespace, Literal, URIRef
+from rdflib import Graph, RDF, OWL, Literal
 from rdflib.namespace import DCTERMS
 
 from compiler.storage import (
@@ -33,7 +33,7 @@ from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.serialization import serialize_skill_to_module, skill_uri_for_id
 from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
 from compiler.exceptions import OntologyLoadError, OntologyValidationError
-from compiler.config import BASE_URI, SKILLS_DIR, OUTPUT_DIR
+from compiler.config import SKILLS_DIR, OUTPUT_DIR
 
 
 # =============================================================================
@@ -857,4 +857,8 @@ def test_system_files_constant():
     """Test that SYSTEM_FILES constant contains expected files."""
     assert "ontoskills-core.ttl" in SYSTEM_FILES
     assert "index.ttl" in SYSTEM_FILES
-    assert len(SYSTEM_FILES) == 2
+    assert "index.enabled.ttl" in SYSTEM_FILES
+    assert "index.installed.ttl" in SYSTEM_FILES
+    assert "registry.lock.json" in SYSTEM_FILES
+    assert "registry.sources.json" in SYSTEM_FILES
+    assert len(SYSTEM_FILES) == 6

@@ -12,7 +12,7 @@ from typing import Optional
 from rdflib import Graph, Namespace, RDF, OWL, Literal, URIRef
 from rdflib.namespace import DCTERMS, SKOS, PROV
 
-from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
+from compiler.schemas import ExtractedSkill
 from compiler.exceptions import OntologyValidationError
 from compiler.config import BASE_URI, OUTPUT_DIR, resolve_ontology_root
 from compiler.core_ontology import get_oc_namespace
@@ -226,7 +226,7 @@ def serialize_skill_to_module(
     # VALIDATE BEFORE WRITE
     try:
         validate_and_raise(g)
-    except OntologyValidationError as e:
+    except OntologyValidationError:
         logger.critical(f"Refusing to write invalid skill to {output_path}")
         raise
 

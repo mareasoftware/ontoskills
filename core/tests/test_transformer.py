@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 from compiler.transformer import (
     tool_result,
@@ -8,8 +6,7 @@ from compiler.transformer import (
     TOOLS,
     build_sub_skill_context_prompt,
 )
-from compiler.config import MAX_ITERATIONS
-from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
+from compiler.schemas import ExtractedSkill
 
 
 def test_tools_defined():

@@ -6,7 +6,7 @@ Tests for serialize_skill(), serialize_skill_to_module(), and related functions.
 
 import pytest
 from pathlib import Path
-from rdflib import Graph, RDF, RDFS, OWL, Namespace
+from rdflib import Graph, RDF, OWL
 
 from compiler.serialization import (
     serialize_skill,
@@ -14,7 +14,6 @@ from compiler.serialization import (
     skill_uri_for_id,
 )
 from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload, StateTransition
-from compiler.config import BASE_URI
 from compiler.core_ontology import get_oc_namespace
 
 
@@ -354,7 +353,6 @@ def test_serialize_skill_with_extends_injection():
     serialize_skill(graph, sub_skill, extends_parent="obra/superpowers/brainstorming")
 
     # Verify extends triple was added
-    from rdflib.namespace import RDF
     from compiler.core_ontology import get_oc_namespace
 
     oc = get_oc_namespace()

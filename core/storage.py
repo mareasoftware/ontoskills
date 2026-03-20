@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 import owlrl
-from rdflib import Graph, Namespace, RDF, RDFS, OWL, Literal, URIRef
+from rdflib import Graph, RDF, RDFS, OWL, Literal, URIRef
 from rdflib.namespace import DCTERMS, SKOS, PROV
 
 from compiler.schemas import ExtractedSkill
@@ -288,7 +288,7 @@ def merge_skill(ontology_path: Path, skill: ExtractedSkill, force: bool = False)
     # VALIDATE BEFORE RETURNING
     try:
         validate_and_raise(graph)
-    except OntologyValidationError as e:
+    except OntologyValidationError:
         logger.critical(f"Skill {skill.id} failed validation, not merging")
         raise
 

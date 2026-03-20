@@ -1,6 +1,5 @@
 """Tests for OntoSkills Skill Drift Detector — differ module and migration suggestions."""
 
-import pytest
 
 from compiler.differ import compute_diff
 

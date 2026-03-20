@@ -6,7 +6,6 @@ with proper extends relationships.
 """
 
 import pytest
-from pathlib import Path
 from click.testing import CliRunner
 
 
@@ -66,7 +65,6 @@ def test_subskill_qualified_ids(skill_with_subskills, tmp_path):
         generate_qualified_skill_id,
         generate_sub_skill_id
     )
-    from compiler.cli import cli
 
     skill_dir = skill_with_subskills / "skills" / "integration-test"
 

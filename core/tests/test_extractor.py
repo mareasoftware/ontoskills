@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from compiler.extractor import generate_skill_id, generate_qualified_skill_id, compute_skill_hash, generate_sub_skill_id, compute_sub_skill_hash
 
 

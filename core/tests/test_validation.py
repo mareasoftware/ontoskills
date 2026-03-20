@@ -145,7 +145,7 @@ def test_skill_without_payload_is_declarative():
 
 def test_literal_as_state_fails():
     """A skill with a literal string (not URI) as state should fail."""
-    from compiler.schemas import ExtractedSkill, Requirement, StateTransition, ExecutionPayload
+    from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
     from compiler.serialization import serialize_skill
     from compiler.core_ontology import get_oc_namespace
     from compiler.validator import validate_skill_graph
@@ -210,7 +210,7 @@ def test_skill_with_payload_is_executable():
 def test_knowledge_node_validation_missing_required():
     """Test that KnowledgeNode without required properties fails SHACL."""
     from compiler.validator import validate_skill_graph
-    from rdflib import Graph, RDF, Literal, Namespace
+    from rdflib import Graph, RDF, Namespace
     from compiler.config import BASE_URI
 
     g = Graph()

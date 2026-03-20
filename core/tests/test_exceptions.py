@@ -1,4 +1,3 @@
-import pytest
 from compiler.exceptions import SkillETLError, SecurityError
 
 

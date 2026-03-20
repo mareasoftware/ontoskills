@@ -330,7 +330,7 @@ def test_knowledge_node_filtering_preserves_knowledge_node_objects():
 
 def test_knowledge_node_filtering_mixed_types():
     """Test filtering with mixed valid and invalid nodes."""
-    from compiler.schemas import ExtractedSkill, KnowledgeNode
+    from compiler.schemas import ExtractedSkill
     import json
     import warnings
 

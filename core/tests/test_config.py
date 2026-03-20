@@ -1,6 +1,5 @@
 """Tests for config.py module."""
 import os
-import pytest
 from unittest.mock import patch
 
 

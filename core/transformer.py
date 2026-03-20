@@ -9,7 +9,6 @@ import json
 import os
 import logging
 from pathlib import Path
-from typing import Any
 
 import anthropic
 from anthropic import Anthropic
@@ -17,7 +16,7 @@ from anthropic import Anthropic
 from compiler.env import load_local_env
 from compiler.schemas import ExtractedSkill
 from compiler.exceptions import ExtractionError
-from compiler.config import ANTHROPIC_MODEL, MAX_ITERATIONS, EXTRACTION_TIMEOUT, CORE_STATES, FAILURE_STATES
+from compiler.config import ANTHROPIC_MODEL, MAX_ITERATIONS, EXTRACTION_TIMEOUT
 from compiler.prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -231,7 +230,7 @@ Use the available tools to:
 
         # Process response blocks
         tool_results = []
-        extraction_data = None
+        _extraction_data = None  # Use underscore prefix for internal use
 
         for block in response.content:
             if block.type == "tool_use":
