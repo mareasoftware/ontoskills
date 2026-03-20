@@ -43,6 +43,7 @@ from compiler.exceptions import (
     ExtractionError,
     SPARQLError,
     SkillNotFoundError,
+    OrphanSubSkillsError,
 )
 from compiler.differ import compute_diff
 from compiler.drift_report import print_report, export_json, print_suggestions
@@ -214,6 +215,22 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
             asset_files.append(file_path)
 
     logger.info(f"Core skills: {len(skill_md_files)}, Auxiliary md: {len(auxiliary_md_files)}, Assets: {len(asset_files)}")
+
+    # VALIDATION: Sub-skills require parent SKILL.md
+    # Group files by directory and check each
+    skill_dirs_with_auxiliary = {}
+    for md_file in auxiliary_md_files:
+        parent_dir = md_file.parent
+        if parent_dir not in skill_dirs_with_auxiliary:
+            skill_dirs_with_auxiliary[parent_dir] = []
+        skill_dirs_with_auxiliary[parent_dir].append(md_file.name)
+
+    for skill_dir, aux_files in skill_dirs_with_auxiliary.items():
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            error = OrphanSubSkillsError(str(skill_dir), aux_files)
+            console.print(f"[red]{error}[/red]")
+            raise error
 
     # Process Rule A: Core Skills (SKILL.md → ontoskill.ttl)
     compiled_skills = []
