@@ -23,9 +23,21 @@ logger = logging.getLogger(__name__)
 
 
 def skill_uri_for_id(skill_id: str) -> URIRef:
-    """Build a stable skill URI from the canonical skill identifier."""
+    """
+    Build a stable skill URI from the canonical skill identifier.
+
+    Handles both simple IDs ("brainstorming") and Qualified IDs
+    ("obra/superpowers/brainstorming/planning") by preserving the
+    full path structure in the URI.
+    """
     oc = get_oc_namespace()
-    return oc[f"skill_{generate_skill_id(skill_id)}"]
+    # For Qualified IDs, use the full path as the URI fragment
+    # Slashes are preserved since they're valid in URI fragments
+    if "/" in skill_id:
+        return oc[skill_id]
+    else:
+        # Legacy simple IDs get slugified
+        return oc[f"skill_{generate_skill_id(skill_id)}"]
 
 
 def skill_uri_for_skill(skill: ExtractedSkill) -> URIRef:

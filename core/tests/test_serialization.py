@@ -315,3 +315,15 @@ def test_serialize_skill_relations_use_skill_uris():
     assert (skill_uri, oc.dependsOn, skill_uri_for_id("xlsx")) in g
     assert (skill_uri, oc.extends, skill_uri_for_id("toolkit")) in g
     assert (skill_uri, oc.contradicts, skill_uri_for_id("legacy-office")) in g
+
+
+def test_skill_uri_for_qualified_id():
+    """Test URI generation handles Qualified IDs with slashes."""
+    from compiler.serialization import skill_uri_for_id
+
+    # Qualified ID with slashes should be preserved in URI
+    uri = skill_uri_for_id("obra/superpowers/brainstorming/planning")
+    uri_str = str(uri)
+
+    # URI should contain the full qualified path with slashes preserved
+    assert "obra/superpowers/brainstorming/planning" in uri_str
