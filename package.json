@@ -1,6 +1,6 @@
 {
   "name": "ontoskills",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "description": "User-facing CLI for installing OntoMCP, OntoCore, and remote OntoSkills",
   "license": "MIT",
   "bin": {

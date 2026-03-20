@@ -554,9 +554,13 @@ function findPython() {
 async function installCore() {
   await ensureLayout();
   const release = await fetchLatestRelease(DEFAULT_REPOSITORY);
-  const wheel = (release.assets || []).find((asset) => asset.name.startsWith("ontocore-") && asset.name.endsWith(".whl"));
+  const wheel = (release.assets || []).find(
+    (asset) =>
+      (asset.name.startsWith("ontocore-") || asset.name.startsWith("ontoskills-")) &&
+      asset.name.endsWith(".whl")
+  );
   if (!wheel) {
-    fail(`Release ${release.tag_name} does not contain an ontocore wheel`);
+    fail(`Release ${release.tag_name} does not contain an ontocore-compatible wheel`);
   }
   const python = findPython();
   const wheelPath = path.join(CACHE_DIR, wheel.name);
