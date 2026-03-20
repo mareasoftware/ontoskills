@@ -1,9 +1,8 @@
 name: Publish ontoskills CLI
 
 on:
-  push:
-    tags:
-      - "ontoskills-v*"
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
