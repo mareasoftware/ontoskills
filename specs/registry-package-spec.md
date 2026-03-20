@@ -70,7 +70,7 @@ The registry index is a JSON file listing installable packages.
 
 ## Direct Source Repository Import
 
-`ontoskill` supports direct raw repository import outside the compiled registry.
+`ontoskills` supports direct raw repository import outside the compiled registry.
 
 Expected behavior:
 - accept a local path or GitHub URL

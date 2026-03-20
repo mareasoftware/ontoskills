@@ -3,7 +3,7 @@
 from compiler.explainer import explain_skill, list_skill_ids
 
 BASE = """
-@prefix oc:      <https://ontoskills.sh/ontology#> .
+@prefix oc:      <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 """
 

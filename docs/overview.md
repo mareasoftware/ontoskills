@@ -1,9 +1,9 @@
 ---
 title: What is OntoSkills?
-description: Neuro-symbolic skill core for the Agentic Web
+description: OntoSkills architecture, registry, and runtime overview
 ---
 
-**OntoSkills** is a complete neuro-symbolic platform for building deterministic, enterprise-grade AI agents. It transforms natural language skill definitions into **validated OWL 2 ontologies** — queryable knowledge graphs that enable deterministic reasoning.
+**OntoSkills** is a neuro-symbolic skill platform for deterministic agents. It turns `SKILL.md` sources into validated OWL 2 ontologies, serves compiled skills through a local MCP runtime, and distributes published packages through the official registry.
 
 ---
 
@@ -53,9 +53,10 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 
 ### The Runtime
 
-- **OntoMCP** loads compiled `.ttl` files into an in-memory RDF graph
+- **OntoMCP** loads compiled `.ttl` files from `ontoskills/`
 - Agents query via SPARQL through the MCP protocol
-- Sub-millisecond queries for real-time interaction
+- The official registry is built in by default
+- Third-party registries can be added explicitly with `registry add-source`
 
 ---
 
@@ -93,12 +94,12 @@ Every skill is extracted with:
 
 | Component | Language | Status | Description |
 |-----------|----------|--------|-------------|
-| **OntoCore** | Python | ✅ Ready | Skill compiler to OWL 2 ontology |
-| **OntoSkills** | Turtle | Generated | Compiled ontology output |
-| **OntoMCP** | Rust | ✅ Ready | MCP server with 12 semantic tools |
-| **OntoStore** | TBD | 🚧 Planned | Versioned skill registry |
-| `skills/` | Markdown | Input | Human-authored skill definitions |
-| `ontoskills/` | Turtle | Output | Compiled, self-contained ontologies |
+| **ontoskills** | CLI | ✅ Ready | User-facing installer and manager |
+| **OntoCore** | Python | ✅ Ready | Skill compiler for `SKILL.md` sources |
+| **OntoMCP** | Rust | ✅ Ready | MCP server with 4 consolidated semantic tools |
+| **OntoSkills Registry** | GitHub repo | ✅ Ready | Official compiled skill registry |
+| `skills/` | Markdown | Input | Human-authored source skills |
+| `ontoskills/` | Turtle | Output | Compiled ontology artifacts |
 | `specs/` | Turtle | Constitution | SHACL shapes for validation |
 
 ---
@@ -111,13 +112,14 @@ Every skill is extracted with:
 | **Edge Deployment** | Smaller models query large skill ecosystems |
 | **Multi-Agent Systems** | Shared ontology as coordination layer |
 | **Compliance & Audit** | Every skill carries attestation and content hash |
-| **Skill Marketplaces** | OntoStore enables plug-and-play distribution |
+| **Skill Marketplaces** | The official registry and third-party registries enable plug-and-play distribution |
 
 ---
 
 ## Next Steps
 
 - **[Getting Started](/getting-started/)** — Install and compile your first skill
+- **[Registry](/registry/)** — Learn how official and third-party registries work
 - **[Architecture](/architecture/)** — Deep dive into the system design
 - **[Knowledge Extraction](/knowledge-extraction/)** — Understanding knowledge nodes
 - **[Roadmap](/roadmap/)** — See what's coming next
@@ -127,4 +129,5 @@ Every skill is extracted with:
 ## Links
 
 - [GitHub Repository](https://github.com/mareasoftware/ontoskills)
+- [Official Registry](https://github.com/mareasoftware/ontoskills-registry)
 - [Philosophy](https://github.com/mareasoftware/ontoskills/blob/main/PHILOSOPHY.md)

@@ -1,13 +1,13 @@
-# OntoSkillRegistry Blueprint
+# OntoSkills Registry Blueprint
 
-This directory mirrors the structure of the official `OntoSkillRegistry` repository.
+This directory mirrors the structure of the official registry repository.
 
 Use it as:
 - the source layout to publish in the registry repo
 - the reference for package manifests
 - the canonical example for compiled OntoSkill distribution
 
-The official registry is built into `ontoskill` by default. Users should not have to add it manually.
+The official registry is built into `ontoskills` by default. Users should not have to add it manually.
 
 `registry add-source` is only for additional registries maintained by third parties.
 
@@ -16,22 +16,22 @@ The official registry is built into `ontoskill` by default. Users should not hav
 For a normal end user, the registry flow is:
 
 ```bash
-npx ontoskill search hello
-npx ontoskill install marea.greeting/hello
-npx ontoskill enable marea.greeting/hello
+npx ontoskills search hello
+npx ontoskills install marea.greeting/hello
+npx ontoskills enable marea.greeting/hello
 ```
 
 For a third-party registry:
 
 ```bash
-npx ontoskill registry add-source acme https://example.com/index.json
-npx ontoskill search spreadsheet
+npx ontoskills registry add-source acme https://example.com/index.json
+npx ontoskills search spreadsheet
 ```
 
 For a raw source repository:
 
 ```bash
-npx ontoskill import-source https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+npx ontoskills import-source https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
 ```
 
 That source import flow:

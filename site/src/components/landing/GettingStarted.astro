@@ -3,20 +3,22 @@
 const steps = [
   {
     number: '1',
-    title: 'Install',
-    code: `git clone https://github.com/mareasoftware/ontoskills.git
-cd ontoskills/core
-pip install -e ".[dev]"`
+    title: 'Install OntoMCP',
+    code: `npx ontoskills install mcp`
   },
   {
     number: '2',
-    title: 'Initialize',
-    code: `ontoskills init-core`
+    title: 'Install a registry skill',
+    code: `npx ontoskills search hello
+npx ontoskills install marea.greeting/hello
+npx ontoskills enable marea.greeting/hello`
   },
   {
     number: '3',
-    title: 'Compile',
-    code: `ontoskills compile`
+    title: 'Install OntoCore',
+    code: `npx ontoskills install core
+ontoskills init-core
+ontoskills compile`
   }
 ];
 ---
@@ -28,7 +30,7 @@ pip install -e ".[dev]"`
         Getting <span class="gradient-text">Started</span>
       </h2>
       <p class="text-text-muted max-w-2xl mx-auto">
-        Three commands to transform your skills into ontologies.
+        Three paths cover the full product: runtime only, registry installs, or custom compilation.
       </p>
     </div>
 

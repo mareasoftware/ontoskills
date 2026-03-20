@@ -1,6 +1,12 @@
 # OntoSkills Site
 
-Website and documentation for OntoSkills — the deterministic AI agent platform.
+Public site and documentation shell for OntoSkills.
+
+The site presents the current product surface:
+- `ontoskills` as the user-facing CLI
+- `ontomcp` as the runtime server
+- `ontocore` as the optional compiler
+- `OntoSkills Registry` as the official compiled-skill registry
 
 ## Tech Stack
 
@@ -14,10 +20,10 @@ Website and documentation for OntoSkills — the deterministic AI agent platform
 ## Commands
 
 ```bash
-npm install      # Install dependencies
-npm run dev        # Start dev server at localhost:4321
-npm run build     # Build to ./dist/
-npm run preview   # Preview production build
+npm install
+npm run dev
+npm run build
+npm run preview
 ```
 
 ## Project Structure
@@ -26,20 +32,20 @@ npm run preview   # Preview production build
 site/
 ├── public/              # Static assets
 ├── src/
-│   ├── components/   # UI components
-│   ├── content/       # Documentation (symlinked from ../../docs/)
-│   ├── layouts/       # Page layouts
-│   └── styles/        # Global styles
-└── astro.config.mjs   # Astro configuration
+│   ├── components/      # Landing-page UI
+│   ├── content/         # Starlight docs source (symlink to ../../docs)
+│   ├── layouts/         # Page layouts
+│   └── styles/          # Global styles
+└── astro.config.mjs     # Astro configuration
 ```
 
 ## Documentation
 
-Docs are symlinked from `docs/` to `src/content/docs/` for Starlight. Edit in `docs/`, not here.
+The docs are rendered through Starlight and loaded from the repository-level `docs/` directory via `site/src/content/docs`.
 
 ## Deployment
 
-Built for static hosting (Vercel, Netlify, Cloudflare Pages).
+Built for static hosting such as Vercel, Netlify, or Cloudflare Pages.
 
 ## License
 

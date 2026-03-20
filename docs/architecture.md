@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How OntoSkills works under the hood
+description: How OntoSkills compiles, stores, and serves skills
 ---
 
 ## The Compilation Pipeline
@@ -154,8 +154,29 @@ ontoskills/
 ├── ontoskills/              # Output: compiled .ttl files
 │   ├── ontoskills-core.ttl  # Core ontology with states
 │   └── */ontoskill.ttl     # Individual skill modules
+├── registry/                # Official registry blueprint
 └── specs/
     └── ontoskills.shacl.ttl   # SHACL shapes constitution
 ```
 
-**Any skill directory works** — add a `SKILL.md` file and OntoCore will compile it to a validated ontology module.
+**Any source skill directory works** — add a `SKILL.md` file and OntoCore will compile it to a validated ontology module.
+
+## Runtime Model
+
+OntoMCP reads compiled ontology packages from `ontoskills/`. It does not read raw `SKILL.md` sources directly.
+
+The user-facing `ontoskills` CLI is responsible for:
+
+- installing `ontomcp`
+- installing `ontocore`
+- importing raw source repositories into `skills/vendor/`
+- installing compiled packages from the official or third-party registries
+- enabling and disabling skills before they reach the MCP runtime
+
+## Registry Model
+
+The official registry is published as a static GitHub repository and is built in by default.
+
+- Official packages are available immediately after install
+- Third-party registries are added explicitly with `registry add-source`
+- Raw source repositories are compiled locally before being installed into `ontoskills/vendor/`

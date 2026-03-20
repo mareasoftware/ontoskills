@@ -1,9 +1,9 @@
-name: Publish ontoskill CLI
+name: Publish ontoskills CLI
 
 on:
   push:
     tags:
-      - "ontoskill-v*"
+      - "ontoskills-v*"
   workflow_dispatch:
 
 jobs:

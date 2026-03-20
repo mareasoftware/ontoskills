@@ -1,10 +1,10 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
-<http://ontoclaw.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoclaw-core.ttl> .
+<https://ontoskills.marea.software/ontology> owl:imports <file:///Users/andreapepe/Documents/Coding/Prodotti/ontoclaw/ontoskills/ontoskills-core.ttl> .
 
 oc:skill_office a oc:DeclarativeSkill,
         oc:Skill ;
@@ -67,4 +67,3 @@ oc:kn_e6103a42 a oc:DesignPrinciple ;
     oc:directiveContent "This meta-skill does not execute code directly but serves as a category and router for format-specific sub-skills (docx, xlsx, pptx, pdf)." ;
     oc:hasRationale "Maintains separation of concerns and allows each format to have specialized workflows and validation" ;
     oc:severityLevel "HIGH" .
-

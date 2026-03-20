@@ -5,14 +5,14 @@ import pytest
 from compiler.differ import compute_diff
 
 OLD_TTL = """
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "create_pdf" ;
     oc:requiresState oc:Idle .
 """
 
 NEW_TTL_INTENT_REMOVED = """
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "generate_pdf" .
 """
@@ -68,7 +68,7 @@ def test_removed_skill_is_breaking(tmp_path):
     new_f = tmp_path / 'new.ttl'
     old_f.write_text(OLD_TTL)
     new_f.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 """)
 
     report = compute_diff(str(old_f), str(new_f))
@@ -83,7 +83,7 @@ def test_added_requirement_is_breaking(tmp_path):
     new_f = tmp_path / 'new.ttl'
     old_f.write_text(OLD_TTL)
     new_f.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "create_pdf" ;
     oc:requiresState oc:Idle ;
@@ -123,7 +123,7 @@ def test_suggest_skill_removed(tmp_path):
     old_f = tmp_path / 'old.ttl'
     new_f = tmp_path / 'new.ttl'
     old_f.write_text(OLD_TTL)
-    new_f.write_text("@prefix oc: <https://ontoskills.sh/ontology#> .\n")
+    new_f.write_text("@prefix oc: <https://ontoskills.marea.software/ontology#> .\n")
 
     report = compute_diff(str(old_f), str(new_f))
     suggestions = report.suggestions()
@@ -140,7 +140,7 @@ def test_suggest_requirement_added(tmp_path):
     new_f = tmp_path / 'new.ttl'
     old_f.write_text(OLD_TTL)
     new_f.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:CreatePDF a oc:Skill ;
     oc:resolvesIntent "create_pdf" ;
     oc:requiresState oc:Idle ;

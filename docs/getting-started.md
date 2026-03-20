@@ -1,97 +1,101 @@
 ---
 title: Getting Started
-description: Install and use OntoSkills to compile skills into ontologies
+description: Install OntoSkills, OntoMCP, and OntoCore
 ---
 
-OntoSkills is currently in **Phase 4** development. OntoCore (compiler) and OntoMCP (server) are ready. OntoStore marketplace is in progress.
+OntoSkills ships as a product suite with three pieces:
+
+- `ontoskills` - the user-facing CLI
+- `ontomcp` - the local MCP runtime
+- `ontocore` - the optional compiler for source skills
+
+The official registry is built in by default. Third-party registries can be added explicitly.
 
 ## Prerequisites
 
-- **Python** 3.10+
-- **pip** or **uv** package manager
+- **Node.js** 18+ for the `ontoskills` CLI
+- **Git** for source imports
+- Optional: **Python** 3.10+ if you install `ontocore`
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/mareasoftware/ontoskills.git
-cd ontoskills
-
-# Install core
-cd core
-pip install -e ".[dev]"
+npx ontoskills install mcp
+npx ontoskills install core
 ```
 
-## CLI Commands
+This creates a managed user home under `~/.ontoskills/` with:
+
+- `bin/ontomcp`
+- `core/` for the compiler runtime, if installed
+- `ontoskills/` for compiled ontology packages
+- `state/` for lockfiles and registry metadata
+
+## Common Commands
 
 ```bash
-# Initialize core ontology with predefined states
 ontoskills init-core
-
-# Compile all skills to ontology
 ontoskills compile
-
-# Compile specific skill
 ontoskills compile my-skill
-
-# Query ontology with SPARQL
 ontoskills query "SELECT ?s WHERE { ?s a oc:Skill }"
-
-# List all skills
 ontoskills list-skills
-
-# Run security audit
 ontoskills security-audit
 ```
 
-## Command Options
+If you only want the runtime and the published skills, you do not need the compiler commands.
 
-| Option | Description |
-|--------|-------------|
-| `-i, --input` | Input directory (default: `./skills/`) |
-| `-o, --output` | Output file (default: `./ontoskills/skills.ttl`) |
-| `--dry-run` | Preview without saving |
-| `--skip-security` | Skip security checks (not recommended) |
-| `-f, --force` | Force recompilation (bypass hash-based cache) |
-| `--reason/--no-reason` | Apply OWL reasoning |
-| `-v, --verbose` | Debug logging |
+## Registry Workflow
 
-## MCP Server (Phase 3 — Ready)
+### Built-In Official Registry
 
-OntoMCP exposes ontologies via the Model Context Protocol. Built in Rust for sub-millisecond SPARQL queries.
+The official registry is already available to `ontoskills`. You can discover and install published skills without any extra setup.
 
 ```bash
-# Run the MCP server
-cargo run --manifest-path mcp/Cargo.toml
+npx ontoskills search hello
+npx ontoskills install marea.greeting/hello
+npx ontoskills enable marea.greeting/hello
 ```
 
-### Available MCP Tools
-
-| Tool | Purpose |
-|------|---------|
-| `list_skills` | List all available skills |
-| `find_skills_by_intent` | Find skills matching a user intent |
-| `get_skill` | Get full skill details by ID |
-| `get_skill_requirements` | Get skill dependencies |
-| `get_skill_transitions` | Get state transitions (requires/yields/handles) |
-| `get_skill_dependencies` | Get skills this one depends on |
-| `get_skill_conflicts` | Get skills that contradict this one |
-| `find_skills_yielding_state` | Find skills that produce a state |
-| `find_skills_requiring_state` | Find skills that need a state |
-| `check_skill_applicability` | Check if skill can run |
-| `plan_from_intent` | Generate execution plan from intent |
-| `get_skill_payload` | Get execution code for a skill |
-
-### Claude Code Integration
-
-Register the MCP server with Claude Code:
+### Third-Party Registries
 
 ```bash
-claude mcp add ontoskills -- \
-  cargo run --manifest-path /absolute/path/to/ontoskills/mcp/Cargo.toml
+ontoskills registry add-source acme https://example.com/index.json
+ontoskills registry list
 ```
+
+### Import Source Skills
+
+Raw repositories containing `SKILL.md` files can be imported and compiled locally:
+
+```bash
+ontoskills import-source-repo https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+```
+
+Imported source skills are stored under `~/.ontoskills/skills/vendor/` and compiled outputs land in `~/.ontoskills/ontoskills/vendor/`.
+
+## MCP Server
+
+OntoMCP exposes compiled ontologies via the Model Context Protocol.
+
+```bash
+npx ontoskills install mcp
+```
+
+The current public tool set is:
+
+- `search_skills`
+- `get_skill_context`
+- `evaluate_execution_plan`
+- `query_epistemic_rules`
+
+Client-specific setup guides:
+
+- [General MCP runtime](./mcp.md)
+- [Claude Code guide](./mcp-claude-code.md)
+- [Codex guide](./mcp-codex.md)
 
 ## What's Next?
 
+- [Registry](/registry/) — Install, update, remove, and uninstall skills
 - [Roadmap](/roadmap/) — See what's coming
 - [GitHub](https://github.com/mareasoftware/ontoskills) — Contribute

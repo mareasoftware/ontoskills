@@ -22,7 +22,7 @@ from pathlib import Path
 
 from rdflib import Graph, Namespace
 
-OC = Namespace("https://ontoskills.sh/ontology#")
+OC = Namespace("https://ontoskills.marea.software/ontology#")
 
 
 def build_graph(

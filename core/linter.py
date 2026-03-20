@@ -22,7 +22,7 @@ from typing import Literal
 
 from rdflib import Graph, Namespace
 
-OC = Namespace("https://ontoskills.sh/ontology#")
+OC = Namespace("https://ontoskills.marea.software/ontology#")
 
 Severity = Literal["error", "warning", "info"]
 

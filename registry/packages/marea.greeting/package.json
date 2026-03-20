@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "core_version": "0.5.0",
   "trust_tier": "verified",
-  "source": "https://github.com/mareasoftware/OntoSkillRegistry",
+  "source": "https://github.com/mareasoftware/ontoskills-registry",
   "description": "Minimal greeting demo skill",
   "checksum": null,
   "modules": [

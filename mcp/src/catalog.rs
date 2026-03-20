@@ -13,23 +13,23 @@ use serde::Serialize;
 use serde::Deserialize;
 use walkdir::WalkDir;
 
-const DEFAULT_BASE_URI: &str = "http://ontoclaw.marea.software/ontology#";
+const DEFAULT_BASE_URI: &str = "https://ontoskills.marea.software/ontology#";
 const DEFAULT_LIMIT: usize = 25;
 const MAX_LIMIT: usize = 100;
 const DEFAULT_MAX_DEPTH: usize = 10;
 const MAX_SKILL_ID_LEN: usize = 64;
 
 const KNOWLEDGE_DIMENSIONS: &[&str] = &[
-    "http://ontoclaw.marea.software/ontology#Observability",
-    "http://ontoclaw.marea.software/ontology#ResilienceTactic",
-    "http://ontoclaw.marea.software/ontology#ResourceProfile",
-    "http://ontoclaw.marea.software/ontology#TrustMetric",
-    "http://ontoclaw.marea.software/ontology#CognitiveBoundary",
-    "http://ontoclaw.marea.software/ontology#ExecutionPhysics",
-    "http://ontoclaw.marea.software/ontology#LifecycleHook",
-    "http://ontoclaw.marea.software/ontology#NormativeRule",
-    "http://ontoclaw.marea.software/ontology#SecurityGuardrail",
-    "http://ontoclaw.marea.software/ontology#StrategicInsight",
+    "https://ontoskills.marea.software/ontology#Observability",
+    "https://ontoskills.marea.software/ontology#ResilienceTactic",
+    "https://ontoskills.marea.software/ontology#ResourceProfile",
+    "https://ontoskills.marea.software/ontology#TrustMetric",
+    "https://ontoskills.marea.software/ontology#CognitiveBoundary",
+    "https://ontoskills.marea.software/ontology#ExecutionPhysics",
+    "https://ontoskills.marea.software/ontology#LifecycleHook",
+    "https://ontoskills.marea.software/ontology#NormativeRule",
+    "https://ontoskills.marea.software/ontology#SecurityGuardrail",
+    "https://ontoskills.marea.software/ontology#StrategicInsight",
 ];
 
 #[derive(Debug)]
@@ -359,8 +359,9 @@ impl Catalog {
             ));
         }
 
-        let base_uri =
-            env::var("ONTOCLAW_BASE_URI").unwrap_or_else(|_| DEFAULT_BASE_URI.to_string());
+        let base_uri = env::var("ONTOSKILLS_BASE_URI")
+            .or_else(|_| env::var("ONTOCLAW_BASE_URI"))
+            .unwrap_or_else(|_| DEFAULT_BASE_URI.to_string());
 
         skill_index.sort_by(|left, right| left.qualified_id.cmp(&right.qualified_id));
 
@@ -705,7 +706,7 @@ impl Catalog {
 
         let type_query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             SELECT ?type WHERE {{
                 <{skill_uri}> a ?type .
                 FILTER (?type IN (oc:ExecutableSkill, oc:DeclarativeSkill))
@@ -721,7 +722,7 @@ impl Catalog {
 
         let scalar_query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             PREFIX dcterms: <http://purl.org/dc/terms/>
             PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
             SELECT ?nature ?genus ?differentia ?generatedBy
@@ -773,7 +774,7 @@ impl Catalog {
         let skill_uri = record.uri.clone();
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             SELECT ?executor ?code ?timeout
             WHERE {{
                 <{skill_uri}> oc:hasPayload ?payload .
@@ -855,7 +856,7 @@ impl Catalog {
 
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             PREFIX dcterms: <http://purl.org/dc/terms/>
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
             SELECT DISTINCT ?sourceSkillId ?node ?nodeType ?nodeLabel ?directiveContent ?rationale ?appliesToContext ?severityLevel ?dimension
@@ -1054,7 +1055,7 @@ impl Catalog {
     ) -> Result<Vec<RequirementInfo>, CatalogError> {
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             SELECT ?req ?type ?value ?optional
             WHERE {{
                 <{skill_uri}> oc:hasRequirement ?req .
@@ -1085,7 +1086,7 @@ impl Catalog {
     ) -> Result<Vec<String>, CatalogError> {
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             PREFIX dcterms: <http://purl.org/dc/terms/>
             SELECT ?target ?targetId
             WHERE {{
@@ -1114,7 +1115,7 @@ impl Catalog {
     ) -> Result<Vec<String>, CatalogError> {
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             SELECT ?target
             WHERE {{
                 <{skill_uri}> {relation} ?target .
@@ -1137,7 +1138,7 @@ impl Catalog {
     ) -> Result<Vec<String>, CatalogError> {
         let query = format!(
             r#"
-            PREFIX oc: <http://ontoclaw.marea.software/ontology#>
+            PREFIX oc: <https://ontoskills.marea.software/ontology#>
             SELECT ?value
             WHERE {{
                 <{skill_uri}> {predicate} ?value .
@@ -1382,7 +1383,10 @@ fn collect_skill_records_from_file(
     registry_lookup: &HashMap<String, RegistryLookupEntry>,
     skill_index: &mut Vec<SkillRecord>,
 ) -> Result<(), CatalogError> {
-    if path.file_name().and_then(|name| name.to_str()) == Some("ontoclaw-core.ttl") {
+    if matches!(
+        path.file_name().and_then(|name| name.to_str()),
+        Some("ontoskills-core.ttl" | "ontoclaw-core.ttl")
+    ) {
         return Ok(());
     }
 
@@ -1871,7 +1875,7 @@ oc:skill_disabled a oc:Skill, oc:DeclarativeSkill ;
                 r#"
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 
-<http://ontoclaw.marea.software/ontology> owl:imports <file://{enabled}> .
+<https://ontoskills.marea.software/ontology> owl:imports <file://{enabled}> .
 "#,
                 enabled = root.join("enabled.ttl").display()
             ),
@@ -1950,7 +1954,7 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
                 r#"
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 
-<http://ontoclaw.marea.software/ontology> owl:imports <file://{verified}> ;
+<https://ontoskills.marea.software/ontology> owl:imports <file://{verified}> ;
     owl:imports <file://{local}> .
 "#,
                 verified = root

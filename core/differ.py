@@ -10,7 +10,7 @@ from typing import Literal
 
 from rdflib import Graph, Namespace, URIRef
 
-OC = Namespace('https://ontoskills.sh/ontology#')
+OC = Namespace('https://ontoskills.marea.software/ontology#')
 
 ChangeType = Literal['breaking', 'additive', 'cosmetic']
 
@@ -68,7 +68,7 @@ class DriftReport:
                 category='skill-removed',
                 summary=f"Skill '{local}' was removed from the ontology",
                 sparql_query=(
-                    f'PREFIX oc: <https://ontoskills.sh/ontology#>\n'
+                    f'PREFIX oc: <https://ontoskills.marea.software/ontology#>\n'
                     f'SELECT ?agent WHERE {{\n'
                     f'  ?agent oc:dependsOn oc:{local} .\n'
                     f'}}'
@@ -89,7 +89,7 @@ class DriftReport:
                         + (f" (replaced by '{change.new_value}')" if change.new_value else "")
                     ),
                     sparql_query=(
-                        f'PREFIX oc: <https://ontoskills.sh/ontology#>\n'
+                        f'PREFIX oc: <https://ontoskills.marea.software/ontology#>\n'
                         f'SELECT ?skill WHERE {{\n'
                         f'  ?skill oc:resolvesIntent "{change.old_value}" .\n'
                         f'}}'
@@ -108,7 +108,7 @@ class DriftReport:
                     category='state-removed',
                     summary=f"State '{change.old_value}' removed from '{change.skill_id}'",
                     sparql_query=(
-                        f'PREFIX oc: <https://ontoskills.sh/ontology#>\n'
+                        f'PREFIX oc: <https://ontoskills.marea.software/ontology#>\n'
                         f'SELECT ?skill WHERE {{\n'
                         f'  ?skill oc:requiresState oc:{change.old_value.split("#")[-1]} .\n'
                         f'}}'
@@ -127,7 +127,7 @@ class DriftReport:
                     category='requirement-added',
                     summary=f"New requirement '{req_local}' added to '{change.skill_id}'",
                     sparql_query=(
-                        f'PREFIX oc: <https://ontoskills.sh/ontology#>\n'
+                        f'PREFIX oc: <https://ontoskills.marea.software/ontology#>\n'
                         f'SELECT ?skill WHERE {{\n'
                         f'  ?skill oc:hasRequirement oc:{req_local} .\n'
                         f'}}'

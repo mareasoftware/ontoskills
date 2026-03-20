@@ -1,5 +1,5 @@
 """
-Ontoclaw Compiler CLI.
+OntoSkills Compiler CLI.
 
 Click-based command-line interface for compiling skills
 to modular OWL 2 RDF/Turtle ontology.
@@ -119,7 +119,7 @@ def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path):
 @click.option('-q', '--quiet', is_flag=True, help='Suppress progress output')
 @click.pass_context
 def cli(ctx, verbose, quiet):
-    """Ontoclaw Compiler - Compile markdown skills to modular OWL 2 ontology."""
+    """OntoSkills Compiler - Compile markdown skills to modular OWL 2 ontology."""
     setup_logging(verbose, quiet)
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
@@ -153,7 +153,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
 
     Output structure:
       ontoskills/
-      ├── ontoclaw-core.ttl
+      ├── ontoskills-core.ttl
       ├── index.ttl
       └── <mirrored paths>/
           ├── ontoskill.ttl
@@ -169,7 +169,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
     ensure_registry_layout(ontology_root)
 
     # Ensure core ontology exists
-    core_path = ontology_root / "ontoclaw-core.ttl"
+    core_path = ontology_root / "ontoskills-core.ttl"
     if not core_path.exists():
         logger.info("Creating core ontology...")
         create_core_ontology(core_path)
@@ -367,14 +367,14 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
 @click.option('-f', '--force', is_flag=True, help='Overwrite existing core ontology')
 @click.pass_context
 def init_core(ctx, output_dir, force):
-    """Initialize the core ontology (ontoclaw-core.ttl).
+    """Initialize the core ontology (ontoskills-core.ttl).
 
     Creates the foundational TBox with classes, properties, and predefined states.
     Safe to run multiple times - skips if file exists unless --force is used.
     """
     logger = logging.getLogger(__name__)
     output_path = Path(output_dir)
-    core_path = output_path / "ontoclaw-core.ttl"
+    core_path = output_path / "ontoskills-core.ttl"
 
     if core_path.exists() and not force:
         console.print(f"[yellow]Core ontology already exists at {core_path}[/yellow]")
@@ -399,7 +399,7 @@ def query_cmd(ctx, query_string, ontology_file, output_format, verbose, quiet):
     """Execute SPARQL query against ontology.
 
     Example:
-        ontoclaw query "SELECT ?s ?n WHERE { ?s oc:nature ?n }" -f json
+        ontocore query "SELECT ?s ?n WHERE { ?s oc:nature ?n }" -f json
     """
     setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
 

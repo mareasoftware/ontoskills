@@ -2,7 +2,7 @@
 
 from compiler.graph_export import build_graph
 
-BASE = "@prefix oc: <https://ontoskills.sh/ontology#> .\n"
+BASE = "@prefix oc: <https://ontoskills.marea.software/ontology#> .\n"
 
 # State transition graph: SkillA yields Ready, SkillB requires Ready
 TTL = BASE + """

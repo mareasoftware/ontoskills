@@ -35,7 +35,7 @@ def sample_ontology(tmp_path):
 
 def test_execute_sparql_select(sample_ontology):
     """Test basic SELECT query."""
-    query = "SELECT ?s ?n WHERE { ?s <http://ontoskills.sh/ontology#nature> ?n }"
+    query = "SELECT ?s ?n WHERE { ?s <https://ontoskills.marea.software/ontology#nature> ?n }"
     results, vars = execute_sparql(sample_ontology, query)
     assert len(results) == 2
 

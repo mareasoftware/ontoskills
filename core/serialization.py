@@ -186,7 +186,7 @@ def serialize_skill_to_module(
     else:
         output_base = Path(output_base).resolve()
 
-    core_ontology_path = resolve_ontology_root(output_base) / "ontoclaw-core.ttl"
+    core_ontology_path = resolve_ontology_root(output_base) / "ontoskills-core.ttl"
     if core_ontology_path.exists():
         g.add((URIRef(BASE_URI.rstrip('#')), OWL.imports, URIRef(f"file://{core_ontology_path}")))
 

@@ -3,7 +3,7 @@
 import pytest
 from compiler.linter import lint_ontology
 
-BASE = "@prefix oc: <https://ontoskills.sh/ontology#> .\n"
+BASE = "@prefix oc: <https://ontoskills.marea.software/ontology#> .\n"
 
 
 def _write(tmp_path, content: str):

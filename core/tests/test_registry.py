@@ -24,7 +24,7 @@ def write_compiled_package(package_dir: Path) -> None:
     (package_dir / "skills").mkdir(parents=True, exist_ok=True)
     (package_dir / "skills" / "office.ttl").write_text(
         """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_office a oc:Skill, oc:DeclarativeSkill ;
@@ -35,7 +35,7 @@ oc:skill_office a oc:Skill, oc:DeclarativeSkill ;
     )
     (package_dir / "skills" / "xlsx.ttl").write_text(
         """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_xlsx a oc:Skill, oc:ExecutableSkill ;
@@ -66,7 +66,7 @@ oc:skill_xlsx a oc:Skill, oc:ExecutableSkill ;
 
 def test_install_enable_disable_package_rebuilds_indexes(tmp_path):
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
 
     package_dir = tmp_path / "package"
     write_compiled_package(package_dir)
@@ -94,11 +94,11 @@ def test_install_enable_disable_package_rebuilds_indexes(tmp_path):
 
 def test_local_compiled_skills_are_tracked_and_can_be_disabled(tmp_path):
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
     (root / "office").mkdir(parents=True, exist_ok=True)
     (root / "office" / "ontoskill.ttl").write_text(
         """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_office a oc:Skill, oc:DeclarativeSkill ;
@@ -121,7 +121,7 @@ oc:skill_office a oc:Skill, oc:DeclarativeSkill ;
 
 def test_registry_install_from_file_index_uses_relative_manifest_and_vendor_layout(tmp_path):
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
 
     registry_dir = tmp_path / "registry"
     package_dir = registry_dir / "packages" / "marea.greeting"
@@ -129,7 +129,7 @@ def test_registry_install_from_file_index_uses_relative_manifest_and_vendor_layo
     (package_dir / "hello").mkdir(parents=True, exist_ok=True)
     (package_dir / "hello" / "ontoskill.ttl").write_text(
         """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_hello a oc:Skill, oc:DeclarativeSkill ;
@@ -183,7 +183,7 @@ def test_import_source_repository_clones_to_skills_vendor_and_compiles_to_ontolo
     from unittest.mock import patch
 
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
 
     repo_dir = tmp_path / "ui-ux-pro-max-skill"
     (repo_dir / ".claude" / "skills" / "ui-ux-pro-max").mkdir(parents=True, exist_ok=True)
@@ -198,7 +198,7 @@ def test_import_source_repository_clones_to_skills_vendor_and_compiles_to_ontolo
         (compiled_root / "src" / "landing-page").mkdir(parents=True, exist_ok=True)
         (compiled_root / ".claude" / "skills" / "ui-ux-pro-max" / "ontoskill.ttl").write_text(
             """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_ui_ux_pro_max a oc:Skill, oc:DeclarativeSkill ;
@@ -209,7 +209,7 @@ oc:skill_ui_ux_pro_max a oc:Skill, oc:DeclarativeSkill ;
         )
         (compiled_root / "src" / "landing-page" / "ontoskill.ttl").write_text(
             """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_landing_page a oc:Skill, oc:DeclarativeSkill ;
@@ -233,7 +233,7 @@ def test_import_source_repository_rewrites_compiled_payload_script_paths(tmp_pat
     from unittest.mock import patch
 
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
 
     repo_dir = tmp_path / "ui-ux-pro-max-skill"
     (repo_dir / ".claude" / "skills" / "ui-ux-pro-max").mkdir(parents=True, exist_ok=True)
@@ -245,7 +245,7 @@ def test_import_source_repository_rewrites_compiled_payload_script_paths(tmp_pat
         (compiled_root / "src" / "ui-ux-pro-max" / "scripts" / "search.py").write_text("print('search')", encoding="utf-8")
         (compiled_root / ".claude" / "skills" / "ui-ux-pro-max" / "ontoskill.ttl").write_text(
             """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_ui_ux_pro_max a oc:Skill, oc:DeclarativeSkill ;
@@ -273,7 +273,7 @@ def test_import_source_repository_rewrites_relative_and_broken_absolute_script_p
     from unittest.mock import patch
 
     root = tmp_path / "ontoskills"
-    create_core_ontology(root / "ontoclaw-core.ttl")
+    create_core_ontology(root / "ontoskills-core.ttl")
 
     repo_dir = tmp_path / "design-repo"
     (repo_dir / ".claude" / "skills" / "design-system").mkdir(parents=True, exist_ok=True)
@@ -288,7 +288,7 @@ def test_import_source_repository_rewrites_relative_and_broken_absolute_script_p
         (compiled_root / ".claude" / "skills" / "design" / "scripts" / "logo" / "search.py").write_text("print('logo')", encoding="utf-8")
         (compiled_root / ".claude" / "skills" / "design-system" / "ontoskill.ttl").write_text(
             """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_design_system a oc:Skill, oc:ExecutableSkill ;
@@ -302,7 +302,7 @@ oc:skill_design_system a oc:Skill, oc:ExecutableSkill ;
         )
         (compiled_root / ".claude" / "skills" / "design" / "ontoskill.ttl").write_text(
             """
-@prefix oc: <http://ontoclaw.marea.software/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 oc:skill_design a oc:Skill, oc:ExecutableSkill ;

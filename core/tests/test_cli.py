@@ -141,7 +141,7 @@ def test_diff_clean(tmp_path):
     runner = CliRunner()
 
     ttl_content = """
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:TestSkill a oc:Skill ;
     oc:resolvesIntent "do_thing" .
 """
@@ -167,12 +167,12 @@ def test_diff_breaking_exits_9(tmp_path):
     new_ttl = tmp_path / 'new.ttl'
 
     old_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:TestSkill a oc:Skill ;
     oc:resolvesIntent "create_pdf" .
 """)
     new_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:TestSkill a oc:Skill ;
     oc:resolvesIntent "generate_pdf" .
 """)
@@ -195,13 +195,13 @@ def test_diff_breaking_only_flag(tmp_path):
     new_ttl = tmp_path / 'new.ttl'
 
     old_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:SkillA a oc:Skill ;
     oc:resolvesIntent "task_a" .
 """)
     # Only an additive change: new skill added, nothing removed
     new_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:SkillA a oc:Skill ;
     oc:resolvesIntent "task_a" .
 oc:SkillB a oc:Skill ;
@@ -228,7 +228,7 @@ def test_diff_json_output(tmp_path):
 
     ttl_file = tmp_path / 'skills.ttl'
     ttl_file.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:TestSkill a oc:Skill ;
     oc:resolvesIntent "do_thing" .
 """)
@@ -257,11 +257,11 @@ def test_diff_suggest_shows_migration_guidance(tmp_path):
     old_ttl = tmp_path / 'old.ttl'
     new_ttl = tmp_path / 'new.ttl'
     old_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:SkillA a oc:Skill ; oc:resolvesIntent "old_intent" .
 """)
     new_ttl.write_text("""
-@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix oc: <https://ontoskills.marea.software/ontology#> .
 oc:SkillA a oc:Skill ; oc:resolvesIntent "new_intent" .
 """)
 

@@ -39,8 +39,8 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist/${{ matrix.asset }}
-          cp mcp/target/${{ matrix.target }}/release/ontoclaw-mcp dist/${{ matrix.asset }}/ontomcp
-          cp ontoskills/ontoclaw-core.ttl dist/${{ matrix.asset }}/ontoclaw-core.ttl
+          cp mcp/target/${{ matrix.target }}/release/ontoskills-mcp dist/${{ matrix.asset }}/ontomcp
+          cp ontoskills/ontoskills-core.ttl dist/${{ matrix.asset }}/ontoskills-core.ttl
           tar -czf dist/${{ matrix.asset }}.tar.gz -C dist/${{ matrix.asset }} .
 
       - name: Upload artifact

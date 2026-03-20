@@ -64,7 +64,7 @@ Each compiled skill is a **self-contained `.ttl` file**:
 ```
 ontoskills/
 ├── ontoskills-core.ttl      # Core TBox (shared)
-├── index.ttl                 # Manifest with owl:imports
+├── index.ttl                # Manifest with owl:imports
 ├── pdf/
 │   └── ontoskill.ttl        # PDF skill module
 ├── markdown/

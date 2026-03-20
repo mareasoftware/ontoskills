@@ -12,7 +12,7 @@ export default defineConfig({
     sitemap(),
     starlight({
       title: 'OntoSkills',
-      description: 'Neuro-symbolic skill core for the Agentic Web',
+      description: 'Registry-backed skills, MCP runtime, and compiler for the Agentic Web',
       logo: {
         src: './src/assets/ontoskills-logo.png',
         replacesTitle: false,
@@ -34,6 +34,12 @@ export default defineConfig({
       sidebar: [
         { label: 'Overview', slug: 'overview' },
         { label: 'Getting Started', slug: 'getting-started' },
+        { label: 'Architecture', slug: 'architecture' },
+        { label: 'Knowledge Extraction', slug: 'knowledge-extraction' },
+        { label: 'Registry', slug: 'registry' },
+        { label: 'MCP Runtime', slug: 'mcp' },
+        { label: 'Claude Code', slug: 'mcp-claude-code' },
+        { label: 'Codex', slug: 'mcp-codex' },
         { label: 'Roadmap', slug: 'roadmap' },
       ],
     }),

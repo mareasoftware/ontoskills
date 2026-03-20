@@ -6,7 +6,7 @@ const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
-const HOME_ROOT = process.env.ONTOSKILL_HOME || path.join(os.homedir(), ".ontoskills");
+const HOME_ROOT = process.env.ONTOSKILLS_HOME || process.env.ONTOSKILL_HOME || path.join(os.homedir(), ".ontoskills");
 const BIN_DIR = path.join(HOME_ROOT, "bin");
 const ONTOLOGY_DIR = path.join(HOME_ROOT, "ontoskills");
 const ONTOLOGY_VENDOR_DIR = path.join(ONTOLOGY_DIR, "vendor");
@@ -22,12 +22,16 @@ const RELEASE_LOCK_PATH = path.join(STATE_DIR, "release.lock.json");
 const CONFIG_PATH = path.join(STATE_DIR, "config.json");
 const INSTALLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.installed.ttl");
 const ENABLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.enabled.ttl");
-const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoclaw-core.ttl");
+const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoskills-core.ttl");
 
-const DEFAULT_REPOSITORY = process.env.ONTOSKILL_RELEASE_REPO || "mareasoftware/ontoclaw";
+const DEFAULT_REPOSITORY =
+  process.env.ONTOSKILLS_RELEASE_REPO ||
+  process.env.ONTOSKILL_RELEASE_REPO ||
+  "mareasoftware/ontoskills";
 const DEFAULT_REGISTRY_URL =
+  process.env.ONTOSKILLS_REGISTRY_URL ||
   process.env.ONTOSKILL_REGISTRY_URL ||
-  "https://raw.githubusercontent.com/mareasoftware/OntoSkillRegistry/main/index.json";
+  "https://raw.githubusercontent.com/mareasoftware/ontoskills-registry/main/index.json";
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -176,7 +180,7 @@ async function syncLocalPackage(lock) {
 function ttlImports(importPaths) {
   const imports = importPaths.map((target) => `<file://${path.resolve(target)}>`);
   const joined = imports.join(",\n        ");
-  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<http://ontoclaw.marea.software/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
+  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<https://ontoskills.marea.software/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
 }
 
 async function rebuildIndexes() {
@@ -200,7 +204,7 @@ async function rebuildIndexes() {
 
 async function readTextFromRef(ref) {
   if (ref.startsWith("http://") || ref.startsWith("https://")) {
-    const response = await fetch(ref, { headers: { "User-Agent": "ontoskill" } });
+    const response = await fetch(ref, { headers: { "User-Agent": "ontoskills" } });
     if (!response.ok) {
       fail(`Failed to fetch ${ref}: ${response.status} ${response.statusText}`);
     }
@@ -215,7 +219,7 @@ async function readTextFromRef(ref) {
 async function copyRefToFile(ref, destination) {
   await fsp.mkdir(path.dirname(destination), { recursive: true });
   if (ref.startsWith("http://") || ref.startsWith("https://")) {
-    const response = await fetch(ref, { headers: { "User-Agent": "ontoskill" } });
+    const response = await fetch(ref, { headers: { "User-Agent": "ontoskills" } });
     if (!response.ok) {
       fail(`Failed to download ${ref}: ${response.status} ${response.statusText}`);
     }
@@ -468,7 +472,7 @@ function platformAssetName() {
 async function fetchLatestRelease(repo) {
   const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: {
-      "User-Agent": "ontoskill",
+      "User-Agent": "ontoskills",
       Accept: "application/vnd.github+json"
     }
   });
@@ -479,7 +483,7 @@ async function fetchLatestRelease(repo) {
 }
 
 async function downloadFile(url, destination) {
-  const response = await fetch(url, { headers: { "User-Agent": "ontoskill" } });
+  const response = await fetch(url, { headers: { "User-Agent": "ontoskills" } });
   if (!response.ok) {
     fail(`Failed to download ${url}: ${response.status} ${response.statusText}`);
   }
@@ -512,11 +516,16 @@ async function installMcp() {
   runCommand("tar", ["-xzf", archivePath, "-C", extractDir]);
 
   const binaryPath = path.join(extractDir, "ontomcp");
-  const coreOntology = path.join(extractDir, "ontoclaw-core.ttl");
+  const coreOntology = path.join(extractDir, "ontoskills-core.ttl");
+  const legacyCoreOntology = path.join(extractDir, "ontoclaw-core.ttl");
   await fsp.copyFile(binaryPath, path.join(BIN_DIR, "ontomcp"));
   await fsp.chmod(path.join(BIN_DIR, "ontomcp"), 0o755);
   if (fs.existsSync(coreOntology)) {
     await fsp.copyFile(coreOntology, CORE_ONTOLOGY_PATH);
+  } else if (fs.existsSync(legacyCoreOntology)) {
+    await fsp.copyFile(legacyCoreOntology, CORE_ONTOLOGY_PATH);
+  } else {
+    fail(`Release ${release.tag_name} does not contain an ontoskills-core.ttl asset`);
   }
 
   const releases = await loadReleaseLock();
@@ -559,7 +568,7 @@ async function installCore() {
   runCommand(pip, ["install", wheelPath]);
 
   const wrapperPath = path.join(BIN_DIR, "ontocore");
-  const script = `#!/usr/bin/env bash\nexec "${path.join(venvDir, "bin", "ontoclaw")}" "$@"\n`;
+  const script = `#!/usr/bin/env bash\nexec "${path.join(venvDir, "bin", "ontoskills")}" "$@"\n`;
   await fsp.writeFile(wrapperPath, script, "utf-8");
   await fsp.chmod(wrapperPath, 0o755);
 
@@ -623,7 +632,7 @@ async function importSource(repoRef) {
 
   const ontocoreWrapper = path.join(BIN_DIR, "ontocore");
   if (!fs.existsSync(ontocoreWrapper)) {
-    fail("ontocore is not installed. Run: ontoskill install core");
+    fail("ontocore is not installed. Run: ontoskills install core");
   }
 
   const outputDir = path.join(ONTOLOGY_VENDOR_DIR, sourceSlug);
@@ -737,22 +746,22 @@ async function uninstallAll() {
 }
 
 function usage() {
-  log(`ontoskill commands:
-  ontoskill install mcp
-  ontoskill install core
-  ontoskill install <qualified-skill-id>
-  ontoskill update mcp|core|all|<qualified-skill-id>|<package-id>
-  ontoskill registry add-source <name> <index_url>
-  ontoskill registry list
-  ontoskill search <query>
-  ontoskill enable <qualified-skill-id>
-  ontoskill disable <qualified-skill-id>
-  ontoskill remove <qualified-skill-id>|<package-id>
-  ontoskill rebuild-index
-  ontoskill import-source <repo-or-path>
-  ontoskill list-installed
-  ontoskill doctor
-  ontoskill uninstall --all`);
+  log(`ontoskills commands:
+  ontoskills install mcp
+  ontoskills install core
+  ontoskills install <qualified-skill-id>
+  ontoskills update mcp|core|all|<qualified-skill-id>|<package-id>
+  ontoskills registry add-source <name> <index_url>
+  ontoskills registry list
+  ontoskills search <query>
+  ontoskills enable <qualified-skill-id>
+  ontoskills disable <qualified-skill-id>
+  ontoskills remove <qualified-skill-id>|<package-id>
+  ontoskills rebuild-index
+  ontoskills import-source <repo-or-path>
+  ontoskills list-installed
+  ontoskills doctor
+  ontoskills uninstall --all`);
 }
 
 async function listInstalled() {
@@ -792,7 +801,7 @@ async function main() {
 
   if (command === "registry") {
     if (args[0] === "add-source") {
-      if (args.length < 3) fail("Usage: ontoskill registry add-source <name> <index_url>");
+      if (args.length < 3) fail("Usage: ontoskills registry add-source <name> <index_url>");
       return registryAddSource(args[1], args[2]);
     }
     if (args[0] === "list") {

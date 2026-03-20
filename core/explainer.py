@@ -18,7 +18,7 @@ from pathlib import Path
 from rdflib import Graph, Namespace, RDF
 from rdflib.namespace import DCTERMS
 
-OC = Namespace("https://ontoskills.sh/ontology#")
+OC = Namespace("https://ontoskills.marea.software/ontology#")
 
 
 @dataclass

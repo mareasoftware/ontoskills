@@ -1,4 +1,4 @@
-"""Configuration module for OntoClaw compiler.
+"""Configuration module for OntoSkills compiler.
 
 This module centralizes all configuration settings with environment variable support.
 Environment variables allow enterprise deployment with custom namespaces and paths.
@@ -17,22 +17,22 @@ PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
 # Base URI for the ontology (can be customized via environment)
 BASE_URI = os.getenv(
-    'ONTOCLAW_BASE_URI',
-    os.getenv('ONTOSKILLS_BASE_URI', 'http://ontoclaw.marea.software/ontology#')
+    'ONTOSKILLS_BASE_URI',
+    os.getenv('ONTOCLAW_BASE_URI', 'https://ontoskills.marea.software/ontology#')
 )
 
 # Directory paths (relative to project root by default)
 SKILLS_DIR = os.getenv(
-    'ONTOCLAW_SKILLS_DIR',
-    os.getenv('ONTOSKILLS_SKILLS_DIR', str(PROJECT_ROOT / 'skills'))
+    'ONTOSKILLS_SKILLS_DIR',
+    os.getenv('ONTOCLAW_SKILLS_DIR', str(PROJECT_ROOT / 'skills'))
 )
 ONTOLOGY_ROOT = os.getenv(
-    'ONTOCLAW_ONTOLOGY_ROOT',
-    os.getenv('ONTOSKILLS_OUTPUT_DIR', str(PROJECT_ROOT / 'ontoskills'))
+    'ONTOSKILLS_OUTPUT_DIR',
+    os.getenv('ONTOCLAW_ONTOLOGY_ROOT', str(PROJECT_ROOT / 'ontoskills'))
 )
 OUTPUT_DIR = os.getenv(
-    'ONTOCLAW_OUTPUT_DIR',
-    os.getenv('ONTOSKILLS_OUTPUT_DIR', ONTOLOGY_ROOT)
+    'ONTOSKILLS_OUTPUT_DIR',
+    os.getenv('ONTOCLAW_OUTPUT_DIR', ONTOLOGY_ROOT)
 )
 ONTOLOGY_SYSTEM_DIR = str(Path(ONTOLOGY_ROOT) / 'system')
 SKILLS_VENDOR_DIR = str(Path(SKILLS_DIR) / 'vendor')
