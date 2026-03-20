@@ -6,7 +6,7 @@ The site presents the current product surface:
 - `ontoskills` as the user-facing CLI
 - `ontomcp` as the runtime server
 - `ontocore` as the optional compiler
-- `OntoSkillRegistry` as the official compiled-skill registry
+- `OntoSkills Registry` as the official compiled-skill registry
 
 ## Tech Stack
 
@@ -41,7 +41,7 @@ site/
 
 ## Documentation
 
-The docs are rendered through Starlight and loaded from the repository-level `docs/` directory.
+The docs are rendered through Starlight and loaded from the repository-level `docs/` directory via `site/src/content/docs`.
 
 ## Deployment
 
