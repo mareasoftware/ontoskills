@@ -96,6 +96,11 @@ Client-specific setup guides:
 
 ## What's Next?
 
+- [CLI](/cli/) — Full command surface and product workflows
+- [Marketplace](/marketplace/) — Search and install published skills
+- [Compiler](/compiler/) — Install the optional compiler
+- [Skill Authoring](/authoring/) — Import and compile source repositories
 - [Registry](/registry/) — Install, update, remove, and uninstall skills
+- [Troubleshooting](/troubleshooting/) — Diagnose install and runtime issues
 - [Roadmap](/roadmap/) — See what's coming
 - [GitHub](https://github.com/mareasoftware/ontoskills) — Contribute

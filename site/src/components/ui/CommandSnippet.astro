@@ -1,0 +1,53 @@
+---
+interface Props {
+  command: string;
+  label?: string;
+  compact?: boolean;
+}
+
+const { command, label, compact = false } = Astro.props;
+const rootId = `cmd-${crypto.randomUUID()}`;
+---
+
+<div id={rootId} class={`command-shell ${compact ? 'rounded-2xl p-4' : 'p-5 md:p-6'}`}>
+  {label && (
+    <div class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-text-muted">
+      <span class="h-2 w-2 rounded-full bg-accent-cyan"></span>
+      {label}
+    </div>
+  )}
+  <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <code class={`block break-all text-left ${compact ? 'text-sm' : 'text-sm md:text-base'} text-text-primary`}>
+      {command}
+    </code>
+    <button
+      type="button"
+      class="copy-trigger inline-flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-text-primary transition hover:border-accent-cyan/40 hover:bg-white/12"
+      data-command={command}
+    >
+      Copy
+    </button>
+  </div>
+</div>
+
+<script define:vars={{ rootId }} is:inline>
+  const root = document.getElementById(rootId);
+  const button = root?.querySelector('.copy-trigger');
+
+  button?.addEventListener('click', async () => {
+    const command = button.getAttribute('data-command') ?? '';
+    try {
+      await navigator.clipboard.writeText(command);
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => {
+        button.textContent = original;
+      }, 1500);
+    } catch {
+      button.textContent = 'Copy failed';
+      setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1500);
+    }
+  });
+</script>

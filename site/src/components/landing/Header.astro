@@ -7,42 +7,38 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
 </svg>`;
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 bg-bg-primary/80 backdrop-blur-lg border-b border-border">
-  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<header class="fixed top-0 left-0 right-0 z-50 border-b border-white/8 bg-[rgba(7,17,31,0.68)] backdrop-blur-2xl">
+  <nav class="section-shell">
     <div class="flex items-center justify-between h-16">
-      <!-- Logo -->
       <a href="/" class="flex items-center gap-2">
         <img src={logo.src} alt="OntoSkills" class="h-8 w-auto" />
         <span class="font-semibold text-text-primary">OntoSkills</span>
       </a>
 
-      <!-- Desktop Navigation -->
       <div class="hidden md:flex items-center gap-8">
-        <a href="#features" class="text-text-muted hover:text-accent-cyan transition-colors">Features</a>
-        <a href="#architecture" class="text-text-muted hover:text-accent-cyan transition-colors">Architecture</a>
-        <a href="/overview/" class="text-text-muted hover:text-accent-cyan transition-colors">Docs</a>
-        <a href="https://github.com/mareasoftware/OntoSkillRegistry" target="_blank" rel="noopener" class="text-text-muted hover:text-accent-cyan transition-colors">Registry</a>
-        <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-muted hover:text-accent-cyan transition-colors flex items-center gap-1" aria-label="GitHub">
+        <a href="/explore/" class="text-text-secondary hover:text-text-primary transition-colors">Marketplace</a>
+        <a href="#architecture" class="text-text-secondary hover:text-text-primary transition-colors">Architecture</a>
+        <a href="/overview/" class="text-text-secondary hover:text-text-primary transition-colors">Docs</a>
+        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">Registry Repo</a>
+        <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1" aria-label="GitHub">
           <Fragment set:html={githubIcon} />
         </a>
         <Button href="/getting-started/" size="sm">Get Started</Button>
       </div>
 
-      <!-- Mobile Menu Toggle (CSS-only) -->
       <input type="checkbox" id="menu-toggle" class="hidden peer" />
-      <label for="menu-toggle" class="md:hidden cursor-pointer text-text-muted hover:text-accent-cyan p-2">
+      <label for="menu-toggle" class="md:hidden cursor-pointer text-text-secondary hover:text-text-primary p-2">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </label>
 
-      <!-- Mobile Menu -->
-      <div class="hidden peer-checked:flex md:hidden absolute top-16 left-0 right-0 bg-bg-secondary border-b border-border flex-col p-4 gap-4">
-        <a href="#features" class="text-text-muted hover:text-accent-cyan transition-colors py-2">Features</a>
-        <a href="#architecture" class="text-text-muted hover:text-accent-cyan transition-colors py-2">Architecture</a>
-        <a href="/overview/" class="text-text-muted hover:text-accent-cyan transition-colors py-2">Docs</a>
-        <a href="https://github.com/mareasoftware/OntoSkillRegistry" target="_blank" rel="noopener" class="text-text-muted hover:text-accent-cyan transition-colors py-2">Registry</a>
-        <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-muted hover:text-accent-cyan transition-colors py-2 flex items-center gap-2">
+      <div class="hidden peer-checked:flex md:hidden absolute top-16 left-0 right-0 border-b border-white/8 bg-[rgba(9,24,41,0.92)] backdrop-blur-2xl flex-col p-4 gap-4">
+        <a href="/explore/" class="text-text-secondary hover:text-text-primary transition-colors py-2">Marketplace</a>
+        <a href="#architecture" class="text-text-secondary hover:text-text-primary transition-colors py-2">Architecture</a>
+        <a href="/overview/" class="text-text-secondary hover:text-text-primary transition-colors py-2">Docs</a>
+        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors py-2">Registry Repo</a>
+        <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors py-2 flex items-center gap-2">
           <Fragment set:html={githubIcon} />
           <span>GitHub</span>
         </a>
@@ -52,5 +48,4 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
   </nav>
 </header>
 
-<!-- Spacer for fixed header -->
 <div class="h-16"></div>

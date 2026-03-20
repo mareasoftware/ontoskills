@@ -1,33 +1,76 @@
 ---
 import Button from '../ui/Button.astro';
+import CommandSnippet from '../ui/CommandSnippet.astro';
 import GraphBackground from './GraphBackground.astro';
 ---
 
 <section class="relative overflow-hidden">
-  <!-- Animated Graph Background -->
   <GraphBackground />
 
-  <!-- Content -->
-  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 text-center">
-    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-      <span class="text-text-primary">Skills become</span>
-      <br />
-      <span class="gradient-text">registry-backed knowledge</span>
-    </h1>
+  <div class="relative z-10 section-shell py-20 lg:py-28">
+    <div class="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+      <div>
+        <div class="section-kicker mb-5">Try OntoSkills now</div>
+        <h1 class="max-w-4xl text-5xl font-semibold leading-[1.02] tracking-tight text-text-primary sm:text-6xl lg:text-7xl">
+          Install the runtime,
+          <span class="gradient-text">search the registry</span>,
+          and query deterministic skills in minutes.
+        </h1>
 
-    <p class="text-lg sm:text-xl text-text-muted max-w-2xl mx-auto mb-8">
-      <span class="text-accent-cyan font-medium">OntoSkills</span> connects the official registry, the <code class="text-accent-aqua">ontoskills</code> CLI,
-      the <code class="text-accent-aqua">ontomcp</code> runtime, and the optional <code class="text-accent-aqua">ontocore</code> compiler.
-      Install, enable, and query deterministic skills instead of scraping files by hand.
-    </p>
+        <p class="mt-6 max-w-2xl text-lg leading-8 text-text-secondary sm:text-xl">
+          OntoSkills ships a managed CLI, a live registry, a local MCP runtime, and an optional compiler for custom
+          `SKILL.md` sources. Start with one command and pull only the skills you need.
+        </p>
 
-    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-      <Button href="/overview/" size="lg">
-        Get Started
-      </Button>
-      <Button href="https://github.com/mareasoftware/OntoSkillRegistry" variant="secondary" size="lg">
-        Browse Registry
-      </Button>
+        <div class="mt-8 max-w-3xl">
+          <CommandSnippet command="npx ontoskills install mcp" label="Quickstart" />
+        </div>
+
+        <div class="mt-8 flex flex-col gap-4 sm:flex-row">
+          <Button href="/getting-started/" size="lg">
+            Install now
+          </Button>
+          <Button href="/explore/" variant="secondary" size="lg">
+            Explore skills
+          </Button>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3 text-sm text-text-secondary">
+          <span class="glass-panel rounded-full px-4 py-2">Official registry built in</span>
+          <span class="glass-panel rounded-full px-4 py-2">4-tool MCP runtime</span>
+          <span class="glass-panel rounded-full px-4 py-2">Optional local compiler</span>
+        </div>
+      </div>
+
+      <div class="glass-panel-strong rounded-[2rem] p-6 sm:p-8">
+        <div class="mb-5 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">Fast path</div>
+            <div class="mt-2 text-2xl font-semibold text-text-primary">Install → Search → Enable</div>
+          </div>
+          <span class="glass-badge">0 setup registry</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="glass-panel rounded-[1.5rem] p-4">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">1. Install the runtime</div>
+            <code class="block break-all text-sm text-text-primary">npx ontoskills install mcp</code>
+          </div>
+          <div class="glass-panel rounded-[1.5rem] p-4">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">2. Pull a registry skill</div>
+            <code class="block break-all text-sm text-text-primary">npx ontoskills install marea.office/xlsx</code>
+          </div>
+          <div class="glass-panel rounded-[1.5rem] p-4">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">3. Enable it for OntoMCP</div>
+            <code class="block break-all text-sm text-text-primary">npx ontoskills enable marea.office/xlsx</code>
+          </div>
+        </div>
+
+        <p class="mt-5 text-sm leading-6 text-text-secondary">
+          The runtime reads enabled ontologies from <code class="text-text-primary">~/.ontoskills/ontoskills</code> and exposes them
+          through MCP for Claude Code, Codex, and any local stdio client.
+        </p>
+      </div>
     </div>
   </div>
 </section>

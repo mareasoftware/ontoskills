@@ -2,8 +2,8 @@
 // Graph background with animated nodes and connections
 ---
 
-<div id="graph-bg" class="absolute inset-0 z-0 opacity-40"></div>
-<div class="absolute inset-0 bg-gradient-to-b from-bg-primary/30 via-bg-primary/70 to-bg-primary z-0"></div>
+<div id="graph-bg" class="absolute inset-0 z-0 opacity-35"></div>
+<div class="absolute inset-0 z-0" style="background: var(--gradient-hero);"></div>
 
 <script>
   const canvas = document.createElement('canvas');
@@ -20,10 +20,10 @@
   let isMobile = window.matchMedia('(max-width: 768px)').matches;
 
   const config = {
-    connectionDistance: 150,
+    connectionDistance: 170,
     mouseRadius: 200,
-    nodeSpeed: 0.3,
-    colors: ['#6dc9ee', '#9763e1', '#abf9cc', '#92eff4']
+    nodeSpeed: 0.22,
+    colors: ['#7ed9ff', '#6d8cff', '#9df9d3', '#f28ed8']
   };
 
   function getNodeCount(): number {
@@ -43,7 +43,7 @@
       this.y = Math.random() * height;
       this.vx = (Math.random() - 0.5) * config.nodeSpeed;
       this.vy = (Math.random() - 0.5) * config.nodeSpeed;
-      this.radius = Math.random() * 2 + 1;
+      this.radius = Math.random() * 2.6 + 1;
       this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
     }
 
@@ -117,7 +117,7 @@
           ctx.beginPath();
           ctx.moveTo(nodes[i].x, nodes[i].y);
           ctx.lineTo(nodes[j].x, nodes[j].y);
-          ctx.strokeStyle = `rgba(109, 201, 238, ${opacity})`;
+          ctx.strokeStyle = `rgba(126, 217, 255, ${opacity})`;
           ctx.lineWidth = 0.5;
           ctx.stroke();
         }

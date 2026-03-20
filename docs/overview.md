@@ -119,9 +119,13 @@ Every skill is extracted with:
 ## Next Steps
 
 - **[Getting Started](/getting-started/)** — Install and compile your first skill
+- **[CLI](/cli/)** — Learn the managed command surface
+- **[Marketplace](/marketplace/)** — Browse installable registry skills
+- **[Compiler](/compiler/)** — Install OntoCore for custom skills
 - **[Registry](/registry/)** — Learn how official and third-party registries work
 - **[Architecture](/architecture/)** — Deep dive into the system design
 - **[Knowledge Extraction](/knowledge-extraction/)** — Understanding knowledge nodes
+- **[Troubleshooting](/troubleshooting/)** — Fix common install and runtime issues
 - **[Roadmap](/roadmap/)** — See what's coming next
 
 ---

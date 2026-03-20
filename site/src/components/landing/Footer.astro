@@ -2,28 +2,27 @@
 import logo from '../../assets/ontoskills-logo.png';
 
 const links = [
-  { label: 'Docs', href: '/docs/' },
-  { label: 'Registry', href: 'https://github.com/mareasoftware/OntoSkillRegistry' },
+  { label: 'Docs', href: '/overview/' },
+  { label: 'Marketplace', href: '/explore/' },
+  { label: 'Registry', href: 'https://github.com/mareasoftware/ontoskills-registry' },
   { label: 'GitHub', href: 'https://github.com/mareasoftware/ontoskills' },
   { label: 'Marea Software', href: 'https://marea.software' }
 ];
 ---
 
-<footer class="border-t border-border py-12 bg-bg-secondary">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<footer class="border-t border-border/60 py-12 bg-transparent">
+  <div class="section-shell">
     <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-      <!-- Logo -->
       <a href="/" class="flex items-center gap-2">
         <img src={logo.src} alt="OntoSkills" class="h-6 w-auto" />
         <span class="font-semibold text-text-primary">OntoSkills</span>
       </a>
 
-      <!-- Links -->
       <nav class="flex items-center gap-6">
         {links.map((link) => (
           <a
             href={link.href}
-            class="text-text-muted hover:text-accent-cyan transition-colors text-sm"
+            class="text-text-secondary hover:text-text-primary transition-colors text-sm"
             {...(link.href.startsWith('http') && { target: '_blank', rel: 'noopener' })}
           >
             {link.label}
@@ -31,7 +30,6 @@ const links = [
         ))}
       </nav>
 
-      <!-- Copyright -->
       <div class="text-text-muted text-sm">
         © 2026 Marea Software
       </div>

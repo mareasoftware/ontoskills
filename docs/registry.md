@@ -13,6 +13,10 @@ OntoSkills uses a simple distribution model:
 
 The user-facing CLI is `ontoskills`.
 
+For a live searchable view of the official registry, use the dedicated marketplace page:
+
+- [Open the live marketplace](/explore/)
+
 ## Registry Types
 
 ### Official Registry
@@ -132,4 +136,3 @@ The managed home is organized like this:
 - `import-source-repo <repo>` clones and compiles a raw source repository
 - `enable` and `disable` control what OntoMCP sees
 - the official registry is built in, so it should not be added manually
-
