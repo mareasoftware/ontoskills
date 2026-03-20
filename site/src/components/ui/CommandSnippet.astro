@@ -9,10 +9,10 @@ const { command, label, compact = false } = Astro.props;
 const rootId = `cmd-${crypto.randomUUID()}`;
 ---
 
-<div id={rootId} class={`command-shell ${compact ? 'rounded-2xl p-4' : 'p-5 md:p-6'}`}>
+<div id={rootId} class={`command-shell ${compact ? 'rounded-xl p-4' : 'p-5 md:p-6'}`}>
   {label && (
-    <div class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-text-muted">
-      <span class="h-2 w-2 rounded-full bg-accent-cyan"></span>
+    <div class="mb-3 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.24em] text-text-muted">
+      <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
       {label}
     </div>
   )}
@@ -22,7 +22,7 @@ const rootId = `cmd-${crypto.randomUUID()}`;
     </code>
     <button
       type="button"
-      class="copy-trigger inline-flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-text-primary transition hover:border-accent-cyan/40 hover:bg-white/12"
+      class="copy-trigger inline-flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-white/5 hover:border-white/20"
       data-command={command}
     >
       Copy

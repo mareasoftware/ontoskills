@@ -25,26 +25,26 @@ ontoskills compile`
 
 <section class="py-20">
   <div class="section-shell">
-    <div class="text-center mb-12">
-      <div class="section-kicker mx-auto mb-4">Quickstart paths</div>
-      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+    <div class="mb-12 max-w-3xl">
+      <div class="section-kicker mb-4">Quickstart paths</div>
+      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4 tracking-[-0.04em]">
         Getting <span class="gradient-text">Started</span>
       </h2>
-      <p class="text-text-muted max-w-2xl mx-auto">
+      <p class="text-text-muted max-w-2xl">
         Three paths cover the full product: runtime only, registry installs, or custom compilation.
       </p>
     </div>
 
     <div class="grid md:grid-cols-3 gap-8">
       {steps.map((step) => (
-        <div class="glass-panel rounded-[2rem] p-6 space-y-4">
+        <div class="border border-white/10 p-6 space-y-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-accent-cyan/20 text-accent-cyan font-bold flex items-center justify-center text-lg">
               {step.number}
             </div>
             <h3 class="text-xl font-semibold text-text-primary">{step.title}</h3>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-[#08111f]/70 p-4 font-mono text-sm text-text-muted overflow-x-auto">
+          <div class="border border-white/10 bg-black/30 p-4 font-mono text-sm text-text-muted overflow-x-auto">
             <pre class="whitespace-pre-wrap">{step.code}</pre>
           </div>
         </div>

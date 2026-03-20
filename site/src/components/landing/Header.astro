@@ -7,7 +7,7 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
 </svg>`;
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 border-b border-white/8 bg-[rgba(7,17,31,0.68)] backdrop-blur-2xl">
+<header class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/90 backdrop-blur">
   <nav class="section-shell">
     <div class="flex items-center justify-between h-16">
       <a href="/" class="flex items-center gap-2">
@@ -17,9 +17,8 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
 
       <div class="hidden md:flex items-center gap-8">
         <a href="/explore/" class="text-text-secondary hover:text-text-primary transition-colors">Marketplace</a>
-        <a href="#architecture" class="text-text-secondary hover:text-text-primary transition-colors">Architecture</a>
         <a href="/overview/" class="text-text-secondary hover:text-text-primary transition-colors">Docs</a>
-        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">Registry Repo</a>
+        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">Registry</a>
         <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1" aria-label="GitHub">
           <Fragment set:html={githubIcon} />
         </a>
@@ -33,11 +32,10 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
         </svg>
       </label>
 
-      <div class="hidden peer-checked:flex md:hidden absolute top-16 left-0 right-0 border-b border-white/8 bg-[rgba(9,24,41,0.92)] backdrop-blur-2xl flex-col p-4 gap-4">
+      <div class="hidden peer-checked:flex md:hidden absolute top-16 left-0 right-0 border-b border-white/10 bg-black/95 backdrop-blur flex-col p-4 gap-4">
         <a href="/explore/" class="text-text-secondary hover:text-text-primary transition-colors py-2">Marketplace</a>
-        <a href="#architecture" class="text-text-secondary hover:text-text-primary transition-colors py-2">Architecture</a>
         <a href="/overview/" class="text-text-secondary hover:text-text-primary transition-colors py-2">Docs</a>
-        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors py-2">Registry Repo</a>
+        <a href="https://github.com/mareasoftware/ontoskills-registry" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors py-2">Registry</a>
         <a href="https://github.com/mareasoftware/ontoskills" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors py-2 flex items-center gap-2">
           <Fragment set:html={githubIcon} />
           <span>GitHub</span>

@@ -9,8 +9,8 @@ interface Props {
 }
 
 const {
-  title = 'Live Registry Marketplace',
-  description = 'Search the official registry, copy install commands, and pull exactly the skill you want.',
+  title = 'Registry leaderboard',
+  description = 'Search the official registry, inspect published skills, and copy the exact install command.',
   compact = false,
   showHeader = true,
 } = Astro.props;
@@ -18,57 +18,46 @@ const {
 const rootId = `market-${crypto.randomUUID()}`;
 ---
 
-<section id="marketplace" class={`${compact ? 'py-16' : 'py-20'}`}>
+<section id="marketplace" class={`${compact ? 'py-14' : 'py-20'}`}>
   <div class="section-shell">
     {showHeader && (
-      <div class="mx-auto mb-10 max-w-3xl text-center">
-        <div class="section-kicker mx-auto mb-4">Registry marketplace</div>
-        <h2 class="mb-4 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
-          {title}
-        </h2>
-        <p class="text-base leading-7 text-text-secondary sm:text-lg">{description}</p>
+      <div class="mb-8 max-w-3xl">
+        <div class="mb-4 font-mono text-xs uppercase tracking-[0.24em] text-text-muted">Registry</div>
+        <h2 class="text-3xl font-semibold tracking-[-0.04em] text-text-primary sm:text-4xl">{title}</h2>
+        <p class="mt-3 text-base leading-7 text-text-secondary">{description}</p>
       </div>
     )}
 
-    <div id={rootId} class="glass-panel rounded-[2rem] p-5 sm:p-7">
-      <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div class="max-w-2xl">
-          <div class="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-text-muted">
-            Official registry
+    <div id={rootId} class="border border-white/10 bg-bg-elevated">
+      <div class="border-b border-white/10 p-4 sm:p-5">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <label class="flex items-center gap-3 border border-white/10 bg-bg-secondary px-4 py-3 lg:min-w-[22rem]">
+            <span class="text-text-muted">/</span>
+            <input
+              class="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              type="search"
+              placeholder="Search skills..."
+              data-role="search"
+            />
+          </label>
+          <div class="flex items-center gap-3 text-sm text-text-secondary">
+            <span data-role="count">Loading registry…</span>
+            <a href="/explore/" class="border border-white/10 px-3 py-2 hover:bg-white/5">Full page</a>
           </div>
-          <p class="text-sm leading-6 text-text-secondary sm:text-base">
-            Browse verified skills published in the official registry. Each card exposes the exact command
-            to install and enable the skill locally.
-          </p>
-        </div>
-        <a
-          href="/explore/"
-          class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-text-primary transition hover:border-accent-cyan/30 hover:bg-white/10"
-        >
-          Open full marketplace
-        </a>
-      </div>
-
-      <div class="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
-        <label class="glass-panel flex items-center gap-3 rounded-2xl px-4 py-3">
-          <span class="text-text-muted">⌕</span>
-          <input
-            class="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-            type="search"
-            placeholder="Search skills, aliases, packages, or descriptions"
-            data-role="search"
-          />
-        </label>
-        <div class="glass-panel flex items-center rounded-2xl px-4 py-3 text-sm text-text-secondary">
-          <span data-role="count">Loading registry...</span>
         </div>
       </div>
 
-      <div data-role="status" class="mb-5 rounded-2xl border border-dashed border-white/12 bg-white/4 px-4 py-4 text-sm text-text-secondary">
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] border-b border-white/10 bg-black/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted sm:grid-cols-[64px_minmax(0,1fr)_140px]">
+        <div class="hidden sm:block">#</div>
+        <div>Skill</div>
+        <div class="text-right">Install</div>
+      </div>
+
+      <div data-role="status" class="border-b border-dashed border-white/10 px-4 py-4 text-sm text-text-secondary">
         Connecting to the official registry…
       </div>
 
-      <div data-role="grid" class="marketplace-grid"></div>
+      <div data-role="grid"></div>
     </div>
   </div>
 </section>
@@ -94,54 +83,45 @@ const rootId = `market-${crypto.randomUUID()}`;
       packageId: pkg.package_id,
       skillId: skill.id,
       qualifiedId,
-      description: skill.description || pkg.description || 'No description available yet.',
+      description: skill.description || pkg.description || 'No description available.',
       aliases: Array.isArray(skill.aliases) ? skill.aliases : [],
       trustTier: pkg.trust_tier || 'verified',
-      dependsOn: Array.isArray(skill.depends_on_skills) ? skill.depends_on_skills : [],
-      source: pkg.source || registryRepoUrl,
       installCommand: `npx ontoskills install ${qualifiedId}`,
       enableCommand: `npx ontoskills enable ${qualifiedId}`,
     };
   };
 
-  const renderCard = (skill) => {
-    const aliases = skill.aliases.length
-      ? skill.aliases.map((alias) => `<span class="rounded-full border border-white/10 bg-white/6 px-2 py-1 text-xs text-text-secondary">${escapeHtml(alias)}</span>`).join('')
-      : '<span class="text-xs text-text-muted">No aliases</span>';
+  let skills = [];
 
-    const depends = skill.dependsOn.length
-      ? `<div class="mt-3 text-xs text-text-muted">Depends on: ${escapeHtml(skill.dependsOn.join(', '))}</div>`
-      : '';
-
+  const renderRow = (skill, index) => {
+    const aliases = skill.aliases.length ? ` · ${escapeHtml(skill.aliases.join(', '))}` : '';
     return `
-      <article class="glass-panel rounded-[1.5rem] p-5 transition hover:-translate-y-1 hover:border-[rgba(126,217,255,0.32)] hover:bg-[rgba(255,255,255,0.08)]">
-        <div class="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <div class="mb-1 text-sm font-semibold uppercase tracking-[0.16em] text-text-muted">${escapeHtml(skill.packageId)}</div>
-            <h3 class="text-xl font-semibold text-text-primary">${escapeHtml(skill.skillId)}</h3>
+      <article class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-white/10 px-4 py-4 transition hover:bg-white/[0.03] sm:grid-cols-[64px_minmax(0,1fr)_140px]">
+        <div class="hidden font-mono text-sm text-text-muted sm:block">${index + 1}</div>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="text-base font-semibold text-text-primary">${escapeHtml(skill.skillId)}</h3>
+            <span class="font-mono text-xs text-text-muted">${escapeHtml(skill.packageId)}</span>
+            <span class="border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-text-muted">${escapeHtml(skill.trustTier)}</span>
           </div>
-          <span class="glass-badge">${escapeHtml(skill.trustTier)}</span>
+          <p class="mt-1 text-sm leading-6 text-text-secondary">${escapeHtml(skill.description)}</p>
+          <div class="mt-2 font-mono text-xs text-text-muted">${escapeHtml(skill.qualifiedId)}${aliases}</div>
+          <div class="mt-3 hidden border border-white/10 bg-black/30 p-3 text-xs text-text-secondary lg:block">
+            <div class="mb-1 uppercase tracking-[0.18em] text-text-muted">Command</div>
+            <code class="block break-all text-text-primary">${escapeHtml(skill.installCommand)}</code>
+          </div>
         </div>
-        <p class="mb-4 min-h-[4.5rem] text-sm leading-6 text-text-secondary">${escapeHtml(skill.description)}</p>
-        <div class="mb-4 flex flex-wrap gap-2">${aliases}</div>
-        ${depends}
-        <div class="mt-5 rounded-2xl border border-white/10 bg-[#08111f]/70 p-3">
-          <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Install</div>
-          <code class="block break-all text-sm text-text-primary">${escapeHtml(skill.installCommand)}</code>
-        </div>
-        <div class="mt-4 flex flex-wrap gap-3">
-          <button type="button" data-copy="${escapeHtml(skill.installCommand)}" class="inline-flex items-center justify-center rounded-full bg-accent-cyan px-4 py-2 text-sm font-medium text-[#04111d] transition hover:bg-[#93e4ff]">
-            Copy install
+        <div class="flex flex-col items-end gap-2">
+          <button type="button" data-copy="${escapeHtml(skill.installCommand)}" class="border border-white/10 px-3 py-2 text-sm text-text-primary hover:bg-white/5">
+            Copy
           </button>
-          <button type="button" data-copy="${escapeHtml(skill.enableCommand)}" class="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-medium text-text-primary transition hover:border-accent-cyan/30 hover:bg-white/10">
-            Copy enable
+          <button type="button" data-copy="${escapeHtml(skill.enableCommand)}" class="text-xs text-text-muted hover:text-text-primary">
+            enable
           </button>
         </div>
       </article>
     `;
   };
-
-  let skills = [];
 
   const render = () => {
     if (!grid || !count || !status) return;
@@ -152,41 +132,34 @@ const rootId = `market-${crypto.randomUUID()}`;
         skill.skillId,
         skill.qualifiedId,
         skill.description,
-        skill.aliases.join(' '),
+        skill.aliases.join(' ')
       ]
         .join(' ')
         .toLowerCase();
       return haystack.includes(query);
     });
 
-    count.textContent = `${filtered.length} skill${filtered.length === 1 ? '' : 's'} available`;
+    count.textContent = `${filtered.length} skill${filtered.length === 1 ? '' : 's'}`;
 
     if (!skills.length) {
-      status.innerHTML = `Unable to load skills right now. <a href="${registryRepoUrl}" target="_blank" rel="noopener" class="text-accent-cyan underline">Open the official registry</a>.`;
+      status.innerHTML = `Unable to load registry data. <a href="${registryRepoUrl}" target="_blank" rel="noopener" class="text-accent-cyan underline">Open the official registry</a>.`;
       grid.innerHTML = '';
       return;
     }
 
     status.textContent = query
-      ? `Showing results for “${search.value.trim()}”`
-      : 'Verified skills from the official registry. Copy the command and try one right away.';
+      ? `Results for “${search.value.trim()}”`
+      : 'Published skills from the official registry.';
 
     if (!filtered.length) {
-      grid.innerHTML = `
-        <div class="glass-panel col-span-full rounded-[1.5rem] p-8 text-center">
-          <p class="text-lg font-medium text-text-primary">No matching skills.</p>
-          <p class="mt-2 text-sm text-text-secondary">Try “hello”, “xlsx”, “docx”, or “office”.</p>
-        </div>
-      `;
+      grid.innerHTML = `<div class="px-4 py-6 text-sm text-text-secondary">No matching skills. Try hello, xlsx, docx, or office.</div>`;
       return;
     }
 
-    grid.innerHTML = filtered.map(renderCard).join('');
+    grid.innerHTML = filtered.map(renderRow).join('');
   };
 
   const loadRegistry = async () => {
-    if (!status || !count) return;
-
     try {
       const indexResponse = await fetch(registryIndexUrl, { mode: 'cors' });
       if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
@@ -220,12 +193,12 @@ const rootId = `market-${crypto.randomUUID()}`;
       target.textContent = 'Copied';
       setTimeout(() => {
         target.textContent = original;
-      }, 1500);
+      }, 1200);
     } catch {
-      target.textContent = 'Copy failed';
+      target.textContent = 'Failed';
       setTimeout(() => {
         target.textContent = original;
-      }, 1500);
+      }, 1200);
     }
   });
 
