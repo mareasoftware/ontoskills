@@ -277,6 +277,14 @@ impl EmbeddingEngine {
                 let seq = shape[1] as usize;
                 let hidden = shape[2] as usize;
 
+                // Validate batch size is 1 (we only process single queries)
+                if batch != 1 {
+                    anyhow::bail!(
+                        "Expected batch size 1 but got {}. This engine only supports single-query inference.",
+                        batch
+                    );
+                }
+
                 // Reshape data to 3D array
                 let tensor_3d: ndarray::Array3<f32> =
                     ndarray::ArrayBase::from_shape_vec((batch, seq, hidden), data.to_vec())?;
