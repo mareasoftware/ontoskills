@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Literal
 
 from rdflib import Graph, Namespace
+from rdflib.namespace import DCTERMS
 
 OC = Namespace("https://ontoskills.sh/ontology#")
 
@@ -206,8 +207,8 @@ def _check_unreachable_skills(g: Graph) -> list[LintIssue]:
     - No requiresState (can run from cold start)
     - Has intents that suggest user-initiated actions (create, import, load, etc.)
     """
-    all_skill_uris = list(g.subjects(OC.resolvesIntent))
-    all_skill_ids  = {_local(s): s for s in all_skill_uris}
+    # Deduplicate URIs (skills with multiple intents appear multiple times in g.subjects)
+    all_skill_uris = list(dict.fromkeys(g.subjects(OC.resolvesIntent)))
 
     # All states that can be produced
     all_yielded = {str(o) for o in g.objects(predicate=OC.yieldsState)}
@@ -216,7 +217,11 @@ def _check_unreachable_skills(g: Graph) -> list[LintIssue]:
     entry_patterns = {'create', 'import', 'load', 'init', 'start', 'open', 'new'}
 
     issues: list[LintIssue] = []
-    for sid, skill_uri in all_skill_ids.items():
+    for skill_uri in all_skill_uris:
+        # Prefer canonical dcterms:identifier when available, fall back to local fragment
+        identifier_obj = next(g.objects(skill_uri, DCTERMS.identifier), None)
+        sid = str(identifier_obj) if identifier_obj is not None else _local(skill_uri)
+
         required = {str(o) for o in g.objects(skill_uri, OC.requiresState)}
         intents = [str(o).lower() for o in g.objects(skill_uri, OC.resolvesIntent)]
 

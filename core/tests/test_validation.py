@@ -238,8 +238,9 @@ def test_knowledge_node_validation_with_all_required():
     g = Graph()
     oc = Namespace(BASE_URI)
 
-    # Create a valid KnowledgeNode
+    # Create a valid KnowledgeNode (typed as both for completeness)
     kn_uri = oc["kn_test456"]
+    g.add((kn_uri, RDF.type, oc.KnowledgeNode))
     g.add((kn_uri, RDF.type, oc.AntiPattern))
     g.add((kn_uri, oc.directiveContent, Literal("Never do X")))
     g.add((kn_uri, oc.appliesToContext, Literal("Always")))
@@ -248,3 +249,37 @@ def test_knowledge_node_validation_with_all_required():
     # Should pass validation
     result = validate_skill_graph(g)
     assert result.conforms
+
+
+def test_knowledge_node_shape_target_objects_of():
+    """Test that sh:targetObjectsOf validates nodes linked via impartsKnowledge.
+
+    This tests that a node typed ONLY as AntiPattern (not explicitly KnowledgeNode)
+    is still validated when linked from a Skill via impartsKnowledge.
+    """
+    from compiler.validator import validate_skill_graph
+    from rdflib import Graph, RDF, Literal, Namespace
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+
+    # Create a Skill
+    skill_uri = oc["test_skill"]
+    g.add((skill_uri, RDF.type, oc.Skill))
+    g.add((skill_uri, oc.resolvesIntent, Literal("test intent")))
+    g.add((skill_uri, oc.generatedBy, Literal("test")))
+
+    # Create a KnowledgeNode typed ONLY as AntiPattern (not KnowledgeNode)
+    kn_uri = oc["kn_subclass"]
+    g.add((kn_uri, RDF.type, oc.AntiPattern))
+    # Missing required properties: directiveContent, appliesToContext, hasRationale
+
+    # Link skill to knowledge node via impartsKnowledge
+    g.add((skill_uri, oc.impartsKnowledge, kn_uri))
+
+    # Should FAIL because KnowledgeNodeShape applies via targetObjectsOf
+    # and the node is missing required properties
+    result = validate_skill_graph(g)
+    assert not result.conforms
+    assert "directiveContent" in result.results_text or "appliesToContext" in result.results_text

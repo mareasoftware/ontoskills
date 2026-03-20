@@ -180,3 +180,220 @@ def test_extracted_skill_with_knowledge_nodes():
     )
     assert len(skill.knowledge_nodes) == 1
     assert skill.knowledge_nodes[0].node_type == "Standard"
+
+
+# ============================================================================
+# KnowledgeNode Filtering Tests (parse_and_clean_nested_data)
+# ============================================================================
+
+
+def test_knowledge_node_filtering_preserves_valid_dicts():
+    """Test that valid dict knowledge_nodes are preserved."""
+    from compiler.schemas import ExtractedSkill
+
+    skill = ExtractedSkill(
+        id="test",
+        hash="abc",
+        nature="Test",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="test",
+        knowledge_nodes=[
+            {
+                "node_type": "Standard",
+                "directive_content": "Always validate",
+                "applies_to_context": "Always",
+                "has_rationale": "Security"
+            }
+        ]
+    )
+    assert len(skill.knowledge_nodes) == 1
+    assert skill.knowledge_nodes[0].node_type == "Standard"
+
+
+def test_knowledge_node_filtering_removes_incomplete_dicts():
+    """Test that incomplete dict knowledge_nodes are filtered out with warning."""
+    from compiler.schemas import ExtractedSkill
+    import warnings
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        skill = ExtractedSkill(
+            id="test",
+            hash="abc",
+            nature="Test",
+            genus="Test",
+            differentia="test",
+            intents=["test"],
+            requirements=[],
+            generated_by="test",
+            knowledge_nodes=[
+                {
+                    "node_type": "Standard",
+                    "directive_content": "Always validate"
+                    # Missing: applies_to_context, has_rationale
+                }
+            ]
+        )
+
+        # Should have been filtered out
+        assert len(skill.knowledge_nodes) == 0
+        # Should have raised a warning
+        assert len(w) == 1
+        assert "incomplete" in str(w[0].message).lower()
+
+
+def test_knowledge_node_filtering_parses_json_strings():
+    """Test that string JSON knowledge_nodes are parsed and validated."""
+    from compiler.schemas import ExtractedSkill
+    import json
+
+    valid_node = json.dumps({
+        "node_type": "AntiPattern",
+        "directive_content": "Never do X",
+        "applies_to_context": "Always",
+        "has_rationale": "Because Y"
+    })
+
+    skill = ExtractedSkill(
+        id="test",
+        hash="abc",
+        nature="Test",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="test",
+        knowledge_nodes=[valid_node]
+    )
+
+    # Should have been parsed and kept
+    assert len(skill.knowledge_nodes) == 1
+    assert skill.knowledge_nodes[0].node_type == "AntiPattern"
+
+
+def test_knowledge_node_filtering_discards_invalid_json_strings():
+    """Test that invalid JSON strings are discarded with warning."""
+    from compiler.schemas import ExtractedSkill
+    import warnings
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        skill = ExtractedSkill(
+            id="test",
+            hash="abc",
+            nature="Test",
+            genus="Test",
+            differentia="test",
+            intents=["test"],
+            requirements=[],
+            generated_by="test",
+            knowledge_nodes=["not valid json", '{"node_type": "Standard"}']  # Invalid JSON and incomplete JSON
+        )
+
+        # Both should have been filtered out
+        assert len(skill.knowledge_nodes) == 0
+        # Should have raised warnings
+        assert len(w) >= 1
+
+
+def test_knowledge_node_filtering_preserves_knowledge_node_objects():
+    """Test that KnowledgeNode objects are preserved."""
+    from compiler.schemas import ExtractedSkill, KnowledgeNode
+
+    kn = KnowledgeNode(
+        node_type="Heuristic",
+        directive_content="Test",
+        applies_to_context="Always",
+        has_rationale="Because"
+    )
+
+    skill = ExtractedSkill(
+        id="test",
+        hash="abc",
+        nature="Test",
+        genus="Test",
+        differentia="test",
+        intents=["test"],
+        requirements=[],
+        generated_by="test",
+        knowledge_nodes=[kn]
+    )
+
+    assert len(skill.knowledge_nodes) == 1
+    assert skill.knowledge_nodes[0].node_type == "Heuristic"
+
+
+def test_knowledge_node_filtering_mixed_types():
+    """Test filtering with mixed valid and invalid nodes."""
+    from compiler.schemas import ExtractedSkill, KnowledgeNode
+    import json
+    import warnings
+
+    valid_dict = {
+        "node_type": "Standard",
+        "directive_content": "Valid",
+        "applies_to_context": "Always",
+        "has_rationale": "Reason"
+    }
+    invalid_dict = {"node_type": "Standard"}  # Incomplete
+    valid_json_string = json.dumps({
+        "node_type": "AntiPattern",
+        "directive_content": "Valid JSON",
+        "applies_to_context": "Always",
+        "has_rationale": "Reason"
+    })
+    invalid_json_string = "not json"
+
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+
+        skill = ExtractedSkill(
+            id="test",
+            hash="abc",
+            nature="Test",
+            genus="Test",
+            differentia="test",
+            intents=["test"],
+            requirements=[],
+            generated_by="test",
+            knowledge_nodes=[valid_dict, invalid_dict, valid_json_string, invalid_json_string]
+        )
+
+        # Only valid_dict and valid_json_string should remain
+        assert len(skill.knowledge_nodes) == 2
+        node_types = {kn.node_type for kn in skill.knowledge_nodes}
+        assert "Standard" in node_types
+        assert "AntiPattern" in node_types
+
+
+def test_knowledge_node_filtering_unsupported_types():
+    """Test that unsupported types (not dict, str, or KnowledgeNode) are discarded with warning."""
+    from compiler.schemas import ExtractedSkill
+    import warnings
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        skill = ExtractedSkill(
+            id="test",
+            hash="abc",
+            nature="Test",
+            genus="Test",
+            differentia="test",
+            intents=["test"],
+            requirements=[],
+            generated_by="test",
+            knowledge_nodes=[123, None, ["list"]]  # int, None, list - all unsupported
+        )
+
+        # All should have been filtered out
+        assert len(skill.knowledge_nodes) == 0
+        # Should have raised warnings for each unsupported type
+        assert len(w) == 3
+        warning_messages = [str(warning.message) for warning in w]
+        assert any("unsupported type" in msg.lower() for msg in warning_messages)

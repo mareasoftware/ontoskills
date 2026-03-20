@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rdflib import Graph, Namespace
+from rdflib.namespace import DCTERMS
 
 OC = Namespace("https://ontoskills.sh/ontology#")
 
@@ -75,18 +76,29 @@ def _extract_graph(
     """
     edges: list[tuple[str, str, str]] = []
 
+    # Build mapping: skill URI -> display ID (prefer dcterms:identifier, fallback to URI fragment)
+    # Deduplicate URIs (skills with multiple intents appear multiple times in g.subjects)
+    skills = list(dict.fromkeys(g.subjects(OC.resolvesIntent)))
+    skill_uri_to_id: dict = {}
+    for skill_uri in skills:
+        display_id = g.value(skill_uri, DCTERMS.identifier)
+        if display_id is not None:
+            skill_uri_to_id[skill_uri] = str(display_id)
+        else:
+            skill_uri_to_id[skill_uri] = _local(skill_uri)
+
     # Build mapping: state -> skills that yield it
     state_to_producers: dict[str, list[str]] = {}
-    for skill_uri in g.subjects(OC.resolvesIntent):
-        skill_id = _local(skill_uri)
+    for skill_uri in skills:
+        skill_id = skill_uri_to_id[skill_uri]
         for state_uri in g.objects(skill_uri, OC.yieldsState):
             state = _local(state_uri)
             state_to_producers.setdefault(state, []).append(skill_id)
 
     # Build mapping: state -> skills that require it
     state_to_consumers: dict[str, list[str]] = {}
-    for skill_uri in g.subjects(OC.resolvesIntent):
-        skill_id = _local(skill_uri)
+    for skill_uri in skills:
+        skill_id = skill_uri_to_id[skill_uri]
         for state_uri in g.objects(skill_uri, OC.requiresState):
             state = _local(state_uri)
             state_to_consumers.setdefault(state, []).append(skill_id)
@@ -102,10 +114,13 @@ def _extract_graph(
                     seen_edges.add(edge)
                     edges.append(edge)
 
-    # Collect all nodes that have at least one intent (real skills)
-    skill_ids = {_local(s) for s in g.subjects(OC.resolvesIntent)}
+    # Ensure deterministic edge ordering for stable Mermaid/DOT output
+    edges.sort()
 
-    # Apply 1-hop filter
+    # Collect all nodes that have at least one intent (real skills)
+    skill_ids = {skill_uri_to_id[s] for s in skills}
+
+    # Apply 1-hop filter (against the same display IDs used in edges)
     if skill_filter:
         neighbours = {skill_filter}
         for src, dst, _ in edges:

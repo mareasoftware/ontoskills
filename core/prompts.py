@@ -139,7 +139,7 @@ ONLY leave this empty if the skill is an extremely simple, atomic operation with
     - `RollbackProcedure`: How to undo
 
 ### For each knowledge node, provide:
-- `node_type`: One of the 30 concrete types above
+- `node_type`: One of the 26 concrete types above
 - `directive_content`: What the agent should know (1-2 sentences)
 - `applies_to_context`: When this applies (e.g., "always", "on error", "before execution")
 - `has_rationale`: Why this matters (the "why")

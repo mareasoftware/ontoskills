@@ -65,10 +65,11 @@ oc:SkillShape
         sh:message "handlesFailure deve essere un URI" ;
     ] ;
 
-    # impartsKnowledge allows KnowledgeNode (typing only, no constraint)
+    # impartsKnowledge must point to a KnowledgeNode instance
     sh:property [
         sh:path oc:impartsKnowledge ;
         sh:class oc:KnowledgeNode ;
+        sh:message "impartsKnowledge deve puntare a un KnowledgeNode" ;
     ] ;
     .
 
@@ -197,6 +198,7 @@ oc:StateShape
 oc:KnowledgeNodeShape
     a sh:NodeShape ;
     sh:targetClass oc:KnowledgeNode ;
+    sh:targetObjectsOf oc:impartsKnowledge ;
     rdfs:label "Knowledge Node Shape" ;
     rdfs:comment "Strict constraints for epistemic knowledge nodes" ;
 

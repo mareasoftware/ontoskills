@@ -183,12 +183,13 @@ def _extract_knowledge_nodes(g: Graph, skill_uri) -> list[KnowledgeNodeSummary]:
             has_rationale=str(rationale) if rationale else "",
             severity_level=str(severity) if severity else None,
         ))
+    # Sort for deterministic output (avoid rdflib iteration order)
+    nodes.sort(key=lambda n: (n.node_type, n.node_id))
     return nodes
 
 
 def _get_node_type(g: Graph, kn_uri) -> str:
     """Get the knowledge node type (the specific subclass of KnowledgeNode)."""
-    from rdflib import RDF, RDFS
     # Get all types and find the one that's a subclass of KnowledgeNode
     for type_uri in g.objects(kn_uri, RDF.type):
         type_local = _local(type_uri)
@@ -210,4 +211,6 @@ def _extract_requirements(g: Graph, skill_uri) -> list[RequirementSummary]:
             requirement_value=str(value) if value else "",
             is_optional=str(optional).lower() == "true" if optional else False,
         ))
+    # Sort for deterministic output (avoid rdflib iteration order)
+    reqs.sort(key=lambda r: r.requirement_id)
     return reqs
