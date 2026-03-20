@@ -26,6 +26,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10%2B-blue?style=for-the-badge&logo=python" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/node.js-18%2B-green?style=for-the-badge&logo=node.js" alt="Node.js 18+">
   <img src="https://img.shields.io/badge/OWL%202-RDF%2FTurtle-green?style=for-the-badge&logo=w3c" alt="OWL 2 RDF/Turtle">
   <img src="https://img.shields.io/badge/SHACL-Validation-purple?style=for-the-badge&logo=graphql" alt="SHACL Validation">
   <a href="#license">
@@ -75,10 +76,8 @@ flowchart LR
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/mareasoftware/ontoskills.git
-cd ontoskills/core
-pip install -e ".[dev]"
+# Install
+pip install ontoskills
 
 # Compile skills to ontology
 ontoskills init-core
@@ -87,6 +86,8 @@ ontoskills compile
 # Query the knowledge graph
 ontoskills query "SELECT ?skill WHERE { ?skill oc:resolvesIntent 'create_pdf' }"
 ```
+
+Or use `npx ontoskills` without installing.
 
 [→ Full installation guide](docs/getting-started.md)
 
