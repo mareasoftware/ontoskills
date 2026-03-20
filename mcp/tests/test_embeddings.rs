@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 #[test]
 #[ignore] // Run manually with --ignored flag
 fn test_mcp_starts_with_embeddings() {
-    let binary = Pathbuf::from(env!("CARGO_BIN_EXE_ontoskills-mcp"));
+    let binary = PathBuf::from(env!("CARGO_BIN_EXE_ontoskills-mcp"));
 
     let output = Command::new(&binary)
         .arg("--ontology-root")
