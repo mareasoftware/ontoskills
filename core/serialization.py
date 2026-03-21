@@ -27,17 +27,19 @@ def skill_uri_for_id(skill_id: str) -> URIRef:
     Build a stable skill URI from the canonical skill identifier.
 
     Handles both simple IDs ("brainstorming") and Qualified IDs
-    ("obra/superpowers/brainstorming/planning") by preserving the
-    full path structure in the URI.
+    ("obra/superpowers/brainstorming/planning") by converting to
+    a slugified form compatible with Turtle prefixed names.
+
+    All URIs use the oc:skill_<slug> form where slug replaces
+    slashes with underscores for Qualified IDs. The original
+    qualified ID is preserved in dcterms:identifier.
     """
     oc = get_oc_namespace()
-    # For Qualified IDs, use the full path as the URI fragment
-    # Slashes are preserved since they're valid in URI fragments
-    if "/" in skill_id:
-        return oc[skill_id]
-    else:
-        # Legacy simple IDs get slugified
-        return oc[f"skill_{generate_skill_id(skill_id)}"]
+    # Convert to slug: replace slashes with underscores for Qualified IDs
+    # This ensures compatibility with Turtle prefixed names (oc:skill_xxx)
+    # while preserving the full path information in the URI
+    slug = skill_id.replace("/", "_")
+    return oc[f"skill_{slug}"]
 
 
 def skill_uri_for_skill(skill: ExtractedSkill) -> URIRef:

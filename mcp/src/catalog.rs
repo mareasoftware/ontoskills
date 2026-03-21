@@ -1393,8 +1393,12 @@ fn collect_skill_records_from_file(
     for raw_line in content.lines() {
         let line = raw_line.trim();
         if let Some(subject) = line.split_whitespace().next() {
+            // Support both prefixed (oc:skill_xxx) and full IRI (<https://...#skill_xxx>)
             if subject.starts_with("oc:skill_") {
                 last_subject_uri = Some(format!("{}{}", DEFAULT_BASE_URI, subject.trim_start_matches("oc:")));
+            } else if subject.starts_with('<') && subject.contains("#skill_") {
+                // Full IRI: <https://ontoskills.sh/ontology#skill_xxx>
+                last_subject_uri = Some(subject.trim_matches(|c| c == '<' || c == '>').to_string());
             }
         }
         if let Some((_, suffix)) = line.split_once("dcterms:identifier ") {

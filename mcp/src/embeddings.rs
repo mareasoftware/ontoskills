@@ -320,6 +320,7 @@ impl EmbeddingEngine {
     ///
     /// # Returns
     /// List of matches sorted by similarity score (descending).
+    /// Results are filtered using adaptive threshold (gap-based + minimum).
     pub fn search(&mut self, query: &str, top_k: usize) -> Result<Vec<IntentMatch>> {
         if self.intents.is_empty() {
             return Ok(Vec::new());
@@ -344,10 +345,13 @@ impl EmbeddingEngine {
         // Sort by score descending
         scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-        // Return top_k
+        // Apply adaptive threshold: gap-based + minimum
+        let cutoff = adaptive_cutoff(&scores, 0.4, 0.15);
+
+        // Return top_k results above cutoff
         Ok(scores
             .into_iter()
-            .take(top_k)
+            .take(top_k.min(cutoff))
             .map(|(score, intent, skills)| IntentMatch {
                 intent: intent.to_string(),
                 score,
@@ -469,6 +473,46 @@ pub(crate) fn validate_model_inputs(input_names: &[String]) -> InputValidation {
     InputValidation::Valid { has_token_type_ids }
 }
 
+/// Compute adaptive cutoff for search results using gap-based + minimum threshold.
+///
+/// # Arguments
+/// * `scores` - Sorted list of (score, intent, skills) tuples (descending by score)
+/// * `min_threshold` - Minimum absolute score threshold (default: 0.4)
+/// * `gap_threshold` - Minimum gap to trigger cutoff (default: 0.15)
+///
+/// # Returns
+/// Number of results to include (may be 0 if all scores are below threshold)
+///
+/// # Algorithm
+/// 1. Find first significant gap where next score drops below min_threshold
+/// 2. If no gap found, include all results above min_threshold
+/// 3. If all scores below min_threshold, return 0
+fn adaptive_cutoff(
+    scores: &[(f32, &str, &Vec<String>)],
+    min_threshold: f32,
+    gap_threshold: f32,
+) -> usize {
+    if scores.is_empty() {
+        return 0;
+    }
+
+    // If top score is below threshold, return nothing
+    if scores[0].0 < min_threshold {
+        return 0;
+    }
+
+    // Look for significant gap
+    for i in 1..scores.len() {
+        let gap = scores[i - 1].0 - scores[i].0;
+        if gap > gap_threshold && scores[i].0 < min_threshold {
+            return i;
+        }
+    }
+
+    // No gap found - include all above minimum threshold
+    scores.iter().position(|(s, _, _)| *s < min_threshold).unwrap_or(scores.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -578,5 +622,68 @@ mod tests {
             }
             _ => panic!("Expected Unsupported variant"),
         }
+    }
+
+    // Tests for adaptive_cutoff function
+    #[test]
+    fn test_adaptive_cutoff_empty() {
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 0);
+    }
+
+    #[test]
+    fn test_adaptive_cutoff_all_below_threshold() {
+        let empty = vec![];
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
+            (0.35, "a", &empty),
+            (0.30, "b", &empty),
+        ];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 0);
+    }
+
+    #[test]
+    fn test_adaptive_cutoff_gap_triggers_cutoff() {
+        let empty = vec![];
+        // Gap between index 2 and 3, and score[3] < 0.4
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
+            (0.92, "a", &empty),
+            (0.88, "b", &empty),
+            (0.85, "c", &empty),
+            (0.35, "d", &empty), // gap = 0.50 > 0.15, score < 0.4
+        ];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 3);
+    }
+
+    #[test]
+    fn test_adaptive_cutoff_no_gap_uses_threshold() {
+        let empty = vec![];
+        // No significant gap, but scores below threshold should be excluded
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
+            (0.85, "a", &empty),
+            (0.80, "b", &empty),
+            (0.75, "c", &empty),
+            (0.35, "d", &empty), // no gap, but < 0.4
+        ];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 3);
+    }
+
+    #[test]
+    fn test_adaptive_cutoff_all_above_threshold() {
+        let empty = vec![];
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
+            (0.90, "a", &empty),
+            (0.85, "b", &empty),
+            (0.80, "c", &empty),
+        ];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 3);
+    }
+
+    #[test]
+    fn test_adaptive_cutoff_single_result() {
+        let empty = vec![];
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
+            (0.85, "a", &empty),
+        ];
+        assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 1);
     }
 }
