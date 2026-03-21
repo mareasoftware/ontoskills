@@ -123,6 +123,7 @@ def serialize_skill(
         graph.add((skill_uri, oc.dependsOn, relation_uri_for_value(dep)))
 
     # Inject deterministic extends if provided (sub-skills)
+    parent_uri = None
     if extends_parent:
         # Use qualified ID for parent URI if provided
         parent_uri = skill_uri_for_id(extends_parent, extends_parent_qualified)
@@ -131,8 +132,8 @@ def serialize_skill(
     # Also include any LLM-extracted extends (for non-sub-skill cases)
     for ext in skill.extends:
         ext_uri = relation_uri_for_value(ext)
-        # Avoid duplicate if already injected
-        if not extends_parent or str(ext_uri) != str(skill_uri_for_id(extends_parent)):
+        # Avoid duplicate if already injected (compare against actual parent_uri)
+        if not parent_uri or str(ext_uri) != str(parent_uri):
             graph.add((skill_uri, oc.extends, ext_uri))
 
     for cont in skill.contradicts:

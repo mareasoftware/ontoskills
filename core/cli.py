@@ -299,7 +299,9 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
             extracted = enrich_extracted_skill(extracted, skill_dir, input_path)
             # Keep short/local ID for parent skill (sub-skills extend to this short parent ID)
             # Note: extracted.id remains the short skill ID (e.g., "brainstorming"), used as extends_parent
-            compiled_skills.append(extracted)
+            # Store with package_id for later serialization
+            _, package_id = skill_parent_map.get(skill_dir, (skill_id, "local"))
+            compiled_skills.append((extracted, package_id))
             skill_output_paths.append(output_skill_path)
 
             logger.info(f"Successfully extracted: {skill_id}")
@@ -323,8 +325,8 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
 
         # Generate IDs: short ID from filename, qualified ID from full path
         parent_local_id = generate_skill_id(skill_dir.name)
-        sub_skill_short_id = md_file.stem  # e.g., "planning" from "planning.md"
-        sub_skill_qualified_id = f"{package_id}/{parent_local_id}/{sub_skill_short_id}"
+        sub_skill_short_id = generate_skill_id(md_file.stem)  # Normalized/slugified
+        sub_skill_qualified_id = generate_sub_skill_id(package_id, parent_local_id, md_file.name)
         sub_skill_hash = compute_sub_skill_hash(md_file)
 
         logger.info(f"Processing auxiliary markdown: {md_file.name} -> {sub_skill_short_id}")
@@ -354,7 +356,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
         # Build parent context
         parent_context = {
             "filename": md_file.name,
-            "parent_skill_id": parent_local_id,
+            "parent_skill_id": parent_qualified_id,  # Pass qualified ID for prompt context
             "sibling_names": sibling_names
         }
 
@@ -392,7 +394,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
     if compiled_skills:
         console.print(Panel(f"[green]Compiled {len(compiled_skills)} skill(s)[/green]"))
 
-        for skill in compiled_skills:
+        for skill, _ in compiled_skills:
             console.print(f"\n[bold]{skill.id}[/bold]")
             console.print(f"  Nature: {skill.nature[:80]}...")
             console.print(f"  Genus: {skill.genus}")
@@ -413,9 +415,7 @@ def compile(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, forc
             return
 
     # Serialize each skill module (with qualified ID for URI)
-    for skill, output_skill_path in zip(compiled_skills, skill_output_paths):
-        # Get qualified ID for this skill
-        package_id = resolve_package_id(output_skill_path.parent)
+    for (skill, package_id), output_skill_path in zip(compiled_skills, skill_output_paths):
         qualified_id = f"{package_id}/{skill.id}"
         serialize_skill_to_module(
             skill, output_skill_path, output_path,
