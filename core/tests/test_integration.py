@@ -47,13 +47,13 @@ def test_real_extraction_xlsx(xlsx_skill_dir, tmp_path):
     # Verify extraction results
     assert result is not None, "Extraction returned None"
     assert result.id == skill_id, f"Skill ID mismatch: {result.id} != {skill_id}"
-    assert result.hash == skill_hash, "Hash mismatch"
+    assert result.hash == skill_hash, f"Hash mismatch"
     assert result.nature, "Nature should not be empty"
     assert len(result.intents) >= 1, f"Expected at least 1 intent, got {len(result.intents)}"
     assert result.generated_by, "generated_by should be set"
     assert result.generated_by != "unknown", "generated_by should not be 'unknown'"
 
-    print("\nExtraction results:")
+    print(f"\nExtraction results:")
     print(f"  Nature: {result.nature[:100]}...")
     print(f"  Genus: {result.genus}")
     print(f"  Intents: {result.intents}")
@@ -110,7 +110,7 @@ def test_real_compile_xlsx(xlsx_skill_dir, tmp_path):
     graph = load_skill_module(skill_output_path)
     assert len(graph) > 0, "Module should contain triples"
 
-    print("\nCompile results:")
+    print(f"\nCompile results:")
     print(f"  Module path: {skill_output_path}")
     print(f"  Triples in module: {len(graph)}")
     print(f"  Core path: {core_path}")

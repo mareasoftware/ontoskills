@@ -10,6 +10,7 @@ These tests verify the OntoSkills core ontology (TBox) creation including:
 - Predefined core and failure states
 """
 import pytest
+from pathlib import Path
 from rdflib import Graph, RDF, RDFS, OWL, Namespace
 
 from compiler.core_ontology import get_oc_namespace, create_core_ontology

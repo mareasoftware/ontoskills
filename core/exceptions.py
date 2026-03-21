@@ -30,14 +30,3 @@ class OntologyValidationError(SkillETLError):
 class DriftDetectedError(SkillETLError):
     """Raised when breaking semantic drift is detected in the ontology."""
     exit_code = 9
-
-
-class OrphanSubSkillsError(SkillETLError):
-    """Raised when auxiliary .md files exist without a parent SKILL.md."""
-    exit_code = 10
-
-    def __init__(self, directory: str, orphan_files: list[str]):
-        self.directory = directory
-        self.orphan_files = orphan_files
-        message = f"Directory '{directory}' has auxiliary .md files {orphan_files} but no SKILL.md. Sub-skills cannot exist without parent."
-        super().__init__(message)

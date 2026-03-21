@@ -480,26 +480,3 @@ class TestExportEmbeddingsCLI:
 
         assert result.exit_code == 0
         assert (output_dir / "intents.json").exists()
-
-
-def test_compile_rejects_orphan_sub_skills(tmp_path):
-    """Compile should fail if .md files exist without SKILL.md."""
-    from cli import cli
-    runner = CliRunner()
-
-    # Create skill directory with auxiliary .md but no SKILL.md
-    skill_dir = tmp_path / "skills" / "orphan-skill"
-    skill_dir.mkdir(parents=True)
-    (skill_dir / "planning.md").write_text("# Planning")
-    (skill_dir / "review.md").write_text("# Review")
-
-    output_dir = tmp_path / "ontoskills"
-
-    result = runner.invoke(cli, [
-        'compile', 'orphan-skill',
-        '-i', str(tmp_path / 'skills'),
-        '-o', str(output_dir)
-    ])
-
-    assert result.exit_code != 0
-    assert "no SKILL.md" in result.output.lower() or "orphan" in result.output.lower()

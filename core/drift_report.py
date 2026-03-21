@@ -77,7 +77,7 @@ def print_suggestions(suggestions: list[MigrationSuggestion]) -> None:
     for i, s in enumerate(suggestions, 1):
         console.print(f"\n[bold]{i}. {s.summary}[/bold]")
         console.print(f"   [cyan]Action:[/cyan] {s.action}")
-        console.print("   [dim]SPARQL to find affected agents:[/dim]")
+        console.print(f"   [dim]SPARQL to find affected agents:[/dim]")
         for line in s.sparql_query.splitlines():
             console.print(f"     [dim]{line}[/dim]")
 

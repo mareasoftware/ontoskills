@@ -12,7 +12,7 @@ from typing import Optional
 from rdflib import Graph, Namespace, RDF, OWL, Literal, URIRef
 from rdflib.namespace import DCTERMS, SKOS, PROV
 
-from compiler.schemas import ExtractedSkill
+from compiler.schemas import ExtractedSkill, Requirement, ExecutionPayload
 from compiler.exceptions import OntologyValidationError
 from compiler.config import BASE_URI, OUTPUT_DIR, resolve_ontology_root
 from compiler.core_ontology import get_oc_namespace
@@ -23,21 +23,9 @@ logger = logging.getLogger(__name__)
 
 
 def skill_uri_for_id(skill_id: str) -> URIRef:
-    """
-    Build a stable skill URI from the canonical skill identifier.
-
-    Handles both simple IDs ("brainstorming") and Qualified IDs
-    ("obra/superpowers/brainstorming/planning") by preserving the
-    full path structure in the URI.
-    """
+    """Build a stable skill URI from the canonical skill identifier."""
     oc = get_oc_namespace()
-    # For Qualified IDs, use the full path as the URI fragment
-    # Slashes are preserved since they're valid in URI fragments
-    if "/" in skill_id:
-        return oc[skill_id]
-    else:
-        # Legacy simple IDs get slugified
-        return oc[f"skill_{generate_skill_id(skill_id)}"]
+    return oc[f"skill_{generate_skill_id(skill_id)}"]
 
 
 def skill_uri_for_skill(skill: ExtractedSkill) -> URIRef:
@@ -56,19 +44,13 @@ def relation_uri_for_value(value: str) -> URIRef:
     return skill_uri_for_id(raw)
 
 
-def serialize_skill(
-    graph: Graph,
-    skill: ExtractedSkill,
-    extends_parent: str | None = None
-) -> None:
+def serialize_skill(graph: Graph, skill: ExtractedSkill) -> None:
     """
     Serialize a skill to RDF triples in the graph.
 
     Args:
         graph: RDF graph to add triples to
         skill: ExtractedSkill to serialize
-        extends_parent: Optional parent skill ID to inject as extends relationship
-                       (used for sub-skills to ensure deterministic extends)
     """
     oc = get_oc_namespace()
 
@@ -110,17 +92,8 @@ def serialize_skill(
     for dep in skill.depends_on:
         graph.add((skill_uri, oc.dependsOn, relation_uri_for_value(dep)))
 
-    # Inject deterministic extends if provided (sub-skills)
-    if extends_parent:
-        parent_uri = skill_uri_for_id(extends_parent)
-        graph.add((skill_uri, oc.extends, parent_uri))
-
-    # Also include any LLM-extracted extends (for non-sub-skill cases)
     for ext in skill.extends:
-        ext_uri = relation_uri_for_value(ext)
-        # Avoid duplicate if already injected
-        if not extends_parent or str(ext_uri) != str(skill_uri_for_id(extends_parent)):
-            graph.add((skill_uri, oc.extends, ext_uri))
+        graph.add((skill_uri, oc.extends, relation_uri_for_value(ext)))
 
     for cont in skill.contradicts:
         graph.add((skill_uri, oc.contradicts, relation_uri_for_value(cont)))
@@ -182,8 +155,7 @@ def serialize_skill(
 def serialize_skill_to_module(
     skill: ExtractedSkill,
     output_path: Path,
-    output_base: Optional[Path] = None,
-    extends_parent: str | None = None
+    output_base: Optional[Path] = None
 ) -> None:
     """
     Serialize a skill to a standalone ontoskill.ttl module file.
@@ -195,8 +167,6 @@ def serialize_skill_to_module(
         skill: ExtractedSkill to serialize
         output_path: Path where ontoskill.ttl should be written
         output_base: Base output directory for core ontology lookup (default: OUTPUT_DIR)
-        extends_parent: Optional parent skill ID to inject as extends relationship
-                       (used for sub-skills to ensure deterministic extends)
     """
     oc = get_oc_namespace()
     g = Graph()
@@ -220,13 +190,13 @@ def serialize_skill_to_module(
     if core_ontology_path.exists():
         g.add((URIRef(BASE_URI.rstrip('#')), OWL.imports, URIRef(f"file://{core_ontology_path}")))
 
-    # Serialize the skill with optional extends injection
-    serialize_skill(g, skill, extends_parent=extends_parent)
+    # Serialize the skill
+    serialize_skill(g, skill)
 
     # VALIDATE BEFORE WRITE
     try:
         validate_and_raise(g)
-    except OntologyValidationError:
+    except OntologyValidationError as e:
         logger.critical(f"Refusing to write invalid skill to {output_path}")
         raise
 

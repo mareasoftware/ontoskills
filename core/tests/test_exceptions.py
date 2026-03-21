@@ -1,3 +1,4 @@
+import pytest
 from compiler.exceptions import SkillETLError, SecurityError
 
 
@@ -19,12 +20,3 @@ def test_ontology_validation_error_exists():
     # Should be instantiable with message
     e = OntologyValidationError("SHACL validation failed")
     assert "SHACL" in str(e)
-
-
-def test_orphan_sub_skills_error():
-    from compiler.exceptions import OrphanSubSkillsError
-
-    error = OrphanSubSkillsError("brainstorming", ["planning.md", "review.md"])
-    assert error.exit_code == 10
-    assert "brainstorming" in str(error)
-    assert "planning.md" in str(error)

@@ -1,5 +1,6 @@
 """Tests for OntoSkills static linter."""
 
+import pytest
 from compiler.linter import lint_ontology
 
 BASE = "@prefix oc: <https://ontoskills.sh/ontology#> .\n"
