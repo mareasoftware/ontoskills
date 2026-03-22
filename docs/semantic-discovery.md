@@ -1,4 +1,6 @@
-# Semantic Intent Discovery
+---
+title: Semantic Intent Discovery
+---
 
 **Status:** ✅ Implemented
 **Spec:** `docs/superpowers/specs/2026-03-19-semantic-discovery.md`
