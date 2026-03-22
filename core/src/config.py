@@ -13,7 +13,8 @@ load_local_env()
 
 
 # Project root (parent of core/ directory where this file lives)
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+# Now we're in src/, so we need to go up two levels to get to core/, then one more to project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 
 # Base URI for the ontology (can be customized via environment)
 BASE_URI = os.getenv(

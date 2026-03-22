@@ -291,9 +291,10 @@ def test_force_flag_accepted():
 def test_force_flag_bypasses_hash(tmp_path):
     """Test that --force flag bypasses hash check and triggers recompilation."""
     from unittest.mock import patch, MagicMock
-    from cli import cli
+    from compiler.cli import cli  # Use correct import path
     from compiler.extractor import compute_skill_hash
     from compiler.config import BASE_URI
+    import compiler.cli.compile  # Import module for patching
 
     # Create a skill directory with SKILL.md
     skill_dir = tmp_path / "skills" / "test-skill"
@@ -338,8 +339,8 @@ skill:test-skill a oc:Skill ;
     mock_extracted.state_transitions.requires_state = []
     mock_extracted.state_transitions.yields_state = []
 
-    with patch('cli.tool_use_loop') as mock_tool_use_loop, \
-         patch('cli.serialize_skill_to_module'):
+    with patch.object(compiler.cli.compile, 'tool_use_loop') as mock_tool_use_loop, \
+         patch.object(compiler.cli.compile, 'serialize_skill_to_module'):
         mock_tool_use_loop.return_value = mock_extracted
 
         # Without --force, the hash matches and tool_use_loop should NOT be called
@@ -358,11 +359,13 @@ skill:test-skill a oc:Skill ;
         mock_tool_use_loop.reset_mock()
 
         # With --force, tool_use_loop SHOULD be called even though hash matches
+        # Use --skip-security to avoid LLM security check in test
         result_with_force = runner.invoke(cli, [
             'compile',
             '-i', str(tmp_path / "skills"),
             '-o', str(output_dir),
             '--force',
+            '--skip-security',
             '-y'  # Skip confirmation
         ])
 
@@ -373,7 +376,7 @@ skill:test-skill a oc:Skill ;
 
 def test_infer_parent_skill_id_from_nested_skill_path(tmp_path):
     """Nested skills should inherit from the nearest ancestor skill directory."""
-    from cli import infer_parent_skill_id
+    from compiler.cli.compile import infer_parent_skill_id
 
     input_dir = tmp_path / "skills"
     (input_dir / "office" / "SKILL.md").parent.mkdir(parents=True)
@@ -390,7 +393,7 @@ def test_infer_parent_skill_id_from_nested_skill_path(tmp_path):
 
 def test_enrich_extracted_skill_adds_parent_to_extends(tmp_path):
     """Compiler should deterministically add parent inheritance for nested skills."""
-    from cli import enrich_extracted_skill
+    from compiler.cli.compile import enrich_extracted_skill
     from compiler.schemas import ExtractedSkill, Requirement
 
     input_dir = tmp_path / "skills"
@@ -417,7 +420,7 @@ def test_enrich_extracted_skill_adds_parent_to_extends(tmp_path):
 
 def test_enrich_extracted_skill_removes_parent_from_depends_on(tmp_path):
     """A parent inheritance relation should not also remain as a dependency."""
-    from cli import enrich_extracted_skill
+    from compiler.cli.compile import enrich_extracted_skill
     from compiler.schemas import ExtractedSkill, Requirement
 
     input_dir = tmp_path / "skills"
@@ -544,7 +547,7 @@ def test_dry_run_does_not_write_sub_skill_modules(tmp_path):
     mock_sub_extracted.state_transitions.requires_state = []
     mock_sub_extracted.state_transitions.yields_state = []
 
-    with patch('cli.tool_use_loop') as mock_tool_use_loop:
+    with patch('compiler.cli.compile.tool_use_loop') as mock_tool_use_loop:
         # First call for parent skill, second for sub-skill
         mock_tool_use_loop.side_effect = [mock_extracted, mock_sub_extracted]
 

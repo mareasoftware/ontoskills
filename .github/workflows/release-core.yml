@@ -1,4 +1,4 @@
-name: Release OntoSkills Core
+name: Release OntoCore
 
 on:
   release:
@@ -29,7 +29,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ontoskills-wheel
+          name: ontocore-wheel
           path: core/dist/*
 
       - name: Upload release asset

@@ -1,7 +1,7 @@
 [project]
-name = "ontoskills"
-version = "0.9.0"
-description = "OntoSkills — Neuro-symbolic skill compiler. Compiles SKILL.md into validated OWL 2 ontologies."
+name = "ontocore"
+version = "0.9.1"
+description = "OntoCore — Neuro-symbolic skill compiler. Compiles SKILL.md into validated OWL 2 ontologies."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
@@ -32,7 +32,7 @@ dev = [
     "mypy>=1.0.0",
 ]
 embeddings = [
-    # Required for semantic intent discovery (ontoskills export-embeddings)
+    # Required for semantic intent discovery (ontocore export-embeddings)
     "sentence-transformers>=2.2.0",
     "transformers>=4.30.0",
     "optimum>=1.12.0",
@@ -41,17 +41,17 @@ embeddings = [
 ]
 
 [project.scripts]
-ontoskills = "compiler.cli:main"
+ontocore = "compiler.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["compiler", "compiler.embeddings"]
+packages = ["compiler", "compiler.cli", "compiler.embeddings", "compiler.registry"]
 
 [tool.setuptools.package-dir]
-compiler = "."
+compiler = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

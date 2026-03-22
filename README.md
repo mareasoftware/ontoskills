@@ -10,6 +10,10 @@
 </h1>
 
 <p align="center">
+  <b>🇬🇧 English</b> • <a href="README_zh.md">🇨🇳 中文</a>
+</p>
+
+<p align="center">
   <strong>The <span style="color:#e91e63">deterministic</span> enterprise AI agent platform.</strong>
 </p>
 

@@ -1,5 +1,9 @@
 # OntoSkills Philosophy
 
+<p>
+  <b>🇬🇧 English</b> • <a href="PHILOSOPHY_zh.md">🇨🇳 中文</a>
+</p>
+
 ## 0. Neuro-Symbolic AI Agent Platform
 
 OntoSkills is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:

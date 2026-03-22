@@ -13,18 +13,20 @@ interface Props {
 }
 
 const {
-  title = 'OntoSkills - Registry-backed skills, MCP runtime, and compiler',
-  description = 'OntoSkills combines a managed CLI, an official registry, an MCP runtime, and an optional compiler to turn skills into deterministic ontologies.'
+  title = 'OntoSkills — Deterministic AI Skills via Rust MCP & OWL Ontologies',
+  description = 'Stop burning tokens on probabilistic skill reading. OntoSkills delivers sub-millisecond SPARQL queries through a Rust MCP runtime. Ontological, deterministic, precise.'
 } = Astro.props;
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "OntoSkills",
-  "description": description,
+  "description": "Deterministic AI skills through OWL 2 ontologies and a Rust MCP runtime. Query skills with SPARQL in sub-millisecond time.",
   "url": "https://ontoskills.marea.software",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Any",
+  "programmingLanguage": ["Rust", "Python", "TypeScript"],
+  "keywords": ["AI skills", "MCP", "ontology", "SPARQL", "Rust", "deterministic", "OWL 2", "Model Context Protocol", "agent skills"],
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -34,7 +36,15 @@ const jsonLd = {
     "@type": "Organization",
     "name": "Marea Software",
     "url": "https://marea.software"
-  }
+  },
+  "featureList": [
+    "Sub-millisecond SPARQL queries",
+    "Rust MCP runtime",
+    "OWL 2 DL ontology compilation",
+    "SHACL validation",
+    "Official skill registry",
+    "Semantic intent discovery"
+  ]
 };
 ---
 
@@ -43,6 +53,9 @@ const jsonLd = {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <meta name="keywords" content="AI skills, MCP, Model Context Protocol, ontology, SPARQL, Rust, deterministic skills, OWL 2, agent skills, Claude Code, semantic search" />
+    <meta name="author" content="Marea Software" />
+    <link rel="canonical" href="https://ontoskills.marea.software" />
     <link rel="icon" type="image/png" href="/ontoskills-logo.png" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />

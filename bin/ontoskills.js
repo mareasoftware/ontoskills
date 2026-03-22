@@ -556,11 +556,11 @@ async function installCore() {
   const release = await fetchLatestRelease(DEFAULT_REPOSITORY);
   const wheel = (release.assets || []).find(
     (asset) =>
-      (asset.name.startsWith("ontocore-") || asset.name.startsWith("ontoskills-")) &&
+      asset.name.startsWith("ontocore-") &&
       asset.name.endsWith(".whl")
   );
   if (!wheel) {
-    fail(`Release ${release.tag_name} does not contain an ontocore-compatible wheel`);
+    fail(`Release ${release.tag_name} does not contain an ontocore wheel`);
   }
   const python = findPython();
   const wheelPath = path.join(CACHE_DIR, wheel.name);
@@ -572,7 +572,7 @@ async function installCore() {
   runCommand(pip, ["install", wheelPath]);
 
   const wrapperPath = path.join(BIN_DIR, "ontocore");
-  const script = `#!/usr/bin/env bash\nexec "${path.join(venvDir, "bin", "ontoskills")}" "$@"\n`;
+  const script = `#!/usr/bin/env bash\nexec "${path.join(venvDir, "bin", "ontocore")}" "$@"\n`;
   await fsp.writeFile(wrapperPath, script, "utf-8");
   await fsp.chmod(wrapperPath, 0o755);
 

@@ -8,7 +8,8 @@ from pathlib import Path
 
 def load_local_env() -> None:
     """Load a repo-local .env file without overriding existing env vars."""
-    project_root = Path(__file__).parent.parent.resolve()
+    # src/ -> core/ -> project root
+    project_root = Path(__file__).parent.parent.parent.resolve()
     env_path = project_root / ".env"
 
     if not env_path.exists():

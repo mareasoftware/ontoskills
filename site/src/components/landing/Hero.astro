@@ -1,51 +1,331 @@
 ---
-import Button from '../ui/Button.astro';
-import CommandSnippet from '../ui/CommandSnippet.astro';
+// Hero component
 ---
 
-<section class="border-b border-white/10">
-  <div class="section-shell py-16 sm:py-20 lg:py-24">
+<section class="hero-section">
+  <div class="hero-glow"></div>
+  <div class="section-shell py-20 sm:py-28 lg:py-32 relative">
     <div class="max-w-4xl">
-      <div class="mb-4 font-mono text-xs uppercase tracking-[0.28em] text-text-muted">
-        The OntoSkills directory
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        <span>Rust MCP • Sub-millisecond Queries • OWL 2 Ontologies</span>
       </div>
 
-      <h1 class="max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.05em] text-text-primary sm:text-6xl lg:text-7xl">
-        Install skills, enable them locally, and query them through MCP.
+      <h1 class="hero-headline">
+        <span class="headline-line">Skills that don't</span>
+        <span class="headline-line headline-accent">hallucinate.</span>
       </h1>
 
-      <p class="mt-6 max-w-2xl text-lg leading-8 text-text-secondary">
-        OntoSkills is a minimal product surface for deterministic agent skills: one CLI, one local runtime, one
-        official registry, one optional compiler when you need custom source skills.
+      <p class="hero-subheadline">
+        Ontological skills for AI agents. Query deterministic knowledge with
+        <span class="text-accent-cyan">SPARQL</span> through a Rust-powered MCP runtime.
+        No token waste. No guessing. Just precision.
       </p>
 
-      <div class="mt-8 max-w-3xl">
-        <CommandSnippet command="npx ontoskills install mcp" label="Try it now" />
+      <div class="hero-cta">
+        <div class="command-shell p-5 md:p-6">
+          <code class="text-text-primary">npx ontoskills install mcp</code>
+        </div>
       </div>
 
-      <div class="mt-8 flex flex-col gap-4 sm:flex-row">
-        <Button href="/getting-started/" size="lg">
+      <div class="hero-buttons">
+        <a href="/getting-started/" class="hero-btn hero-btn-primary">
           Install now
-        </Button>
-        <Button href="/explore/" variant="secondary" size="lg">
-          Browse skills
-        </Button>
+        </a>
+        <a href="/explore/" class="hero-btn hero-btn-secondary">
+          Browse registry
+        </a>
       </div>
 
-      <div class="mt-10 grid gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
-        <div>
-          <div class="font-mono text-xs uppercase tracking-[0.22em] text-text-muted">CLI</div>
-          <p class="mt-2 text-sm leading-6 text-text-secondary">`ontoskills` installs components, pulls registry skills, and manages local state.</p>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-value">&lt;1ms</div>
+          <div class="stat-label">Query latency</div>
         </div>
-        <div>
-          <div class="font-mono text-xs uppercase tracking-[0.22em] text-text-muted">Runtime</div>
-          <p class="mt-2 text-sm leading-6 text-text-secondary">`ontomcp` exposes enabled ontologies through a compact, package-aware tool surface.</p>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-value">O(1)</div>
+          <div class="stat-label">Intent lookup</div>
         </div>
-        <div>
-          <div class="font-mono text-xs uppercase tracking-[0.22em] text-text-muted">Compiler</div>
-          <p class="mt-2 text-sm leading-6 text-text-secondary">`ontocore` remains optional for teams that author or import raw `SKILL.md` sources.</p>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Deterministic</div>
         </div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="code-window">
+        <div class="code-header">
+          <span class="code-dot code-dot-red"></span>
+          <span class="code-dot code-dot-yellow"></span>
+          <span class="code-dot code-dot-green"></span>
+          <span class="code-title">SPARQL Query</span>
+        </div>
+        <pre class="code-content" set:html={`SELECT ?skill WHERE {
+  ?skill oc:resolvesIntent "create_pdf" .
+  ?skill oc:hasPayload ?payload .
+}
+<span class="code-comment">→ Returns in 0.3ms</span>
+<span class="code-comment">→ Always the same result</span>`}></pre>
       </div>
     </div>
   </div>
 </section>
+
+<style>
+  .hero-section {
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(125, 211, 252, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .hero-headline {
+    font-size: clamp(2.75rem, 8vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.6s ease-out 0.1s both;
+  }
+
+  .headline-line {
+    display: block;
+  }
+
+  .headline-accent {
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 50%, var(--accent-mint) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subheadline {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin-bottom: 32px;
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+  }
+
+  .hero-cta {
+    max-width: 400px;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.6s ease-out 0.3s both;
+  }
+
+  .hero-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 48px;
+    animation: fadeInUp 0.6s ease-out 0.4s both;
+  }
+
+  .hero-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .hero-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-cyan), 0 0 0 4px var(--bg-primary);
+  }
+
+  .hero-btn-primary {
+    padding: 0.875rem 1.75rem;
+    font-size: 1.125rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: white;
+    color: black;
+  }
+
+  .hero-btn-primary:hover {
+    background: #e5e5e5;
+  }
+
+  .hero-btn-secondary {
+    padding: 0.875rem 1.75rem;
+    font-size: 1.125rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  .hero-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .hero-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    animation: fadeInUp 0.6s ease-out 0.5s both;
+  }
+
+  .stat-item {
+    text-align: left;
+  }
+
+  .stat-value {
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    letter-spacing: -0.02em;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  .hero-visual {
+    display: none;
+    position: absolute;
+    right: 4%;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: fadeInRight 0.8s ease-out 0.6s both;
+  }
+
+  @media (min-width: 1280px) {
+    .hero-visual {
+      display: block;
+    }
+  }
+
+  .code-window {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    width: 380px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .code-dot-red { background: #ff5f57; }
+  .code-dot-yellow { background: #febc2e; }
+  .code-dot-green { background: #28c840; }
+
+  .code-title {
+    margin-left: 12px;
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .code-content {
+    padding: 20px;
+    margin: 0;
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    overflow-x: auto;
+  }
+
+  .code-keyword { color: #f9a8d4; }
+  .code-property { color: #7dd3fc; }
+  .code-string { color: #bbf7d0; }
+  .code-comment {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInRight {
+    from {
+      opacity: 0;
+      transform: translateY(-50%) translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
+  }
+</style>

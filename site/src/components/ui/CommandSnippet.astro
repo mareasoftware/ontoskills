@@ -6,7 +6,7 @@ interface Props {
 }
 
 const { command, label, compact = false } = Astro.props;
-const rootId = `cmd-${crypto.randomUUID()}`;
+const rootId = `cmd-${Math.random().toString(36).slice(2, 10)}`;
 ---
 
 <div id={rootId} class={`command-shell ${compact ? 'rounded-xl p-4' : 'p-5 md:p-6'}`}>
