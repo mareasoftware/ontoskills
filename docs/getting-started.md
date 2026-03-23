@@ -9,7 +9,7 @@ OntoSkills ships as a product suite with three pieces:
 - `ontomcp` - the local MCP runtime
 - `ontocore` - the optional compiler for source skills
 
-The official registry is built in by default. Third-party registries can be added explicitly.
+OntoStore is built in by default. Third-party stores can be added explicitly.
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ This creates a managed user home under `~/.ontoskills/` with:
 - `bin/ontomcp`
 - `core/` for the compiler runtime, if installed
 - `ontoskills/` for compiled ontology packages
-- `state/` for lockfiles and registry metadata
+- `state/` for lockfiles and store metadata
 
 ## Common Commands
 
@@ -44,11 +44,11 @@ ontoskills security-audit
 
 If you only want the runtime and the published skills, you do not need the compiler commands.
 
-## Registry Workflow
+## Store Workflow
 
-### Built-In Official Registry
+### Built-In OntoStore
 
-The official registry is already available to `ontoskills`. You can discover and install published skills without any extra setup.
+OntoStore is already available to `ontoskills`. You can discover and install published skills without any extra setup.
 
 ```bash
 npx ontoskills search hello
@@ -56,7 +56,7 @@ npx ontoskills install mareasw/greeting/hello
 npx ontoskills enable mareasw/greeting/hello
 ```
 
-### Third-Party Registries
+### Third-Party Stores
 
 ```bash
 ontoskills registry add-source acme https://example.com/index.json
@@ -100,7 +100,7 @@ Client-specific setup guides:
 - [Marketplace](/marketplace/) — Search and install published skills
 - [Compiler](/compiler/) — Install the optional compiler
 - [Skill Authoring](/authoring/) — Import and compile source repositories
-- [Registry](/registry/) — Install, update, remove, and uninstall skills
+- [Store](/registry/) — Install, update, remove, and uninstall skills
 - [Troubleshooting](/troubleshooting/) — Diagnose install and runtime issues
 - [Roadmap](/roadmap/) — See what's coming
 - [GitHub](https://github.com/mareasoftware/ontoskills) — Contribute

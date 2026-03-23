@@ -24,7 +24,7 @@ The foundation. OntoCore is our neuro-symbolic core that transforms natural lang
 The knowledge base. OntoSkills are the compiled, validated skills published from OntoCore — ready to be queried by agents.
 
 - [x] Core skill library compilation
-- [x] Public skill registry
+- [x] Public skill store
 - [x] Skill versioning and updates
 - [x] Dependency management
 
@@ -46,7 +46,7 @@ The interface. OntoMCP exposes OntoSkills via the Model Context Protocol, giving
 
 The marketplace. OntoStore is a centralized repository where teams can publish, discover, and share ontologies.
 
-- [ ] Ontology registry with search
+- [ ] Ontology store with search
 - [ ] Version management
 - [ ] Team collaboration features
 - [ ] Community contributions

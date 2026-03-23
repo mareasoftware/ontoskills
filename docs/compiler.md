@@ -5,7 +5,7 @@ description: Install and use OntoCore for custom source skills
 
 `ontocore` is the optional compiler that turns `SKILL.md` sources into validated ontology modules.
 
-Most users do not need it to consume registry skills. Install it when you want to write or import custom skills locally.
+Most users do not need it to consume store skills. Install it when you want to write or import custom skills locally.
 
 ## Install
 

@@ -1,11 +1,11 @@
 ---
 title: Marketplace
-description: Search, install, and enable skills from the official registry
+description: Search, install, and enable skills from OntoStore
 ---
 
 The OntoSkills marketplace is the install surface for published, compiled skills.
 
-It is backed by the official registry and exposed in two places:
+It is backed by OntoStore and exposed in two places:
 
 - the homepage marketplace section
 - the dedicated live page at [`/explore/`](/explore/)
@@ -48,13 +48,13 @@ ontoskills enable mareasw/greeting/hello
 
 The official marketplace is built in by default.
 
-Third-party registries can be added separately:
+Third-party stores can be added separately:
 
 ```bash
 ontoskills registry add-source acme https://example.com/index.json
 ```
 
-Those registries become visible to `ontoskills search`, but the official registry remains the default discovery path.
+Those stores become visible to `ontoskills search`, but OntoStore remains the default discovery path.
 
 ## Live Marketplace Page
 

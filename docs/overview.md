@@ -1,9 +1,9 @@
 ---
 title: What is OntoSkills?
-description: OntoSkills architecture, registry, and runtime overview
+description: OntoSkills architecture, store, and runtime overview
 ---
 
-**OntoSkills** is a neuro-symbolic skill platform for deterministic agents. It turns `SKILL.md` sources into validated OWL 2 ontologies, serves compiled skills through a local MCP runtime, and distributes published packages through the official registry.
+**OntoSkills** is a neuro-symbolic skill platform for deterministic agents. It turns `SKILL.md` sources into validated OWL 2 ontologies, serves compiled skills through a local MCP runtime, and distributes published packages through OntoStore.
 
 ---
 
@@ -55,8 +55,8 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 
 - **OntoMCP** loads compiled `.ttl` files from `ontoskills/`
 - Agents query via SPARQL through the MCP protocol
-- The official registry is built in by default
-- Third-party registries can be added explicitly with `registry add-source`
+- OntoStore is built in by default
+- Third-party stores can be added explicitly with `registry add-source`
 
 ---
 
@@ -97,7 +97,7 @@ Every skill is extracted with:
 | **ontoskills** | CLI | ✅ Ready | User-facing installer and manager |
 | **OntoCore** | Python | ✅ Ready | Skill compiler for `SKILL.md` sources |
 | **OntoMCP** | Rust | ✅ Ready | MCP server with 4 consolidated semantic tools |
-| **OntoSkills Registry** | GitHub repo | ✅ Ready | Official compiled skill registry |
+| **OntoStore** | GitHub repo | ✅ Ready | Official compiled skill store |
 | `skills/` | Markdown | Input | Human-authored source skills |
 | `ontoskills/` | Turtle | Output | Compiled ontology artifacts |
 | `specs/` | Turtle | Constitution | SHACL shapes for validation |
@@ -112,7 +112,7 @@ Every skill is extracted with:
 | **Edge Deployment** | Smaller models query large skill ecosystems |
 | **Multi-Agent Systems** | Shared ontology as coordination layer |
 | **Compliance & Audit** | Every skill carries attestation and content hash |
-| **Skill Marketplaces** | The official registry and third-party registries enable plug-and-play distribution |
+| **Skill Marketplaces** | OntoStore and third-party stores enable plug-and-play distribution |
 
 ---
 
@@ -120,9 +120,9 @@ Every skill is extracted with:
 
 - **[Getting Started](/getting-started/)** — Install and compile your first skill
 - **[CLI](/cli/)** — Learn the managed command surface
-- **[Marketplace](/marketplace/)** — Browse installable registry skills
+- **[Marketplace](/marketplace/)** — Browse installable store skills
 - **[Compiler](/compiler/)** — Install OntoCore for custom skills
-- **[Registry](/registry/)** — Learn how official and third-party registries work
+- **[Store](/registry/)** — Learn how official and third-party stores work
 - **[Architecture](/architecture/)** — Deep dive into the system design
 - **[Knowledge Extraction](/knowledge-extraction/)** — Understanding knowledge nodes
 - **[Troubleshooting](/troubleshooting/)** — Fix common install and runtime issues
@@ -133,5 +133,5 @@ Every skill is extracted with:
 ## Links
 
 - [GitHub Repository](https://github.com/mareasoftware/ontoskills)
-- [Official Registry](https://github.com/mareasoftware/ontoskills-registry)
+- [OntoStore](https://github.com/mareasoftware/ontostore)
 - [Philosophy](https://github.com/mareasoftware/ontoskills/blob/main/PHILOSOPHY.md)

@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Common issues with installs, registry access, compiler setup, and OntoMCP
+description: Common issues with installs, store access, compiler setup, and OntoMCP
 ---
 
 ## `ontoskills install mcp` fails
@@ -11,7 +11,7 @@ Check:
 - the release artifacts for the current version exist
 - your machine can download GitHub release assets
 
-## Registry skill does not appear in OntoMCP
+## Store skill does not appear in OntoMCP
 
 Most often the skill was installed but not enabled:
 

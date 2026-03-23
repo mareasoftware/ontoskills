@@ -103,7 +103,7 @@ Or use `npx ontoskills` without installing.
 |-----------|----------|--------|-------------|
 | **OntoCore** | Python | ✅ Ready | Skill compiler to OWL 2 ontology |
 | **OntoMCP** | Rust | ✅ Ready | MCP server for semantic skill discovery |
-| **OntoStore** | TBD | 📋 Planned | Versioned skill registry |
+| **OntoStore** | TBD | 📋 Planned | Versioned skill store |
 | `skills/` | Markdown | Input | Human-authored skill definitions |
 | `ontoskills/` | Turtle | Output | Compiled, self-contained ontologies |
 
@@ -115,7 +115,7 @@ Or use `npx ontoskills` without installing.
 - **[Getting Started](docs/getting-started.md)** — Installation and first steps
 - **[Architecture](docs/architecture.md)** — How the system works
 - **[Knowledge Extraction](docs/knowledge-extraction.md)** — Extracting value from skills
-- **[Registry & Packages](docs/registry.md)** — Package distribution and import
+- **[Store & Packages](docs/registry.md)** — Package distribution and import
 - **[Roadmap](docs/roadmap.md)** — Development phases
 
 ---

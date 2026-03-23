@@ -3,7 +3,7 @@ title: CLI
 description: End-user command surface for the OntoSkills product
 ---
 
-`ontoskills` is the product entrypoint. It installs and manages the runtime, compiler, registry skills, and local state under `~/.ontoskills/`.
+`ontoskills` is the product entrypoint. It installs and manages the runtime, compiler, store skills, and local state under `~/.ontoskills/`.
 
 ## Quickstart
 
@@ -26,7 +26,7 @@ ontoskills install mcp
 ontoskills install core
 ```
 
-### Install Registry Skills
+### Install Store Skills
 
 ```bash
 ontoskills search hello

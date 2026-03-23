@@ -1,25 +1,25 @@
 ---
-title: Registry
-description: Official registry, third-party registries, and package lifecycle in OntoSkills
+title: Store
+description: OntoStore, third-party stores, and package lifecycle in OntoSkills
 ---
 
 OntoSkills uses a simple distribution model:
 
-- the official registry is built in by default
-- third-party registries can be added explicitly
+- OntoStore is built in by default
+- third-party stores can be added explicitly
 - raw source repositories are imported separately and compiled locally
 
 The user-facing CLI is `ontoskills`.
 
-For a live searchable view of the official registry, use the dedicated marketplace page:
+For a live searchable view of OntoStore, use the dedicated marketplace page:
 
 - [Open the live marketplace](/explore/)
 
-## Registry Types
+## Store Types
 
-### Official Registry
+### OntoStore
 
-The official registry ships with the product. It does not need `registry add-source`.
+OntoStore ships with the product. It does not need `registry add-source`.
 
 Use it when you want published packages maintained by the OntoSkills project:
 
@@ -29,16 +29,16 @@ npx ontoskills install mareasw/greeting/hello
 npx ontoskills enable mareasw/greeting/hello
 ```
 
-### Third-Party Registries
+### Third-Party Stores
 
-Third-party registries are opt-in. Add them when another team or community maintains a separate catalog:
+Third-party stores are opt-in. Add them when another team or community maintains a separate catalog:
 
 ```bash
 ontoskills registry add-source acme https://example.com/index.json
 ontoskills registry list
 ```
 
-These sources are discoverable by `ontoskills search` and can be installed like the official registry, but they are not built in.
+These sources are discoverable by `ontoskills search` and can be installed like OntoStore, but they are not built in.
 
 ### Raw Source Imports
 
@@ -54,7 +54,7 @@ Source imports are cloned into `~/.ontoskills/skills/vendor/` and compiled outpu
 
 ### Install
 
-Install compiled packages from a registry:
+Install compiled packages from a store:
 
 ```bash
 ontoskills install mareasw/greeting/hello
@@ -83,7 +83,7 @@ ontoskills update mareasw/greeting/hello
 
 ### Rebuild Index
 
-Rebuild the local registry state and enabled index:
+Rebuild the local store state and enabled index:
 
 ```bash
 ontoskills rebuild-index
@@ -124,13 +124,13 @@ The managed home is organized like this:
 - `core/` stores the managed compiler install, if present
 - `ontoskills/` stores compiled ontology artifacts
 - `skills/` stores imported source repositories
-- `state/` stores lockfiles, registry configuration, and cache metadata
+- `state/` stores lockfiles, store configuration, and cache metadata
 
 ## Practical Rules
 
 - `install mcp` installs the runtime
 - `install core` installs the compiler
-- `install <qualified-skill-id>` installs a compiled package from a registry
+- `install <qualified-skill-id>` installs a compiled package from a store
 - `import-source-repo <repo>` clones and compiles a raw source repository
 - `enable` and `disable` control what OntoMCP sees
-- the official registry is built in, so it should not be added manually
+- OntoStore is built in, so it should not be added manually
