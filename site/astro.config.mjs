@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
+import mermaid from 'astro-mermaid';
 
 export default defineConfig({
   prefetch: {
@@ -10,6 +11,9 @@ export default defineConfig({
   },
   integrations: [
     sitemap(),
+    mermaid({
+      theme: 'dark'
+    }),
     starlight({
       title: 'OntoSkills',
       description: 'Registry-backed skills, MCP runtime, and compiler for the Agentic Web',
@@ -20,17 +24,6 @@ export default defineConfig({
       favicon: '/ontoskills-logo.png',
       disable404Route: true,
       customCss: ['./src/styles/starlight.css'],
-      head: [
-        {
-          tag: 'script',
-          attrs: { src: 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js' }
-        },
-        {
-          tag: 'script',
-          attrs: { type: 'module' },
-          content: `mermaid.initialize({ startOnLoad: true, theme: 'dark' });`
-        },
-      ],
       sidebar: [
         { label: 'Overview', slug: 'overview' },
         { label: 'Getting Started', slug: 'getting-started' },
