@@ -56,7 +56,7 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 - **OntoMCP** loads compiled `.ttl` files from `ontoskills/`
 - Agents query via SPARQL through the MCP protocol
 - OntoStore is built in by default
-- Third-party stores can be added explicitly with `registry add-source`
+- Third-party stores can be added explicitly with `store add-source`
 
 ---
 

@@ -19,7 +19,7 @@ For a live searchable view of OntoStore, use the dedicated marketplace page:
 
 ### OntoStore
 
-OntoStore ships with the product. It does not need `registry add-source`.
+OntoStore ships with the product. It does not need `store add-source`.
 
 Use it when you want published packages maintained by the OntoSkills project:
 
@@ -34,8 +34,8 @@ npx ontoskills enable mareasw/greeting/hello
 Third-party stores are opt-in. Add them when another team or community maintains a separate catalog:
 
 ```bash
-ontoskills registry add-source acme https://example.com/index.json
-ontoskills registry list
+ontoskills store add-source acme https://example.com/index.json
+ontoskills store list
 ```
 
 These sources are discoverable by `ontoskills search` and can be installed like OntoStore, but they are not built in.

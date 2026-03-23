@@ -51,7 +51,7 @@ The official marketplace is built in by default.
 Third-party stores can be added separately:
 
 ```bash
-ontoskills registry add-source acme https://example.com/index.json
+ontoskills store add-source acme https://example.com/index.json
 ```
 
 Those stores become visible to `ontoskills search`, but OntoStore remains the default discovery path.

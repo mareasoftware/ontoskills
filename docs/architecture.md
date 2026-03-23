@@ -178,5 +178,5 @@ The user-facing `ontoskills` CLI is responsible for:
 OntoStore is published as a static GitHub repository and is built in by default.
 
 - Official packages are available immediately after install
-- Third-party stores are added explicitly with `registry add-source`
+- Third-party stores are added explicitly with `store add-source`
 - Raw source repositories are compiled locally before being installed into `ontoskills/vendor/`

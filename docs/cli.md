@@ -53,7 +53,7 @@ ontoskills update marea/office/xlsx
 ### Inspect and Diagnose
 
 ```bash
-ontoskills registry list
+ontoskills store list
 ontoskills list-installed
 ontoskills doctor
 ```

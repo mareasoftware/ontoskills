@@ -59,8 +59,8 @@ npx ontoskills enable mareasw/greeting/hello
 ### Third-Party Stores
 
 ```bash
-ontoskills registry add-source acme https://example.com/index.json
-ontoskills registry list
+ontoskills store add-source acme https://example.com/index.json
+ontoskills store list
 ```
 
 ### Import Source Skills
