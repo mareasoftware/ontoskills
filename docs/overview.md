@@ -132,6 +132,6 @@ Every skill is extracted with:
 
 ## Links
 
-- [GitHub Repository](https://github.com/mareasoftware/ontoskills)
-- [OntoStore](https://github.com/mareasoftware/ontostore)
-- [Philosophy](https://github.com/mareasoftware/ontoskills/blob/main/PHILOSOPHY.md)
+- [GitHub Repository](https://github.com/mareasw/ontoskills)
+- [OntoStore](https://github.com/mareasw/ontostore)
+- [Philosophy](https://github.com/mareasw/ontoskills/blob/main/PHILOSOPHY.md)

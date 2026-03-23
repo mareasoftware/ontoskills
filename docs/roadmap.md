@@ -66,6 +66,6 @@ The agent. An autonomous agent powered by structured knowledge — reasoning wit
 
 ## Track Progress
 
-Follow development on [GitHub](https://github.com/mareasoftware/ontoskills).
+Follow development on [GitHub](https://github.com/mareasw/ontoskills).
 
-Have ideas? [Open an issue](https://github.com/mareasoftware/ontoskills/issues).
+Have ideas? [Open an issue](https://github.com/mareasw/ontoskills/issues).

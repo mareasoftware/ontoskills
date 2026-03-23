@@ -27,11 +27,11 @@ const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoskills-core.ttl");
 const DEFAULT_REPOSITORY =
   process.env.ONTOSKILLS_RELEASE_REPO ||
   process.env.ONTOSKILL_RELEASE_REPO ||
-  "mareasoftware/ontoskills";
+  "mareasw/ontoskills";
 const DEFAULT_REGISTRY_URL =
   process.env.ONTOSKILLS_REGISTRY_URL ||
   process.env.ONTOSKILL_REGISTRY_URL ||
-  "https://raw.githubusercontent.com/mareasoftware/ontoskills-registry/main/index.json";
+  "https://raw.githubusercontent.com/mareasw/ontostore/main/index.json";
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -180,7 +180,7 @@ async function syncLocalPackage(lock) {
 function ttlImports(importPaths) {
   const imports = importPaths.map((target) => `<file://${path.resolve(target)}>`);
   const joined = imports.join(",\n        ");
-  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<https://ontoskills.marea.software/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
+  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<https://ontoskills.sh/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
 }
 
 async function rebuildIndexes() {
@@ -755,8 +755,8 @@ function usage() {
   ontoskills install ontocore
   ontoskills install <qualified-skill-id>
   ontoskills update ontomcp|ontocore|all|<qualified-skill-id>|<package-id>
-  ontoskills registry add-source <name> <index_url>
-  ontoskills registry list
+  ontoskills store add-source <name> <index_url>
+  ontoskills store list
   ontoskills search <query>
   ontoskills enable <qualified-skill-id>
   ontoskills disable <qualified-skill-id>
@@ -803,15 +803,15 @@ async function main() {
     return updateTarget(target);
   }
 
-  if (command === "registry") {
+  if (command === "registry" || command === "store") {
     if (args[0] === "add-source") {
-      if (args.length < 3) fail("Usage: ontoskills registry add-source <name> <index_url>");
+      if (args.length < 3) fail(`Usage: ontoskills ${command} add-source <name> <index_url>`);
       return registryAddSource(args[1], args[2]);
     }
     if (args[0] === "list") {
       return registryList();
     }
-    fail("Unknown registry command");
+    fail(`Unknown ${command} command`);
   }
 
   if (command === "search") {

@@ -19,7 +19,7 @@
   <a href="https://pypi.org/project/ontocore/"><img src="https://img.shields.io/pypi/v/ontocore.svg?color=blue&style=for-the-badge" alt="PyPI version"></a>
   <img src="https://img.shields.io/pypi/pyversions/ontocore.svg?style=for-the-badge" alt="Python versions">
   <img src="https://img.shields.io/badge/OWL%202-RDF%2FTurtle-green?style=for-the-badge&logo=w3c" alt="OWL 2">
-  <a href="https://github.com/mareasoftware/ontoskills/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/ontocore.svg?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/mareasw/ontoskills/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/ontocore.svg?style=for-the-badge" alt="License"></a>
 </p>
 
 ---
@@ -116,7 +116,7 @@ Run `ontocore --help` or `ontocore <command> --help` for detailed usage.
 
 For the full documentation, architecture details, and to contribute to the project, please visit the main repository:
 
-👉 **[mareasoftware/ontoskills GitHub Repository](https://github.com/mareasoftware/ontoskills)**
+👉 **[mareasw/ontoskills GitHub Repository](https://github.com/mareasw/ontoskills)**
 
 ---
 

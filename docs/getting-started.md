@@ -103,4 +103,4 @@ Client-specific setup guides:
 - [Store](/registry/) — Install, update, remove, and uninstall skills
 - [Troubleshooting](/troubleshooting/) — Diagnose install and runtime issues
 - [Roadmap](/roadmap/) — See what's coming
-- [GitHub](https://github.com/mareasoftware/ontoskills) — Contribute
+- [GitHub](https://github.com/mareasw/ontoskills) — Contribute
