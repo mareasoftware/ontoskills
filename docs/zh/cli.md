@@ -71,13 +71,13 @@ ontoskills install mareasw/office/xlsx
 
 ### `enable <package-id>`
 
-为 MCP 运行时启用已安装的技能。
+为 MCP 运行时重新启用已禁用的技能。
 
 ```bash
 ontoskills enable mareasw/greeting/hello
 ```
 
-只有启用的技能对 OntoMCP 可见。
+技能安装后默认启用。使用此命令重新启用之前禁用的技能。
 
 ### `disable <package-id>`
 

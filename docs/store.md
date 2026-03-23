@@ -20,8 +20,9 @@ OntoStore ships with the product. No configuration needed.
 ```bash
 ontoskills search hello
 ontoskills install mareasw/greeting/hello
-ontoskills enable mareasw/greeting/hello
 ```
+
+Skills are automatically enabled on install.
 
 **Package ID format:** `owner/repo/skill`
 
@@ -71,11 +72,11 @@ Downloads compiled `.ttl` from the store and places it in `~/.ontoskills/ontolog
 ### Enable / Disable
 
 ```bash
-ontoskills enable mareasw/office/xlsx
 ontoskills disable mareasw/office/xlsx
+ontoskills enable mareasw/office/xlsx
 ```
 
-Only **enabled** skills are visible to OntoMCP. Install ≠ Enable.
+Skills are enabled by default on install. Use `disable` to hide a skill from OntoMCP without removing it. Use `enable` to re-enable.
 
 ### Update
 
@@ -175,7 +176,7 @@ Stores serve a static `index.json`:
 
 ### "Skill not visible in MCP"
 
-Skills must be **enabled**, not just installed:
+If a skill was disabled, re-enable it:
 
 ```bash
 ontoskills enable mareasw/office/xlsx

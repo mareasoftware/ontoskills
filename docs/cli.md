@@ -71,13 +71,13 @@ The package ID format is: `owner/repo/skill`
 
 ### `enable <package-id>`
 
-Enable an installed skill for the MCP runtime.
+Re-enable a disabled skill for the MCP runtime.
 
 ```bash
 ontoskills enable mareasw/greeting/hello
 ```
 
-Only enabled skills are visible to OntoMCP.
+Skills are enabled by default on install. Use this to re-enable a previously disabled skill.
 
 ### `disable <package-id>`
 

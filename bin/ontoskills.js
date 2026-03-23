@@ -361,8 +361,8 @@ async function installSkill(qualifiedId) {
           skill_id: id,
           module_path: path.resolve(path.join(installRoot, skill.path)),
           aliases: skill.aliases || [],
-          enabled: previous ? previous.enabled : false,
-          default_enabled: false
+          enabled: previous ? previous.enabled : true,
+          default_enabled: true
         };
       })
   };
@@ -677,8 +677,8 @@ async function importSource(repoRef) {
       skill_id: skillId,
       module_path: path.resolve(modulePath),
       aliases: [],
-      enabled: false,
-      default_enabled: false
+      enabled: true,
+      default_enabled: true
     });
   }
 

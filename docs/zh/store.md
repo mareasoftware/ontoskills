@@ -20,8 +20,9 @@ OntoStore 随产品提供。无需配置。
 ```bash
 ontoskills search hello
 ontoskills install mareasw/greeting/hello
-ontoskills enable mareasw/greeting/hello
 ```
+
+技能安装后自动启用。
 
 **包 ID 格式：** `owner/repo/skill`
 
@@ -71,11 +72,11 @@ ontoskills install mareasw/office/xlsx
 ### 启用 / 禁用
 
 ```bash
-ontoskills enable mareasw/office/xlsx
 ontoskills disable mareasw/office/xlsx
+ontoskills enable mareasw/office/xlsx
 ```
 
-只有**已启用**的技能对 OntoMCP 可见。安装 ≠ 启用。
+技能安装后默认启用。使用 `disable` 可以从 OntoMCP 隐藏技能而不删除它。使用 `enable` 重新启用。
 
 ### 更新
 
@@ -154,7 +155,7 @@ ontoskills rebuild-index
 
 ### "技能在 MCP 中不可见"
 
-技能必须**已启用**，而不仅仅是已安装：
+如果技能被禁用了，重新启用它：
 
 ```bash
 ontoskills enable mareasw/office/xlsx
