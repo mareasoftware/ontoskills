@@ -166,7 +166,7 @@ const rootId = `market-${crypto.randomUUID()}`;
     grid.innerHTML = filtered.map(renderRow).join('');
   };
 
-  const loadRegistry = async () => {
+  const loadStore = async () => {
     try {
       const indexResponse = await fetch(storeIndexUrl, { mode: 'cors' });
       if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
@@ -210,5 +210,5 @@ const rootId = `market-${crypto.randomUUID()}`;
   });
 
   search?.addEventListener('input', render);
-  loadRegistry();
+  loadStore();
 </script>
