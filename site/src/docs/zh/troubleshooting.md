@@ -93,7 +93,7 @@ MCP 服务器会缓存本体索引。确保：
 
 1. 索引已重建：`ontoskills rebuild-index`
 2. MCP 服务器已重启（关闭并重新打开你的 AI 客户端）
-3. 检查 `~/.ontoskills/ontologies/index.enabled.ttl` 存在
+3. 检查 `~/.ontoskills/ontologies/system/index.enabled.ttl` 存在
 
 ---
 

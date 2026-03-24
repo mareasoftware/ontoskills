@@ -308,16 +308,38 @@ fn has_ontology_data(path: &PathBuf) -> bool {
     // Check for primary manifest files
     path.join("index.ttl").exists()
         || path.join("system").join("index.enabled.ttl").exists()
-        // Also check for any .ttl files as a fallback
-        || std::fs::read_dir(path)
-            .ok()
-            .and_then(|entries| {
-                entries
-                    .filter_map(Result::ok)
-                    .any(|e| e.path().extension().map_or(false, |ext| ext == "ttl"))
-                    .then_some(())
-            })
-            .is_some()
+        // Backward compatibility: check for root-level index.enabled.ttl
+        || path.join("index.enabled.ttl").exists()
+        // Also check for any .ttl files recursively as a fallback
+        || contains_ttl_recursive(path, 3)
+}
+
+fn contains_ttl_recursive(path: &Path, max_depth: usize) -> bool {
+    if max_depth == 0 {
+        return false;
+    }
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+    for entry_result in entries {
+        let entry = match entry_result {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            if contains_ttl_recursive(&entry_path, max_depth.saturating_sub(1)) {
+                return true;
+            }
+        } else if entry_path
+            .extension()
+            .map_or(false, |ext| ext == "ttl")
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn default_ontology_root() -> PathBuf {

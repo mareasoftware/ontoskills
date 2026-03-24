@@ -15,13 +15,14 @@ const SKILLS_VENDOR_DIR = path.join(SKILLS_DIR, "vendor");
 const STATE_DIR = path.join(HOME_ROOT, "state");
 const CORE_DIR = path.join(HOME_ROOT, "core");
 const CACHE_DIR = path.join(STATE_DIR, "cache");
+const SYSTEM_DIR = path.join(ONTOLOGY_DIR, "system");
 
 const REGISTRY_SOURCES_PATH = path.join(STATE_DIR, "registry.sources.json");
 const REGISTRY_LOCK_PATH = path.join(STATE_DIR, "registry.lock.json");
 const RELEASE_LOCK_PATH = path.join(STATE_DIR, "release.lock.json");
 const CONFIG_PATH = path.join(STATE_DIR, "config.json");
 const INSTALLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.installed.ttl");
-const ENABLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.enabled.ttl");
+const ENABLED_INDEX_PATH = path.join(SYSTEM_DIR, "index.enabled.ttl");
 const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoskills-core.ttl");
 
 const DEFAULT_REPOSITORY =
@@ -43,7 +44,7 @@ function fail(message, code = 1) {
 }
 
 async function ensureLayout() {
-  for (const target of [BIN_DIR, ONTOLOGY_DIR, ONTOLOGY_VENDOR_DIR, SKILLS_DIR, SKILLS_VENDOR_DIR, STATE_DIR, CORE_DIR, CACHE_DIR]) {
+  for (const target of [BIN_DIR, ONTOLOGY_DIR, ONTOLOGY_VENDOR_DIR, SKILLS_DIR, SKILLS_VENDOR_DIR, STATE_DIR, CORE_DIR, CACHE_DIR, SYSTEM_DIR]) {
     await fsp.mkdir(target, { recursive: true });
   }
 }

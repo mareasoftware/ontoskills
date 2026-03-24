@@ -93,7 +93,7 @@ The MCP server caches the ontology index. Ensure:
 
 1. Index was rebuilt: `ontoskills rebuild-index`
 2. MCP server was restarted (close and reopen your AI client)
-3. Check `~/.ontoskills/ontologies/index.enabled.ttl` exists
+3. Check `~/.ontoskills/ontologies/system/index.enabled.ttl` exists
 
 ---
 
