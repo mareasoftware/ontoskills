@@ -118,12 +118,12 @@ Search for intents semantically matching a natural language query. Requires embe
     {
       "intent": "create_pdf",
       "score": 0.92,
-      "skills": ["marea/office/pdf", "marea/documents/pdf-generator"]
+      "skills": ["mareasw/office/pdf", "mareasw/documents/pdf-generator"]
     },
     {
       "intent": "export_to_pdf",
       "score": 0.85,
-      "skills": ["marea/office/export"]
+      "skills": ["mareasw/office/export"]
     }
   ]
 }
@@ -146,7 +146,7 @@ Fetch the full execution context for a skill, including requirements, transition
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `skill_id` | string | **Required.** Short id (`pdf`) or qualified (`marea/office/pdf`) |
+| `skill_id` | string | **Required.** Short id (`pdf`) or qualified (`mareasw/office/pdf`) |
 | `include_inherited_knowledge` | boolean | Include knowledge from extended skills (default true) |
 
 **Example response:**
@@ -154,7 +154,7 @@ Fetch the full execution context for a skill, including requirements, transition
 ```json
 {
   "id": "pdf",
-  "qualified_id": "marea/office/pdf",
+  "qualified_id": "mareasw/office/pdf",
   "nature": "A skill that creates PDF documents from content",
   "genus": "DocumentGenerator",
   "differentia": "outputs PDF format",

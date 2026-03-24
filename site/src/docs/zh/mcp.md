@@ -118,7 +118,7 @@ OntoMCP 暴露 **5 个工具** 用于技能发现和推理。
     {
       "intent": "create_pdf",
       "score": 0.92,
-      "skills": ["marea/office/pdf", "marea/documents/pdf-generator"]
+      "skills": ["mareasw/office/pdf", "mareasw/documents/pdf-generator"]
     }
   ]
 }
@@ -141,7 +141,7 @@ OntoMCP 暴露 **5 个工具** 用于技能发现和推理。
 
 | 参数 | 类型 | 描述 |
 |------|------|------|
-| `skill_id` | string | **必需。** 短 id（`pdf`）或限定 id（`marea/office/pdf`）|
+| `skill_id` | string | **必需。** 短 id（`pdf`）或限定 id（`mareasw/office/pdf`）|
 | `include_inherited_knowledge` | boolean | 包含扩展技能的知识（默认 true）|
 
 **示例响应：**
@@ -149,7 +149,7 @@ OntoMCP 暴露 **5 个工具** 用于技能发现和推理。
 ```json
 {
   "id": "pdf",
-  "qualified_id": "marea/office/pdf",
+  "qualified_id": "mareasw/office/pdf",
   "nature": "从内容创建 PDF 文档的技能",
   "genus": "DocumentGenerator",
   "differentia": "输出 PDF 格式",

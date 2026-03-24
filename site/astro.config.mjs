@@ -16,7 +16,7 @@ export default defineConfig({
     }),
     starlight({
       title: 'OntoSkills',
-      description: 'Registry-backed skills, MCP runtime, and compiler for the Agentic Web',
+      description: 'OntoStore-backed skills, MCP runtime, and compiler for the Agentic Web',
       logo: {
         src: './src/assets/ontoskills-logo.png',
         replacesTitle: false,
