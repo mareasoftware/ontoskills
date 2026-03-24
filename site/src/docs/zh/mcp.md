@@ -39,10 +39,10 @@ npx ontoskills install mcp
 
 ```bash
 # 环境变量
-ONTOMCP_ONTOLOGY_ROOT=/path/to/ontoskills
+ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 # 或命令行标志
-~/.ontoskills/bin/ontomcp --ontology-root /path/to/ontoskills
+~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontologies
 ```
 
 ---

@@ -39,10 +39,10 @@ This installs the runtime binary at:
 
 ```bash
 # Environment variable
-ONTOMCP_ONTOLOGY_ROOT=/path/to/ontoskills
+ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 # Or command-line flag
-~/.ontoskills/bin/ontomcp --ontology-root /path/to/ontoskills
+~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontologies
 ```
 
 ---

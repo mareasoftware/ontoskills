@@ -242,7 +242,7 @@ OntoCore 是**缓存感知**的：
 
 ## 下一步
 
-- [快速开始](/getting-started/) — 安装和第一步
-- [架构](/architecture/) — 系统如何工作
-- [知识提取](/knowledge-extraction/) — 理解知识节点
-- [技能创作](/authoring/) — 编写自己的技能
+- [快速开始](/zh/getting-started/) — 安装和第一步
+- [架构](/zh/architecture/) — 系统如何工作
+- [知识提取](/zh/knowledge-extraction/) — 理解知识节点
+- [技能创作](/zh/authoring/) — 编写自己的技能

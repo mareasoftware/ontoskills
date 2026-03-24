@@ -53,6 +53,7 @@ npx ontoskills install mcp
 - `get_skill_context`
 - `evaluate_execution_plan`
 - `query_epistemic_rules`
+- `search_intents`（可选，需先运行 `ontoskills export-embeddings`）
 
 ## 验证
 

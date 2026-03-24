@@ -37,7 +37,7 @@ description: 从核心到自主智能体 — OntoSkills 生态系统
 - [x] 具有 stdio 传输的 Rust MCP 服务器
 - [x] Oxigraph 内存图存储
 - [x] SPARQL 1.1 查询接口
-- [x] 12 个语义工具（list_skills、find_by_intent、plan_from_intent 等）
+- [x] 5 个语义工具（search_skills、get_skill_context、evaluate_execution_plan、query_epistemic_rules、search_intents）
 - [x] Claude Code 集成
 
 ## 阶段 4：OntoStore 🔨
