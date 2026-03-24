@@ -282,6 +282,18 @@ fn discover_ontology_root() -> Option<PathBuf> {
         return Some(home_default);
     }
 
+    // Fallback to legacy path for backward compatibility
+    let legacy_home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join(".ontoskills").join("ontoskills"));
+    if let Some(ref legacy) = legacy_home {
+        if legacy.exists() {
+            eprintln!("[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
+                legacy, home_default);
+            return Some(legacy.clone());
+        }
+    }
+
     None
 }
 
