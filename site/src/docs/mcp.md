@@ -26,12 +26,12 @@ This installs the runtime binary at:
 **Primary source:**
 
 ```text
-~/.ontoskills/ontologies/index.enabled.ttl
+~/.ontoskills/ontologies/system/index.enabled.ttl
 ```
 
 **Fallbacks (in order):**
 
-1. `~/.ontoskills/ontologies/ontoskills-core.ttl`
+1. `~/.ontoskills/ontologies/index.ttl`
 2. `index.ttl` in current directory
 3. `*/ontoskill.ttl` patterns
 
@@ -309,9 +309,11 @@ Query normalized knowledge nodes with guided filters.
           │                │                   │
           ▼                ▼                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    ontoskills/                               │
-│  ├── ontoskills-core.ttl                                    │
-│  ├── index.enabled.ttl                                      │
+│                    ontologies/                               │
+│  ├── index.ttl                                              │
+│  ├── system/                                                │
+│  │   ├── index.enabled.ttl                                  │
+│  │   └── embeddings/                                        │
 │  └── */ontoskill.ttl                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -350,7 +352,10 @@ Ensure compiled `.ttl` files exist:
 
 ```bash
 ls ~/.ontoskills/ontologies/
-# Should show: ontoskills-core.ttl, index.enabled.ttl, etc.
+# Should show: index.ttl, system/, etc.
+
+ls ~/.ontoskills/ontologies/system/
+# Should show: index.enabled.ttl, embeddings/, etc.
 ```
 
 If missing, compile skills first:

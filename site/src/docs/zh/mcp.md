@@ -26,12 +26,12 @@ npx ontoskills install mcp
 **主要来源：**
 
 ```text
-~/.ontoskills/ontologies/index.enabled.ttl
+~/.ontoskills/ontologies/system/index.enabled.ttl
 ```
 
 **回退（按顺序）：**
 
-1. `~/.ontoskills/ontologies/ontoskills-core.ttl`
+1. `~/.ontoskills/ontologies/index.ttl`
 2. 当前目录的 `index.ttl`
 3. `*/ontoskill.ttl` 模式
 
@@ -294,7 +294,10 @@ cargo build --release --manifest-path mcp/Cargo.toml
 
 ```bash
 ls ~/.ontoskills/ontologies/
-# 应该显示：ontoskills-core.ttl、index.enabled.ttl 等
+# 应该显示：index.ttl、system/ 等
+
+ls ~/.ontoskills/ontologies/system/
+# 应该显示：index.enabled.ttl、embeddings/ 等
 ```
 
 如果缺失，先编译技能：

@@ -4,7 +4,7 @@ mod schema;
 
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use catalog::{
     Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
@@ -272,13 +272,15 @@ fn discover_ontology_root() -> Option<PathBuf> {
     let cwd = env::current_dir().ok()?;
 
     for candidate in candidate_roots(&cwd) {
-        if candidate.exists() {
+        if candidate.exists() && has_ontology_data(&candidate) {
             return Some(candidate);
         }
     }
 
     let home_default = default_ontology_root();
-    if home_default.exists() {
+
+    // Prefer new path only if it contains actual data
+    if home_default.exists() && has_ontology_data(&home_default) {
         return Some(home_default);
     }
 
@@ -287,14 +289,35 @@ fn discover_ontology_root() -> Option<PathBuf> {
         .map(PathBuf::from)
         .map(|home| home.join(".ontoskills").join("ontoskills"));
     if let Some(ref legacy) = legacy_home {
-        if legacy.exists() {
+        if legacy.exists() && has_ontology_data(legacy) {
             eprintln!("[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
                 legacy, home_default);
             return Some(legacy.clone());
         }
     }
 
+    // Fall back to home_default even if empty (let Catalog::load handle the error)
+    if home_default.exists() {
+        return Some(home_default);
+    }
+
     None
+}
+
+fn has_ontology_data(path: &PathBuf) -> bool {
+    // Check for primary manifest files
+    path.join("index.ttl").exists()
+        || path.join("system").join("index.enabled.ttl").exists()
+        // Also check for any .ttl files as a fallback
+        || std::fs::read_dir(path)
+            .ok()
+            .and_then(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .any(|e| e.path().extension().map_or(false, |ext| ext == "ttl"))
+                    .then_some(())
+            })
+            .is_some()
 }
 
 fn default_ontology_root() -> PathBuf {
