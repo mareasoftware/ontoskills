@@ -346,7 +346,7 @@ fn default_ontology_root() -> PathBuf {
     env::var_os("HOME")
         .map(PathBuf::from)
         .map(|home| home.join(".ontoskills").join("ontologies"))
-        .unwrap_or_else(|| PathBuf::from("ontoskills"))
+        .unwrap_or_else(|| PathBuf::from("ontologies"))
 }
 
 fn candidate_roots(start: &PathBuf) -> Vec<PathBuf> {
