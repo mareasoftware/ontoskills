@@ -103,7 +103,7 @@ Or use `npx ontoskills` without installing.
 |-----------|----------|--------|-------------|
 | **OntoCore** | Python | ✅ Ready | Skill compiler to OWL 2 ontology |
 | **OntoMCP** | Rust | ✅ Ready | MCP server for semantic skill discovery |
-| **OntoStore** | TBD | 📋 Planned | Versioned skill registry |
+| **OntoStore** | GitHub | ✅ Ready | Versioned skill store |
 | `skills/` | Markdown | Input | Human-authored skill definitions |
 | `ontoskills/` | Turtle | Output | Compiled, self-contained ontologies |
 
@@ -111,12 +111,12 @@ Or use `npx ontoskills` without installing.
 
 ## Documentation
 
-- **[Overview](docs/overview.md)** — What is OntoSkills and why it matters
-- **[Getting Started](docs/getting-started.md)** — Installation and first steps
-- **[Architecture](docs/architecture.md)** — How the system works
-- **[Knowledge Extraction](docs/knowledge-extraction.md)** — Extracting value from skills
-- **[Registry & Packages](docs/registry.md)** — Package distribution and import
-- **[Roadmap](docs/roadmap.md)** — Development phases
+- **[Overview](https://ontoskills.sh/overview/)** — What is OntoSkills and why it matters
+- **[Getting Started](https://ontoskills.sh/getting-started/)** — Installation and first steps
+- **[Architecture](https://ontoskills.sh/architecture/)** — How the system works
+- **[Knowledge Extraction](https://ontoskills.sh/knowledge-extraction/)** — Extracting value from skills
+- **[Store & Packages](https://ontoskills.sh/store/)** — Package distribution and import
+- **[Roadmap](https://ontoskills.sh/roadmap/)** — Development phases
 
 ---
 
@@ -124,4 +124,4 @@ Or use `npx ontoskills` without installing.
 
 MIT License — see [LICENSE](LICENSE) for details.
 
-*© 2026 [Marea Software](https://marea.software)*
+*© 2026 [MareaSW](https://ontoskills.sh)*

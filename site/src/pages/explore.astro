@@ -2,31 +2,31 @@
 import LandingLayout from '../layouts/LandingLayout.astro';
 import Header from '../components/landing/Header.astro';
 import Footer from '../components/landing/Footer.astro';
-import RegistryMarketplace from '../components/marketplace/RegistryMarketplace.astro';
+import OntoStore from '../components/store/OntoStore.astro';
 ---
 
 <LandingLayout
-  title="OntoSkills Marketplace"
-  description="Browse live skills from the official OntoSkills registry, search packages, and copy exact install commands."
+  title="OntoStore"
+  description="Browse live skills from the official OntoStore, search packages, and copy exact install commands."
 >
   <Header />
   <main class="py-14">
     <div class="section-shell mb-12">
       <div class="glass-panel-strong rounded-[2rem] px-6 py-10 sm:px-10">
-        <div class="section-kicker mb-4">Official registry</div>
+        <div class="section-kicker mb-4">Official store</div>
         <h1 class="max-w-4xl text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl">
-          Search the live marketplace and pull the skill you need.
+          Search the live OntoStore and pull the skill you need.
         </h1>
         <p class="mt-5 max-w-3xl text-lg leading-8 text-text-secondary">
-          The marketplace reflects the official registry in real time. Use it to discover qualified ids, copy the
+          The marketplace reflects the official store in real time. Use it to discover qualified ids, copy the
           install command, and bring a compiled skill into your local `~/.ontoskills` home without cloning the whole repository.
         </p>
       </div>
     </div>
 
-    <RegistryMarketplace
-      title="Browse every skill in the official registry"
-      description="Search by skill id, package, alias, or description. Copy install and enable commands directly from each card."
+    <OntoStore
+      title="Browse every skill in the official store"
+      description="Search by skill id, package, alias, or description. Copy install commands directly from each card."
     />
   </main>
   <Footer />

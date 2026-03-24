@@ -24,7 +24,7 @@ The foundation. OntoCore is our neuro-symbolic core that transforms natural lang
 The knowledge base. OntoSkills are the compiled, validated skills published from OntoCore — ready to be queried by agents.
 
 - [x] Core skill library compilation
-- [x] Public skill registry
+- [x] Public skill store
 - [x] Skill versioning and updates
 - [x] Dependency management
 
@@ -37,7 +37,7 @@ The interface. OntoMCP exposes OntoSkills via the Model Context Protocol, giving
 - [x] Rust MCP server with stdio transport
 - [x] Oxigraph in-memory graph store
 - [x] SPARQL 1.1 query interface
-- [x] 12 semantic tools (list_skills, find_by_intent, plan_from_intent, etc.)
+- [x] 5 semantic tools (search_skills, get_skill_context, evaluate_execution_plan, query_epistemic_rules, search_intents)
 - [x] Claude Code integration
 
 ## Phase 4: OntoStore 🔨
@@ -46,7 +46,7 @@ The interface. OntoMCP exposes OntoSkills via the Model Context Protocol, giving
 
 The marketplace. OntoStore is a centralized repository where teams can publish, discover, and share ontologies.
 
-- [ ] Ontology registry with search
+- [ ] Ontology store with search
 - [ ] Version management
 - [ ] Team collaboration features
 - [ ] Community contributions
@@ -66,6 +66,6 @@ The agent. An autonomous agent powered by structured knowledge — reasoning wit
 
 ## Track Progress
 
-Follow development on [GitHub](https://github.com/mareasoftware/ontoskills).
+Follow development on [GitHub](https://github.com/mareasw/ontoskills).
 
-Have ideas? [Open an issue](https://github.com/mareasoftware/ontoskills/issues).
+Have ideas? [Open an issue](https://github.com/mareasw/ontoskills/issues).

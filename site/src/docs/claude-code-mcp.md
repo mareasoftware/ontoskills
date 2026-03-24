@@ -31,7 +31,7 @@ If you want to force a specific ontology root:
 ```bash
 claude mcp add --scope local ontoskills \
   ~/.ontoskills/bin/ontomcp \
-  -- --ontology-root ~/.ontoskills/ontoskills
+  -- --ontology-root ~/.ontoskills/ontologies
 ```
 
 ## Verify
@@ -63,7 +63,7 @@ Once connected, Claude Code can call:
 Check:
 
 - `~/.ontoskills/bin/ontomcp` exists
-- `~/.ontoskills/ontoskills/` exists
+- `~/.ontoskills/ontologies/` exists
 - `index.enabled.ttl` or compiled `.ttl` files exist
 
 ### Ontology not found
@@ -71,7 +71,7 @@ Check:
 Run with an explicit root:
 
 ```bash
-~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontoskills
+~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontologies
 ```
 
 ### Rebuilt binary but Claude still behaves strangely

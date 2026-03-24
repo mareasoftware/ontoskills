@@ -4,7 +4,7 @@ mod schema;
 
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use catalog::{
     Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
@@ -272,12 +272,31 @@ fn discover_ontology_root() -> Option<PathBuf> {
     let cwd = env::current_dir().ok()?;
 
     for candidate in candidate_roots(&cwd) {
-        if candidate.exists() {
+        if candidate.exists() && has_ontology_data(&candidate) {
             return Some(candidate);
         }
     }
 
     let home_default = default_ontology_root();
+
+    // Prefer new path only if it contains actual data
+    if home_default.exists() && has_ontology_data(&home_default) {
+        return Some(home_default);
+    }
+
+    // Fallback to legacy path for backward compatibility
+    let legacy_home = env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join(".ontoskills").join("ontoskills"));
+    if let Some(ref legacy) = legacy_home {
+        if legacy.exists() && has_ontology_data(legacy) {
+            eprintln!("[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
+                legacy, home_default);
+            return Some(legacy.clone());
+        }
+    }
+
+    // Fall back to home_default even if empty (let Catalog::load handle the error)
     if home_default.exists() {
         return Some(home_default);
     }
@@ -285,11 +304,49 @@ fn discover_ontology_root() -> Option<PathBuf> {
     None
 }
 
+fn has_ontology_data(path: &PathBuf) -> bool {
+    // Check for primary manifest files
+    path.join("index.ttl").exists()
+        || path.join("system").join("index.enabled.ttl").exists()
+        // Backward compatibility: check for root-level index.enabled.ttl
+        || path.join("index.enabled.ttl").exists()
+        // Also check for any .ttl files recursively as a fallback
+        || contains_ttl_recursive(path, 3)
+}
+
+fn contains_ttl_recursive(path: &Path, max_depth: usize) -> bool {
+    if max_depth == 0 {
+        return false;
+    }
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+    for entry_result in entries {
+        let entry = match entry_result {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            if contains_ttl_recursive(&entry_path, max_depth.saturating_sub(1)) {
+                return true;
+            }
+        } else if entry_path
+            .extension()
+            .map_or(false, |ext| ext == "ttl")
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn default_ontology_root() -> PathBuf {
     env::var_os("HOME")
         .map(PathBuf::from)
-        .map(|home| home.join(".ontoskills").join("ontoskills"))
-        .unwrap_or_else(|| PathBuf::from("ontoskills"))
+        .map(|home| home.join(".ontoskills").join("ontologies"))
+        .unwrap_or_else(|| PathBuf::from("ontologies"))
 }
 
 fn candidate_roots(start: &PathBuf) -> Vec<PathBuf> {

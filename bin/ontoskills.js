@@ -8,30 +8,31 @@ const { spawnSync } = require("child_process");
 
 const HOME_ROOT = process.env.ONTOSKILLS_HOME || process.env.ONTOSKILL_HOME || path.join(os.homedir(), ".ontoskills");
 const BIN_DIR = path.join(HOME_ROOT, "bin");
-const ONTOLOGY_DIR = path.join(HOME_ROOT, "ontoskills");
+const ONTOLOGY_DIR = path.join(HOME_ROOT, "ontologies");
 const ONTOLOGY_VENDOR_DIR = path.join(ONTOLOGY_DIR, "vendor");
 const SKILLS_DIR = path.join(HOME_ROOT, "skills");
 const SKILLS_VENDOR_DIR = path.join(SKILLS_DIR, "vendor");
 const STATE_DIR = path.join(HOME_ROOT, "state");
 const CORE_DIR = path.join(HOME_ROOT, "core");
 const CACHE_DIR = path.join(STATE_DIR, "cache");
+const SYSTEM_DIR = path.join(ONTOLOGY_DIR, "system");
 
 const REGISTRY_SOURCES_PATH = path.join(STATE_DIR, "registry.sources.json");
 const REGISTRY_LOCK_PATH = path.join(STATE_DIR, "registry.lock.json");
 const RELEASE_LOCK_PATH = path.join(STATE_DIR, "release.lock.json");
 const CONFIG_PATH = path.join(STATE_DIR, "config.json");
 const INSTALLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.installed.ttl");
-const ENABLED_INDEX_PATH = path.join(ONTOLOGY_DIR, "index.enabled.ttl");
+const ENABLED_INDEX_PATH = path.join(SYSTEM_DIR, "index.enabled.ttl");
 const CORE_ONTOLOGY_PATH = path.join(ONTOLOGY_DIR, "ontoskills-core.ttl");
 
 const DEFAULT_REPOSITORY =
   process.env.ONTOSKILLS_RELEASE_REPO ||
   process.env.ONTOSKILL_RELEASE_REPO ||
-  "mareasoftware/ontoskills";
+  "mareasw/ontoskills";
 const DEFAULT_REGISTRY_URL =
   process.env.ONTOSKILLS_REGISTRY_URL ||
   process.env.ONTOSKILL_REGISTRY_URL ||
-  "https://raw.githubusercontent.com/mareasoftware/ontoskills-registry/main/index.json";
+  "https://raw.githubusercontent.com/mareasw/ontostore/main/index.json";
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -43,7 +44,7 @@ function fail(message, code = 1) {
 }
 
 async function ensureLayout() {
-  for (const target of [BIN_DIR, ONTOLOGY_DIR, ONTOLOGY_VENDOR_DIR, SKILLS_DIR, SKILLS_VENDOR_DIR, STATE_DIR, CORE_DIR, CACHE_DIR]) {
+  for (const target of [BIN_DIR, ONTOLOGY_DIR, ONTOLOGY_VENDOR_DIR, SKILLS_DIR, SKILLS_VENDOR_DIR, STATE_DIR, CORE_DIR, CACHE_DIR, SYSTEM_DIR]) {
     await fsp.mkdir(target, { recursive: true });
   }
 }
@@ -180,7 +181,7 @@ async function syncLocalPackage(lock) {
 function ttlImports(importPaths) {
   const imports = importPaths.map((target) => `<file://${path.resolve(target)}>`);
   const joined = imports.join(",\n        ");
-  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<https://ontoskills.marea.software/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
+  return `@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n\n<https://ontoskills.sh/ontology> a owl:Ontology ;\n    dcterms:created "${new Date().toISOString()}" ;\n    dcterms:description "Index manifest referencing compiled skill modules" ;\n    dcterms:title "OntoSkills Index" ;\n    owl:imports ${joined} .\n`;
 }
 
 async function rebuildIndexes() {
@@ -361,8 +362,8 @@ async function installSkill(qualifiedId) {
           skill_id: id,
           module_path: path.resolve(path.join(installRoot, skill.path)),
           aliases: skill.aliases || [],
-          enabled: previous ? previous.enabled : false,
-          default_enabled: false
+          enabled: previous ? previous.enabled : true,
+          default_enabled: true
         };
       })
   };
@@ -677,8 +678,8 @@ async function importSource(repoRef) {
       skill_id: skillId,
       module_path: path.resolve(modulePath),
       aliases: [],
-      enabled: false,
-      default_enabled: false
+      enabled: true,
+      default_enabled: true
     });
   }
 
@@ -755,8 +756,8 @@ function usage() {
   ontoskills install ontocore
   ontoskills install <qualified-skill-id>
   ontoskills update ontomcp|ontocore|all|<qualified-skill-id>|<package-id>
-  ontoskills registry add-source <name> <index_url>
-  ontoskills registry list
+  ontoskills store add-source <name> <index_url>
+  ontoskills store list
   ontoskills search <query>
   ontoskills enable <qualified-skill-id>
   ontoskills disable <qualified-skill-id>
@@ -803,15 +804,15 @@ async function main() {
     return updateTarget(target);
   }
 
-  if (command === "registry") {
+  if (command === "registry" || command === "store") {
     if (args[0] === "add-source") {
-      if (args.length < 3) fail("Usage: ontoskills registry add-source <name> <index_url>");
+      if (args.length < 3) fail(`Usage: ontoskills ${command} add-source <name> <index_url>`);
       return registryAddSource(args[1], args[2]);
     }
     if (args[0] === "list") {
       return registryList();
     }
-    fail("Unknown registry command");
+    fail(`Unknown ${command} command`);
   }
 
   if (command === "search") {

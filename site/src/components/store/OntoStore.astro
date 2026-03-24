@@ -1,5 +1,5 @@
 ---
-import { OFFICIAL_REGISTRY_INDEX_URL, OFFICIAL_REGISTRY_REPO_URL } from '../../data/registry';
+import { OFFICIAL_STORE_INDEX_URL, OFFICIAL_STORE_REPO_URL } from '../../data/store';
 
 interface Props {
   title?: string;
@@ -9,8 +9,8 @@ interface Props {
 }
 
 const {
-  title = 'Registry leaderboard',
-  description = 'Search the official registry, inspect published skills, and copy the exact install command.',
+  title = 'Store leaderboard',
+  description = 'Search the official store, inspect published skills, and copy the exact install command.',
   compact = false,
   showHeader = true,
 } = Astro.props;
@@ -22,7 +22,7 @@ const rootId = `market-${crypto.randomUUID()}`;
   <div class="section-shell">
     {showHeader && (
       <div class="mb-8 max-w-3xl">
-        <div class="mb-4 font-mono text-xs uppercase tracking-[0.24em] text-text-muted">Registry</div>
+        <div class="mb-4 font-mono text-xs uppercase tracking-[0.24em] text-text-muted">Store</div>
         <h2 class="text-3xl font-semibold tracking-[-0.04em] text-text-primary sm:text-4xl">{title}</h2>
         <p class="mt-3 text-base leading-7 text-text-secondary">{description}</p>
       </div>
@@ -41,7 +41,7 @@ const rootId = `market-${crypto.randomUUID()}`;
             />
           </label>
           <div class="flex items-center gap-3 text-sm text-text-secondary">
-            <span data-role="count">Loading registry…</span>
+            <span data-role="count">Loading store…</span>
             <a href="/explore/" class="border border-white/10 px-3 py-2 hover:bg-white/5">Full page</a>
           </div>
         </div>
@@ -54,7 +54,7 @@ const rootId = `market-${crypto.randomUUID()}`;
       </div>
 
       <div data-role="status" class="border-b border-dashed border-white/10 px-4 py-4 text-sm text-text-secondary">
-        Connecting to the official registry…
+        Connecting to the official store…
       </div>
 
       <div data-role="grid"></div>
@@ -62,7 +62,7 @@ const rootId = `market-${crypto.randomUUID()}`;
   </div>
 </section>
 
-<script define:vars={{ rootId, registryIndexUrl: OFFICIAL_REGISTRY_INDEX_URL, registryRepoUrl: OFFICIAL_REGISTRY_REPO_URL }} is:inline>
+<script define:vars={{ rootId, storeIndexUrl: OFFICIAL_STORE_INDEX_URL, storeRepoUrl: OFFICIAL_STORE_REPO_URL }} is:inline>
   const root = document.getElementById(rootId);
   const search = root?.querySelector('[data-role="search"]');
   const grid = root?.querySelector('[data-role="grid"]');
@@ -87,7 +87,6 @@ const rootId = `market-${crypto.randomUUID()}`;
       aliases: Array.isArray(skill.aliases) ? skill.aliases : [],
       trustTier: pkg.trust_tier || 'verified',
       installCommand: `npx ontoskills install ${qualifiedId}`,
-      enableCommand: `npx ontoskills enable ${qualifiedId}`,
     };
   };
 
@@ -115,9 +114,6 @@ const rootId = `market-${crypto.randomUUID()}`;
           <button type="button" data-copy="${escapeHtml(skill.installCommand)}" class="border border-white/10 px-3 py-2 text-sm text-text-primary hover:bg-white/5">
             Copy
           </button>
-          <button type="button" data-copy="${escapeHtml(skill.enableCommand)}" class="text-xs text-text-muted hover:text-text-primary">
-            enable
-          </button>
         </div>
       </article>
     `;
@@ -142,14 +138,25 @@ const rootId = `market-${crypto.randomUUID()}`;
     count.textContent = `${filtered.length} skill${filtered.length === 1 ? '' : 's'}`;
 
     if (!skills.length) {
-      status.innerHTML = `Unable to load registry data. <a href="${registryRepoUrl}" target="_blank" rel="noopener" class="text-accent-cyan underline">Open the official registry</a>.`;
+      status.textContent = '';
+      const text1 = document.createTextNode('Unable to load store data. ');
+      const link = document.createElement('a');
+      link.href = storeRepoUrl;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.className = 'text-accent-cyan underline';
+      link.textContent = 'Open the official store';
+      const text2 = document.createTextNode('.');
+      status.appendChild(text1);
+      status.appendChild(link);
+      status.appendChild(text2);
       grid.innerHTML = '';
       return;
     }
 
     status.textContent = query
-      ? `Results for “${search.value.trim()}”`
-      : 'Published skills from the official registry.';
+      ? `Results for "${search.value.trim()}"`
+      : 'Published skills from the official store.';
 
     if (!filtered.length) {
       grid.innerHTML = `<div class="px-4 py-6 text-sm text-text-secondary">No matching skills. Try hello, xlsx, docx, or office.</div>`;
@@ -159,14 +166,14 @@ const rootId = `market-${crypto.randomUUID()}`;
     grid.innerHTML = filtered.map(renderRow).join('');
   };
 
-  const loadRegistry = async () => {
+  const loadStore = async () => {
     try {
-      const indexResponse = await fetch(registryIndexUrl, { mode: 'cors' });
+      const indexResponse = await fetch(storeIndexUrl, { mode: 'cors' });
       if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
       const indexData = await indexResponse.json();
       const manifests = await Promise.all(
         (indexData.packages || []).map(async (entry) => {
-          const manifestUrl = new URL(entry.manifest_url, registryIndexUrl).toString();
+          const manifestUrl = new URL(entry.manifest_url, storeIndexUrl).toString();
           const response = await fetch(manifestUrl, { mode: 'cors' });
           if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
           return response.json();
@@ -203,5 +210,5 @@ const rootId = `market-${crypto.randomUUID()}`;
   });
 
   search?.addEventListener('input', render);
-  loadRegistry();
+  loadStore();
 </script>

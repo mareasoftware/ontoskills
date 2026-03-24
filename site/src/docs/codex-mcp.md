@@ -22,8 +22,8 @@ This installs:
 Codex-based workflows use the same MCP contract as other local clients:
 
 - launch `ontomcp` as a local `stdio` subprocess
-- point it at the managed ontology home in `~/.ontoskills/ontoskills`
-- let the client call the four public tools
+- point it at the managed ontology home in `~/.ontoskills/ontologies`
+- let the client call the five public tools
 
 The stable executable to register is:
 
@@ -34,13 +34,13 @@ The stable executable to register is:
 ## Recommended Runtime Command
 
 ```bash
-~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontoskills
+~/.ontoskills/bin/ontomcp --ontology-root ~/.ontoskills/ontologies
 ```
 
 If your Codex client supports environment-based configuration, the equivalent setting is:
 
 ```bash
-ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontoskills
+ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 ```
 
 ## Tools Exposed
@@ -49,6 +49,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontoskills
 - `get_skill_context`
 - `evaluate_execution_plan`
 - `query_epistemic_rules`
+- `search_intents`
 
 ## Notes
 
@@ -59,7 +60,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontoskills
 npx ontoskills install core
 ```
 
-- Then compile or import source skills and enable them before expecting Codex to see them through OntoMCP
+- Then compile or import source skills — they are auto-enabled on install for MCP access
 
 ## Practical Rule
 

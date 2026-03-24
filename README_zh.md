@@ -103,7 +103,7 @@ ontocore query "SELECT ?skill WHERE { ?skill oc:resolvesIntent 'create_pdf' }"
 |-----------|----------|--------|-------------|
 | **OntoCore** | Python | ✅ 就绪 | 技能编译器，输出 OWL 2 本体 |
 | **OntoMCP** | Rust | ✅ 就绪 | 用于语义技能发现的 MCP 服务器 |
-| **OntoStore** | TBD | 📋 计划中 | 版本化技能注册表 |
+| **OntoStore** | GitHub | ✅ 就绪 | 版本化技能商店 |
 | `skills/` | Markdown | 输入 | 人工编写的技能定义 |
 | `ontoskills/` | Turtle | 输出 | 编译后的自包含本体 |
 
@@ -111,12 +111,12 @@ ontocore query "SELECT ?skill WHERE { ?skill oc:resolvesIntent 'create_pdf' }"
 
 ## 文档
 
-- **[概述](docs_zh/overview.md)** — OntoSkills 是什么及其重要性
-- **[快速开始](docs_zh/getting-started.md)** — 安装和入门
-- **[架构](docs_zh/architecture.md)** — 系统如何工作
-- **[知识提取](docs_zh/knowledge-extraction.md)** — 从技能中提取价值
-- **[注册表与包](docs_zh/registry.md)** — 包分发和导入
-- **[路线图](docs_zh/roadmap.md)** — 开发阶段
+- **[概述](https://ontoskills.sh/zh/overview/)** — OntoSkills 是什么及其重要性
+- **[快速开始](https://ontoskills.sh/zh/getting-started/)** — 安装和入门
+- **[架构](https://ontoskills.sh/zh/architecture/)** — 系统如何工作
+- **[知识提取](https://ontoskills.sh/zh/knowledge-extraction/)** — 从技能中提取价值
+- **[商店与包](https://ontoskills.sh/zh/store/)** — 包分发和导入
+- **[路线图](https://ontoskills.sh/zh/roadmap/)** — 开发阶段
 
 ---
 
@@ -124,4 +124,4 @@ ontocore query "SELECT ?skill WHERE { ?skill oc:resolvesIntent 'create_pdf' }"
 
 MIT 许可证 — 详情见 [LICENSE](LICENSE)。
 
-*© 2026 [Marea Software](https://marea.software)*
+*© 2026 [mareasw/ontoskills](https://github.com/mareasw/ontoskills)*

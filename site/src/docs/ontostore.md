@@ -1,11 +1,11 @@
 ---
-title: Marketplace
-description: Search, install, and enable skills from the official registry
+title: OntoStore
+description: Search and install skills from the official OntoStore
 ---
 
 The OntoSkills marketplace is the install surface for published, compiled skills.
 
-It is backed by the official registry and exposed in two places:
+It is backed by OntoStore and exposed in two places:
 
 - the homepage marketplace section
 - the dedicated live page at [`/explore/`](/explore/)
@@ -14,13 +14,14 @@ It is backed by the official registry and exposed in two places:
 
 ```bash
 ontoskills search xlsx
-ontoskills install marea/office/xlsx
-ontoskills enable marea/office/xlsx
+ontoskills install mareasw/office/xlsx
 ```
+
+Skills are enabled by default on install.
 
 ## Qualified IDs
 
-Marketplace installs use qualified ids:
+OntoStore installs use qualified ids:
 
 ```text
 <package_id>/<skill_id>
@@ -29,18 +30,22 @@ Marketplace installs use qualified ids:
 Examples:
 
 - `mareasw/greeting/hello`
-- `marea/office/xlsx`
-- `marea/office/docx`
+- `mareasw/office/xlsx`
+- `mareasw/office/docx`
 
 ## Install Flow
 
-1. Search or browse the marketplace.
+1. Search or browse the OntoStore.
 2. Copy the install command for the chosen skill.
-3. Install the skill locally.
-4. Enable it so OntoMCP exposes it.
+3. Install the skill locally — it's enabled automatically.
 
 ```bash
 ontoskills install mareasw/greeting/hello
+```
+
+If you previously disabled a skill and want to re-enable it:
+
+```bash
 ontoskills enable mareasw/greeting/hello
 ```
 
@@ -48,13 +53,13 @@ ontoskills enable mareasw/greeting/hello
 
 The official marketplace is built in by default.
 
-Third-party registries can be added separately:
+Third-party stores can be added separately:
 
 ```bash
-ontoskills registry add-source acme https://example.com/index.json
+ontoskills store add-source acme https://example.com/index.json
 ```
 
-Those registries become visible to `ontoskills search`, but the official registry remains the default discovery path.
+Those stores become visible to `ontoskills search`, but OntoStore remains the default discovery path.
 
 ## Live Marketplace Page
 
