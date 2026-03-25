@@ -10,7 +10,7 @@ OntoSkills 市场是已发布、已编译技能的安装界面。
 它由 OntoStore 支持，在两个地方展示：
 
 - 主页市场部分
-- 专用实时页面 [`/explore/`](/explore/)
+- 专用实时页面 [`/ontostore/`](/ontostore/)
 
 ## 快速示例
 
@@ -67,4 +67,4 @@ ontoskills store add-source acme https://example.com/index.json
 
 使用交互式页面查看完整的可搜索目录：
 
-- [打开实时市场](/explore/)
+- [打开实时市场](/ontostore/)

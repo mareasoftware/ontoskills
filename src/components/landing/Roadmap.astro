@@ -1,92 +1,44 @@
 ---
-const phases = [
-  {
-    status: 'done',
-    phase: 'Phase 1',
-    title: 'OntoCore',
-    description: 'Source skills compile into validated ontologies and reusable knowledge nodes',
-  },
-  {
-    status: 'done',
-    phase: 'Phase 2',
-    title: 'OntoMCP',
-    description: 'Package-aware MCP runtime serves enabled ontologies through a small tool surface',
-  },
-  {
-    status: 'done',
-    phase: 'Phase 3',
-    title: 'OntoSkills',
-    description: 'Managed CLI orchestrates installs, updates, enable/disable, and local home layout',
-  },
-  {
-    status: 'done',
-    phase: 'Phase 4',
-    title: 'OntoStore',
-    description: 'Official store publishes compiled skills and supports remote installs by qualified id',
-  },
-  {
-    status: 'planned',
-    phase: 'Phase 5',
-    title: 'Community Imports',
-    description: 'Third-party registries, source repository imports, and stricter release/update automation',
-  },
-];
-
-const statusStyles = {
-  done: 'border-accent-mint text-accent-mint',
-  wip: 'border-accent-cyan text-accent-cyan animate-pulse',
-  planned: 'border-text-muted text-text-muted',
-  future: 'border-border text-text-muted opacity-60',
-};
-
-const statusIcons = {
-  done: '✓',
-  wip: '🔨',
-  planned: '💡',
-  future: '🔮',
-};
+// Roadmap component - OntoClaw teaser
 ---
 
-<section id="roadmap" class="py-20">
-  <div class="section-shell max-w-5xl">
+<section class="roadmap-section py-20 border-b border-white/10">
+  <div class="section-shell">
     <div class="text-center mb-12">
-      <div class="section-kicker mx-auto mb-4">Build status</div>
-      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
-        <span class="gradient-text">Roadmap</span>
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
+        Roadmap
       </h2>
-      <p class="text-text-muted">
-        This evolves as we build.
+      <p class="text-lg text-text-secondary">
+        What's next?
       </p>
     </div>
 
-    <div class="glass-panel relative rounded-[2rem] px-4 py-8">
-      <!-- Timeline line -->
-      <div class="absolute left-8 md:left-1/2 top-0 bottom-0 w-px bg-border md:-translate-x-px"></div>
-
-      <!-- Phases -->
-      <div class="space-y-8">
-        {phases.map((phase, i) => (
-          <div class={`relative flex items-start gap-6 ${i % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
-            <!-- Marker -->
-            <div class={`absolute left-8 md:left-1/2 w-8 h-8 rounded-full border-2 bg-bg-primary flex items-center justify-center text-sm -translate-x-1/2 ${statusStyles[phase.status]}`}>
-              {statusIcons[phase.status]}
-            </div>
-
-            <!-- Content -->
-            <div class={`ml-20 md:ml-0 md:w-1/2 px-2 ${i % 2 === 1 ? 'md:pr-20 md:text-right' : 'md:pl-20'}`}>
-              <span class="text-xs uppercase tracking-wider text-text-muted">{phase.phase}</span>
-              <h3 class="text-xl font-bold text-text-primary mt-1">{phase.title}</h3>
-              <p class="text-text-muted mt-2">{phase.description}</p>
-            </div>
+    <div class="max-w-2xl mx-auto">
+      <div class="border border-white/10 bg-bg-elevated rounded-xl p-8 hover:border-accent-primary/30 transition-colors">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 rounded-lg bg-accent-primary/10 border border-accent-primary/30 flex items-center justify-center">
+            <svg class="w-6 h-6 text-accent-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5 10-5L12 2z"/>
+              <path d="M12 22V12"/>
+              <path d="M17 21.66V12a2 2 0 0 0-2-2V7.34l1.46-.92c.83-.83A3 3 0 0 0 3 3v4.34L17 21.66z"/>
+            </svg>
           </div>
-        ))}
-      </div>
-    </div>
+          <div>
+            <h3 class="text-xl font-semibold">OntoClaw</h3>
+            <p class="text-sm text-accent-cyan">The first natively ontological AI agent</p>
+          </div>
+        </div>
 
-    <div class="mt-12 text-center">
-      <p class="text-text-muted text-sm">
-        Track progress on <a href="https://github.com/mareasw/ontoskills" class="text-accent-cyan hover:underline">GitHub</a> and the official store at <a href="https://github.com/mareasw/ontostore" class="text-accent-cyan hover:underline">ontostore</a>
-      </p>
+        <p class="text-text-secondary mb-4">
+          Neuro-symbolic architecture.
+          Ontological knowledge is native — no MCP bridge needed for OntoSkills.
+          The agent reasons directly on the graph.
+        </p>
+
+        <div class="inline-block px-3 py-1 bg-accent-cta/10 border border-accent-cta/30 rounded-full text-sm text-accent-cta">
+          Coming soon
+        </div>
+      </div>
     </div>
   </div>
 </section>

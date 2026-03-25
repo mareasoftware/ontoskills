@@ -1,38 +1,90 @@
 ---
 import logo from '../../assets/ontoskills-logo.png';
 
-const links = [
-  { label: 'Docs', href: '/overview/' },
-  { label: 'OntoStore', href: '/explore/' },
-  { label: 'Store', href: 'https://github.com/mareasw/ontostore' },
-  { label: 'GitHub', href: 'https://github.com/mareasw/ontoskills' },
-  { label: 'Marea Software', href: 'https://marea.software' }
+const productLinks = [
+  { label: 'OntoCore', href: '/en/ontocore/' },
+  { label: 'OntoStore', href: '/ontostore/' },
+  { label: 'OntoMCP', href: '/en/mcp/' },
+  { label: 'Roadmap', href: '/en/roadmap/' }
+];
+
+const resourceLinks = [
+  { label: 'Documentation', href: '/en/overview/' },
+  { label: 'Getting Started', href: '/en/getting-started/' },
+  { label: 'CLI Reference', href: '/en/cli/' },
+  { label: 'Architecture', href: '/en/architecture/' }
+];
+
+const communityLinks = [
+  { label: 'GitHub', href: 'https://github.com/mareasw/ontoskills', external: true },
+  { label: 'OntoStore Repo', href: 'https://github.com/mareasw/ontostore', external: true },
+  { label: 'Philosophy', href: 'https://github.com/mareasw/ontoskills/blob/main/PHILOSOPHY.md', external: true }
 ];
 ---
 
 <footer class="border-t border-border/60 py-12 bg-transparent">
   <div class="section-shell">
-    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+    <!-- Logo at top -->
+    <div class="flex justify-center mb-10">
       <a href="/" class="flex items-center gap-2">
         <img src={logo.src} alt="OntoSkills" class="h-6 w-auto" />
         <span class="font-semibold text-text-primary">OntoSkills</span>
       </a>
+    </div>
 
-      <nav class="flex items-center gap-6">
-        {links.map((link) => (
-          <a
-            href={link.href}
-            class="text-text-secondary hover:text-text-primary transition-colors text-sm"
-            {...(link.href.startsWith('http') && { target: '_blank', rel: 'noopener' })}
-          >
-            {link.label}
-          </a>
-        ))}
-      </nav>
-
-      <div class="text-text-muted text-sm">
-        © 2026 Marea Software
+    <!-- 3-column grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+      <!-- Product Column -->
+      <div>
+        <h3 class="font-semibold text-text-primary mb-4">Product</h3>
+        <nav class="flex flex-col gap-3">
+          {productLinks.map((link) => (
+            <a
+              href={link.href}
+              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
       </div>
+
+      <!-- Resources Column -->
+      <div>
+        <h3 class="font-semibold text-text-primary mb-4">Resources</h3>
+        <nav class="flex flex-col gap-3">
+          {resourceLinks.map((link) => (
+            <a
+              href={link.href}
+              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <!-- Community Column -->
+      <div>
+        <h3 class="font-semibold text-text-primary mb-4">Community</h3>
+        <nav class="flex flex-col gap-3">
+          {communityLinks.map((link) => (
+            <a
+              href={link.href}
+              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+              target="_blank"
+              rel="noopener"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+    </div>
+
+    <!-- Copyright line at bottom -->
+    <div class="text-center text-text-muted text-sm">
+      © 2026 OntoSkills. Built with Astro + Starlight.
     </div>
   </div>
 </footer>

@@ -1,0 +1,80 @@
+---
+const products = [
+  {
+    title: 'OntoCore',
+    subtitle: 'The Compiler',
+    description: 'Transforms SKILL.md into validated OWL 2 ontologies',
+    features: ['LLM extraction', 'SHACL validation', 'RDF serialization'],
+    href: '/en/ontocore/',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+  },
+  {
+    title: 'OntoStore',
+    subtitle: 'The Store',
+    description: 'Browse verified ontological skills with one command',
+    features: ['Semantic search', 'One-line install', 'Verified skills'],
+    href: '/ontostore/',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>`
+  },
+  {
+    title: 'OntoMCP',
+    subtitle: 'The Bridge',
+    description: 'MCP server that loads .ttl and answers SPARQL',
+    features: ['Rust', 'Fast', '100% deterministic'],
+    href: '/en/mcp/',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`
+  }
+];
+---
+
+<section id="products" class="py-20">
+  <div class="section-shell">
+    <div class="text-center mb-12">
+      <div class="section-kicker mx-auto mb-4">Products</div>
+      <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+        Three components. <span class="gradient-text">One deterministic pipeline.</span>
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      {products.map((product) => (
+        <a
+          href={product.href}
+          class="product-card group glass-panel rounded-[1.5rem] p-6 transition-all duration-200 hover:-translate-y-1 hover:border-accent-cyan/30 hover:bg-white/8"
+        >
+          <div class="flex items-start mb-4">
+            <div class="text-accent-cyan mr-3" set:html={product.icon} />
+            <div class="flex-1">
+              <h3 class="text-xl font-bold text-text-primary group-hover:text-accent-cyan transition-colors">
+                {product.title}
+              </h3>
+              <p class="text-sm text-accent-cyan font-medium">{product.subtitle}</p>
+            </div>
+          </div>
+
+          <p class="text-text-muted text-sm leading-relaxed mb-4">
+            {product.description}
+          </p>
+
+          <div class="mt-auto space-y-2">
+            {product.features.map((feature) => (
+              <div class="flex items-center text-sm text-text-secondary">
+                <svg class="w-4 h-4 mr-2 text-accent-cyan flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                {feature}
+              </div>
+            ))}
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .product-card {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

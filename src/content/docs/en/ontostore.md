@@ -10,7 +10,7 @@ The OntoSkills marketplace is the install surface for published, compiled skills
 It is backed by OntoStore and exposed in two places:
 
 - the homepage marketplace section
-- the dedicated live page at [`/explore/`](/explore/)
+- the dedicated live page at [`/ontostore/`](/ontostore/)
 
 ## Quick Example
 
@@ -67,4 +67,4 @@ Those stores become visible to `ontoskills search`, but OntoStore remains the de
 
 Use the interactive page for the full searchable catalog:
 
-- [Open the live marketplace](/explore/)
+- [Open the live marketplace](/ontostore/)

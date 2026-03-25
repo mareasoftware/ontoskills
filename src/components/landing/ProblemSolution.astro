@@ -2,70 +2,140 @@
 import Button from '../ui/Button.astro';
 ---
 
-<section class="py-20">
+<section class="problem-section py-20 border-b border-white/10">
   <div class="section-shell">
-    <div class="grid gap-8 md:grid-cols-2">
-      <!-- Problem -->
-      <div class="glass-panel rounded-[2rem] p-8 space-y-6">
-        <h2 class="text-3xl font-bold text-text-primary">
-          The <span class="text-red-400">Distribution</span> Problem
-        </h2>
-        <p class="text-text-muted leading-relaxed">
-          Skills are useful only when they are discoverable, versioned, and runnable.
-          Raw files, compiled ontologies, and runtime state drift apart quickly without a single source of truth.
-        </p>
-        <ul class="space-y-4">
-          <li class="flex items-start gap-3">
-            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">Fragmented installs</strong> — runtime, store, and compiler live in different places
-            </span>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">No provenance</strong> — users cannot easily tell where a skill came from or how it was built
-            </span>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="text-red-400 mt-1 flex-shrink-0">✗</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">Ad-hoc execution</strong> — source skills, compiled skills, and runtime state need different handling
-            </span>
-          </li>
-        </ul>
-      </div>
+    <div class="max-w-3xl mx-auto text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
+        The Problem
+      </h2>
+      <p class="text-lg text-text-secondary">
+        Today, when an LLM uses a skill, it has to:
+      </p>
+    </div>
 
-      <!-- Solution -->
-      <div class="glass-panel-strong rounded-[2rem] p-8 space-y-6">
-        <h2 class="text-3xl font-bold text-text-primary">
-          The <span class="gradient-text">OntoSkills</span> Stack
-        </h2>
-        <p class="text-text-muted leading-relaxed">
-          A single product surface wraps the official store, the managed MCP runtime, and the optional compiler.
-          Runtime-only users install and query; authors can additionally compile custom skills locally.
-        </p>
-        <ul class="space-y-4">
-          <li class="flex items-start gap-3">
-            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">Managed CLI</strong> — <code class="text-accent-aqua">ontoskills</code> installs, updates, enables, and removes components
-            </span>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">Official store</strong> — compiled skills are published once and pulled by qualified id
-            </span>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="text-accent-mint mt-1 flex-shrink-0">✓</span>
-            <span class="text-text-muted">
-              <strong class="text-text-primary">Runtime + compiler</strong> — <code class="text-accent-aqua">ontomcp</code> serves the catalog; <code class="text-accent-aqua">ontocore</code> compiles custom sources
-            </span>
-          </li>
-        </ul>
+    <div class="pipeline-diagram flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mb-12">
+      <div class="pipeline-step">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg">
+          <span class="text-text-muted text-sm uppercase tracking-wider">1</span>
+          <div class="text-xl font-semibold">Read</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg">
+          <span class="text-text-muted text-sm uppercase tracking-wider">2</span>
+          <div class="text-xl font-semibold">Understand</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg">
+          <span class="text-text-muted text-sm uppercase tracking-wider">3</span>
+          <div class="text-xl font-semibold">Reason</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg">
+          <span class="text-text-muted text-sm uppercase tracking-wider">4</span>
+          <div class="text-xl font-semibold">Execute</div>
+        </div>
       </div>
     </div>
+
+    <div class="problem-points max-w-2xl mx-auto mb-16">
+      <div class="grid gap-4 text-text-secondary">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-accent-cta flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span><strong class="text-text-primary">Token waste</strong> — Large models burn tokens parsing long files</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-accent-cta flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span><strong class="text-text-primary">Inconsistency</strong> — Same query, different results each time</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-accent-cta flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span><strong class="text-text-primary">Confusion</strong> — Complex skills overwhelm smaller models</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-accent-cta flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span><strong class="text-text-primary">No guarantees</strong> — LLMs interpret text probabilistically</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="solution-section py-20 border-b border-white/10">
+  <div class="section-shell">
+    <div class="max-w-3xl mx-auto text-center mb-12">
+      <h2 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
+        The Solution
+      </h2>
+      <p class="text-lg text-text-secondary">
+        OntoSkills eliminates the reading and understanding phase.
+        The reasoner does the heavy lifting.
+      </p>
+    </div>
+
+    <div class="pipeline-diagram flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mb-12">
+      <div class="pipeline-step opacity-40">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg relative">
+          <svg class="absolute -top-2 -right-2 w-5 h-5 text-accent-cta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <div class="text-xl font-semibold line-through">Read</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step opacity-40">
+        <div class="step-box border border-white/10 bg-bg-elevated px-6 py-4 rounded-lg relative">
+          <svg class="absolute -top-2 -right-2 w-5 h-5 text-accent-cta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <div class="text-xl font-semibold line-through">Understand</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step">
+        <div class="step-box border border-accent-primary/50 bg-accent-primary/10 px-6 py-4 rounded-lg relative">
+          <span class="absolute -top-2 -right-2 text-accent-cyan text-xl">~</span>
+          <div class="text-xl font-semibold">Reason (OWL)</div>
+        </div>
+      </div>
+      <div class="pipeline-arrow text-text-muted text-2xl">→</div>
+      <div class="pipeline-step">
+        <div class="step-box border border-accent-success/50 bg-accent-success/10 px-6 py-4 rounded-lg relative">
+          <svg class="absolute -top-2 -right-2 w-5 h-5 text-accent-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M5 13l4 4L19 7"/>
+          </svg>
+          <div class="text-xl font-semibold">Execute</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="solution-flow max-w-2xl mx-auto bg-bg-elevated border border-white/10 rounded-xl p-6 mb-8">
+      <div class="space-y-4 font-mono text-sm">
+        <div class="text-text-secondary">Agent: <span class="text-text-primary">"I need to create a PDF"</span></div>
+        <div class="text-text-muted pl-4">↓</div>
+        <div class="text-accent-cyan">SPARQL: SELECT ?skill WHERE &#123; ?skill oc:resolvesIntent "create_pdf" &#125;</div>
+        <div class="text-text-muted pl-4">↓</div>
+        <div class="text-accent-success">Result: pdf-generator (deterministic)</div>
+        <div class="text-text-muted pl-4">↓</div>
+        <div class="text-text-secondary">Agent executes the payload</div>
+      </div>
+    </div>
+
+    <p class="text-center text-lg text-text-secondary">
+      No reading. No guessing. Just <span class="text-accent-cyan">query → execute</span>.
+    </p>
   </div>
 </section>

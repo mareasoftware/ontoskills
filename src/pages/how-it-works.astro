@@ -1,0 +1,234 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro';
+import Header from '../components/landing/Header.astro';
+import Footer from '../components/landing/Footer.astro';
+import Button from '../components/ui/Button.astro';
+
+// SVG Icons
+const documentIcon = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+</svg>`;
+
+const gearIcon = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+</svg>`;
+
+const databaseIcon = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+</svg>`;
+
+const checkCircleIcon = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+</svg>`;
+
+const checkIcon = `<svg class="w-4 h-4 text-accent-mint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+</svg>`;
+
+const arrowIcon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+</svg>`;
+
+const pipelineSteps = [
+  {
+    number: 1,
+    icon: documentIcon,
+    title: 'SKILL.md',
+    subtitle: 'Human-authored',
+    description: 'Skills are authored in Markdown with YAML frontmatter. Developers write clear instructions, define intents, and structure content that AI agents can understand and execute.',
+    bullets: [
+      'YAML frontmatter for metadata (name, description, intents)',
+      'Markdown body for structured instructions',
+      'Version-controlled alongside your code',
+      'Human-readable and AI-friendly format'
+    ],
+    code: `---
+name: tdd-workflow
+description: Test-driven development
+intents:
+  - write_tests_first
+---
+
+## Instructions
+1. Write the test first
+2. Run the test (it fails)
+3. Write minimal code
+4. Run the test (it passes)
+5. Refactor`
+  },
+  {
+    number: 2,
+    icon: gearIcon,
+    title: 'OntoCore',
+    subtitle: 'The Compiler',
+    description: 'OntoCore compiles SKILL.md files into OWL 2 DL ontologies. The compiler validates structure, extracts semantic relationships, and generates machine-readable RDF triples.',
+    bullets: [
+      'Parses and validates SKILL.md syntax',
+      'Extracts intents and semantic relationships',
+      'Generates OWL 2 DL compliant ontology',
+      'SHACL validation for data integrity'
+    ],
+    code: `npx ontoskills compile
+  Parsing tdd-workflow/SKILL.md...
+  Validating structure...
+  Generating ontology...
+  Writing triples...
+  ✓ Compiled to ontoskills/tdd-workflow.ttl`
+  },
+  {
+    number: 3,
+    icon: databaseIcon,
+    title: '.ttl Files',
+    subtitle: 'The Ontology',
+    description: 'The compiled Turtle (.ttl) files contain the ontology - a formal representation of skills, intents, and their relationships using RDF triples and OWL semantics.',
+    bullets: [
+      'Standard RDF Turtle format',
+      'OWL 2 DL ontology definitions',
+      'SPARQL-queryable knowledge graph',
+      'Semantic relationships between skills'
+    ],
+    code: `@prefix oc: <https://ontoskills.dev/ns#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+oc:tdd-workflow a oc:Skill ;
+  oc:name "tdd-workflow" ;
+  oc:description "Test-driven development" ;
+  oc:resolvesIntent "write_tests_first" ;
+  oc:hasStep oc:write-test, oc:run-test, oc:implement .`
+  },
+  {
+    number: 4,
+    icon: checkCircleIcon,
+    title: 'OntoMCP',
+    subtitle: 'The Runtime',
+    description: 'OntoMCP is the Rust-based MCP runtime that loads ontologies and serves skill queries to AI agents through the Model Context Protocol with sub-millisecond response times.',
+    bullets: [
+      'Native Rust performance',
+      'MCP protocol implementation',
+      'Sub-millisecond SPARQL queries',
+      'Intent-based skill discovery'
+    ],
+    code: `# Search for skills by intent
+search_intents("create_pdf")
+  → pdf-generator
+  → report-exporter
+
+# Retrieve skill context
+get_skill("pdf-generator")
+  → { name, description, instructions }`
+  }
+];
+---
+
+<LandingLayout title="How it Works - OntoSkills">
+  <Header />
+  <main>
+    <!-- Hero Section -->
+    <section class="pt-16 pb-12">
+      <div class="section-shell">
+        <div class="text-center max-w-3xl mx-auto">
+          <div class="section-kicker mx-auto mb-4">Pipeline</div>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary mb-6">
+            How it <span class="gradient-text">Works</span>
+          </h1>
+          <p class="text-xl text-text-secondary">
+            From SKILL.md to deterministic execution in 4 steps
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pipeline Diagram -->
+    <section class="pb-12">
+      <div class="section-shell">
+        <div class="glass-panel rounded-[2rem] p-6 sm:p-8">
+          <div class="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-2">
+            {pipelineSteps.map((step, index) => (
+              <div class="flex items-center">
+                <div class="flex flex-col items-center text-center px-4 lg:px-6">
+                  <div class="w-16 h-16 rounded-full bg-accent-cyan/10 border border-accent-cyan/30 flex items-center justify-center text-accent-cyan mb-3">
+                    <Fragment set:html={step.icon} />
+                  </div>
+                  <div class="font-semibold text-text-primary text-sm">{step.title}</div>
+                  <div class="text-xs text-text-muted">{step.subtitle}</div>
+                </div>
+                {index < pipelineSteps.length - 1 && (
+                  <div class="hidden lg:flex items-center text-accent-cyan/50 mx-2">
+                    <Fragment set:html={arrowIcon} />
+                  </div>
+                )}
+                {index < pipelineSteps.length - 1 && (
+                  <div class="lg:hidden text-accent-cyan/50 my-2">
+                    <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detailed Steps -->
+    <section class="pb-20">
+      <div class="section-shell">
+        <div class="space-y-16">
+          {pipelineSteps.map((step) => (
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              <!-- Content Column -->
+              <div class="space-y-4">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 rounded-xl bg-accent-cyan/10 border border-accent-cyan/30 flex items-center justify-center">
+                    <span class="text-xl font-bold text-accent-cyan">{step.number}</span>
+                  </div>
+                  <div>
+                    <h2 class="text-2xl font-bold text-text-primary">{step.title}</h2>
+                    <p class="text-sm text-accent-cyan">{step.subtitle}</p>
+                  </div>
+                </div>
+                <p class="text-text-secondary leading-relaxed">
+                  {step.description}
+                </p>
+                <ul class="space-y-2">
+                  {step.bullets.map((bullet) => (
+                    <li class="flex items-start gap-3">
+                      <Fragment set:html={checkIcon} />
+                      <span class="text-text-secondary text-sm">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <!-- Code Column -->
+              <div class="glass-panel rounded-2xl p-4 sm:p-6 overflow-hidden">
+                <pre class="text-sm font-mono text-text-secondary overflow-x-auto whitespace-pre-wrap break-all"><code>{step.code}</code></pre>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20">
+      <div class="section-shell">
+        <div class="glass-panel rounded-[2rem] p-8 sm:p-12 text-center">
+          <h2 class="text-3xl sm:text-4xl font-bold text-text-primary mb-4">
+            Ready to compile your first skill?
+          </h2>
+          <p class="text-text-secondary mb-8 max-w-xl mx-auto">
+            Get started with OntoSkills in minutes. Write your first SKILL.md, compile it to an ontology, and query it through MCP.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button href="/en/getting-started/" size="lg">Get Started</Button>
+            <Button href="/ontostore/" variant="secondary" size="lg">Browse OntoStore</Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</LandingLayout>
