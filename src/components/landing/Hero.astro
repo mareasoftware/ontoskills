@@ -12,7 +12,7 @@ const t = translations.hero[lang];
 <section class="hero-section">
   <div class="hero-glow"></div>
   <div class="section-shell py-20 sm:py-28 lg:py-32 relative">
-    <div class="max-w-4xl">
+    <div class="max-w-3xl">
       <div class="hero-badge">
         <span class="badge-dot"></span>
         <span>{t.badge}</span>
@@ -122,7 +122,7 @@ const t = translations.hero[lang];
   }
 
   .hero-headline {
-    font-size: clamp(2.75rem, 8vw, 5rem);
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: -0.04em;
@@ -242,15 +242,22 @@ const t = translations.hero[lang];
   .hero-visual {
     display: none;
     position: absolute;
-    right: 4%;
+    right: 2%;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 10;
     animation: fadeInRight 0.8s ease-out 0.6s both;
   }
 
   @media (min-width: 1280px) {
     .hero-visual {
       display: block;
+    }
+  }
+
+  @media (min-width: 1400px) {
+    .hero-visual {
+      right: 4%;
     }
   }
 
