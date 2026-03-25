@@ -18,7 +18,7 @@ const {
 const rootId = `market-${crypto.randomUUID()}`;
 ---
 
-<section id="marketplace" class={`${compact ? 'py-14' : 'py-20'}`}>
+<section id="marketplace" class={`${compact ? 'py-14' : ''}`}>
   <div class="section-shell">
     {showHeader && (
       <div class="mb-8 max-w-3xl">
@@ -28,36 +28,40 @@ const rootId = `market-${crypto.randomUUID()}`;
       </div>
     )}
 
-    <div id={rootId} class="border border-white/10 bg-bg-elevated">
-      <div class="border-b border-white/10 p-4 sm:p-5">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <label class="flex items-center gap-3 border border-white/10 bg-bg-secondary px-4 py-3 lg:min-w-[22rem]">
-            <span class="text-text-muted">/</span>
+    <div id={rootId} class="rounded-2xl border border-white/10 bg-bg-elevated overflow-hidden">
+      <!-- Search Bar -->
+      <div class="border-b border-white/10 p-4 sm:p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="relative flex-1 lg:max-w-md">
+            <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
-              class="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              class="w-full bg-bg-secondary border border-white/10 rounded-xl pl-12 pr-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-colors"
               type="search"
-              placeholder="Search skills..."
+              placeholder="Search by skill, intent, or description..."
               data-role="search"
             />
-          </label>
-          <div class="flex items-center gap-3 text-sm text-text-secondary">
-            <span data-role="count">Loading store…</span>
-            <a href="/ontostore/" class="border border-white/10 px-3 py-2 hover:bg-white/5">Full page</a>
+          </div>
+          <div class="flex items-center justify-between lg:justify-end gap-4">
+            <span class="text-sm text-text-secondary" data-role="count">Loading store…</span>
+            <a href={OFFICIAL_STORE_REPO_URL} target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View Repo
+            </a>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-[minmax(0,1fr)_auto] border-b border-white/10 bg-black/30 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted sm:grid-cols-[64px_minmax(0,1fr)_140px]">
-        <div class="hidden sm:block">#</div>
-        <div>Skill</div>
-        <div class="text-right">Install</div>
-      </div>
-
-      <div data-role="status" class="border-b border-dashed border-white/10 px-4 py-4 text-sm text-text-secondary">
+      <!-- Status -->
+      <div data-role="status" class="px-4 sm:px-6 py-4 text-sm text-text-secondary border-b border-white/5 bg-black/20">
         Connecting to the official store…
       </div>
 
-      <div data-role="grid"></div>
+      <!-- Results -->
+      <div data-role="grid" class="divide-y divide-white/5"></div>
     </div>
   </div>
 </section>
@@ -93,27 +97,43 @@ const rootId = `market-${crypto.randomUUID()}`;
   let skills = [];
 
   const renderRow = (skill, index) => {
-    const aliases = skill.aliases.length ? ` · ${escapeHtml(skill.aliases.join(', '))}` : '';
+    const aliases = skill.aliases.length ? skill.aliases.slice(0, 3).map(a => `<span class="px-2 py-0.5 rounded bg-white/5 text-xs text-text-muted">${escapeHtml(a)}</span>`).join('') : '';
+    const trustBadge = skill.trustTier === 'official'
+      ? '<span class="px-2 py-0.5 rounded bg-cyan-500/10 text-xs text-cyan-400 font-medium">official</span>'
+      : skill.trustTier === 'verified'
+        ? '<span class="px-2 py-0.5 rounded bg-green-500/10 text-xs text-green-400 font-medium">verified</span>'
+        : `<span class="px-2 py-0.5 rounded bg-white/5 text-xs text-text-muted">${escapeHtml(skill.trustTier)}</span>`;
+
     return `
-      <article class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 border-b border-white/10 px-4 py-4 transition hover:bg-white/[0.03] sm:grid-cols-[64px_minmax(0,1fr)_140px]">
-        <div class="hidden font-mono text-sm text-text-muted sm:block">${index + 1}</div>
-        <div class="min-w-0">
-          <div class="flex flex-wrap items-center gap-2">
-            <h3 class="text-base font-semibold text-text-primary">${escapeHtml(skill.skillId)}</h3>
-            <span class="font-mono text-xs text-text-muted">${escapeHtml(skill.packageId)}</span>
-            <span class="border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-text-muted">${escapeHtml(skill.trustTier)}</span>
+      <article class="group px-4 sm:px-6 py-5 hover:bg-white/[0.02] transition-colors">
+        <div class="flex flex-col lg:flex-row lg:items-start gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <h3 class="text-lg font-semibold text-text-primary">${escapeHtml(skill.skillId)}</h3>
+              ${trustBadge}
+            </div>
+            <p class="text-sm text-text-secondary mb-3 leading-relaxed">${escapeHtml(skill.description)}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <code class="px-2 py-1 rounded bg-black/40 text-xs text-cyan-300 font-mono">${escapeHtml(skill.qualifiedId)}</code>
+              ${aliases}
+            </div>
           </div>
-          <p class="mt-1 text-sm leading-6 text-text-secondary">${escapeHtml(skill.description)}</p>
-          <div class="mt-2 font-mono text-xs text-text-muted">${escapeHtml(skill.qualifiedId)}${aliases}</div>
-          <div class="mt-3 hidden border border-white/10 bg-black/30 p-3 text-xs text-text-secondary lg:block">
-            <div class="mb-1 uppercase tracking-[0.18em] text-text-muted">Command</div>
-            <code class="block break-all text-text-primary">${escapeHtml(skill.installCommand)}</code>
+          <div class="flex flex-col sm:flex-row lg:flex-col gap-2 lg:min-w-[180px]">
+            <div class="flex-1 lg:flex-none px-3 py-2 rounded-lg bg-black/40 border border-white/5">
+              <div class="text-[10px] uppercase tracking-wider text-text-muted mb-1">Install</div>
+              <code class="text-xs text-text-primary font-mono break-all">${escapeHtml(skill.installCommand)}</code>
+            </div>
+            <button
+              type="button"
+              data-copy="${escapeHtml(skill.installCommand)}"
+              class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-sm text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>Copy</span>
+            </button>
           </div>
-        </div>
-        <div class="flex flex-col items-end gap-2">
-          <button type="button" data-copy="${escapeHtml(skill.installCommand)}" class="border border-white/10 px-3 py-2 text-sm text-text-primary hover:bg-white/5">
-            Copy
-          </button>
         </div>
       </article>
     `;
@@ -138,13 +158,13 @@ const rootId = `market-${crypto.randomUUID()}`;
     count.textContent = `${filtered.length} skill${filtered.length === 1 ? '' : 's'}`;
 
     if (!skills.length) {
-      status.textContent = '';
+      status.innerHTML = '';
       const text1 = document.createTextNode('Unable to load store data. ');
       const link = document.createElement('a');
       link.href = storeRepoUrl;
       link.target = '_blank';
       link.rel = 'noopener';
-      link.className = 'text-accent-cyan underline';
+      link.className = 'text-cyan-400 hover:text-cyan-300 underline';
       link.textContent = 'Open the official store';
       const text2 = document.createTextNode('.');
       status.appendChild(text1);
@@ -155,11 +175,19 @@ const rootId = `market-${crypto.randomUUID()}`;
     }
 
     status.textContent = query
-      ? `Results for "${search.value.trim()}"`
-      : 'Published skills from the official store.';
+      ? `Showing results for "${search.value.trim()}"`
+      : 'All published skills from the official registry.';
 
     if (!filtered.length) {
-      grid.innerHTML = `<div class="px-4 py-6 text-sm text-text-secondary">No matching skills. Try hello, xlsx, docx, or office.</div>`;
+      grid.innerHTML = `
+        <div class="px-4 sm:px-6 py-12 text-center">
+          <svg class="w-12 h-12 mx-auto mb-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-text-secondary mb-2">No matching skills found</p>
+          <p class="text-sm text-text-muted">Try searching for: hello, xlsx, docx, or office</p>
+        </div>
+      `;
       return;
     }
 
@@ -194,18 +222,23 @@ const rootId = `market-${crypto.randomUUID()}`;
     const target = event.target.closest('[data-copy]');
     if (!target) return;
     const command = target.getAttribute('data-copy') ?? '';
-    const original = target.textContent;
+    const span = target.querySelector('span');
+    const original = span?.textContent || 'Copy';
     try {
       await navigator.clipboard.writeText(command);
-      target.textContent = 'Copied';
+      if (span) span.textContent = 'Copied!';
+      target.classList.add('bg-green-500/20', 'border-green-500/30', 'text-green-400');
+      target.classList.remove('bg-cyan-500/10', 'border-cyan-500/30', 'text-cyan-400');
       setTimeout(() => {
-        target.textContent = original;
-      }, 1200);
+        if (span) span.textContent = original;
+        target.classList.remove('bg-green-500/20', 'border-green-500/30', 'text-green-400');
+        target.classList.add('bg-cyan-500/10', 'border-cyan-500/30', 'text-cyan-400');
+      }, 1500);
     } catch {
-      target.textContent = 'Failed';
+      if (span) span.textContent = 'Failed';
       setTimeout(() => {
-        target.textContent = original;
-      }, 1200);
+        if (span) span.textContent = original;
+      }, 1500);
     }
   });
 
