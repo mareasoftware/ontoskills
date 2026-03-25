@@ -21,139 +21,79 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
     <div class="mb-32">
       <div class="text-center mb-16">
         <span class="inline-block px-3 py-1 text-xs font-medium tracking-wider uppercase text-red-400 bg-red-950/30 rounded-full mb-4">
-          The Problem
+          {t.problem.label}
         </span>
         <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
-          LLMs waste tokens <span class="text-text-muted">guessing</span>
+          {lang === 'zh' ? (
+            <span>{t.problem.headline}</span>
+          ) : (
+            <>
+              LLMs waste tokens <span class="text-text-muted">guessing</span>
+            </>
+          )}
         </h2>
         <p class="text-lg text-text-secondary max-w-2xl mx-auto">
-          Every time your agent uses a skill, it burns through a 4-step pipeline that's slow, expensive, and unreliable.
+          {t.problem.subheadline}
         </p>
       </div>
 
       <!-- Pipeline Diagram -->
       <div class="flex flex-col lg:flex-row items-center justify-center gap-3 lg:gap-4 mb-16">
-        <!-- Step 1: Read -->
-        <div class="flex flex-col items-center">
-          <div class="relative group">
-            <div class="w-28 h-28 rounded-2xl border border-white/10 bg-bg-elevated flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-white/20">
-              <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-              <span class="text-sm font-medium text-text-secondary">Read</span>
+        {t.problem.steps.map((step, index) => (
+          <>
+            <div class="flex flex-col items-center">
+              <div class="relative group">
+                <div class="w-28 h-28 rounded-2xl border border-white/10 bg-bg-elevated flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-white/20">
+                  {index === 0 && (
+                    <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  )}
+                  {index === 1 && (
+                    <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                    </svg>
+                  )}
+                  {index === 2 && (
+                    <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                    </svg>
+                  )}
+                  {index === 3 && (
+                    <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                    </svg>
+                  )}
+                  <span class="text-sm font-medium text-text-secondary">{step.name}</span>
+                </div>
+                <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-bg-elevated border border-white/10 text-xs flex items-center justify-center text-text-muted">{index + 1}</span>
+              </div>
+              <span class="text-xs text-text-muted mt-2">{step.desc}</span>
             </div>
-            <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-bg-elevated border border-white/10 text-xs flex items-center justify-center text-text-muted">1</span>
-          </div>
-          <span class="text-xs text-text-muted mt-2">Parse docs</span>
-        </div>
-
-        <!-- Arrow -->
-        <svg class="w-6 h-6 text-text-muted rotate-90 lg:rotate-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-        </svg>
-
-        <!-- Step 2: Understand -->
-        <div class="flex flex-col items-center">
-          <div class="relative group">
-            <div class="w-28 h-28 rounded-2xl border border-white/10 bg-bg-elevated flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-white/20">
-              <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+            {index < t.problem.steps.length - 1 && (
+              <svg class="w-6 h-6 text-text-muted rotate-90 lg:rotate-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
-              <span class="text-sm font-medium text-text-secondary">Understand</span>
-            </div>
-            <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-bg-elevated border border-white/10 text-xs flex items-center justify-center text-text-muted">2</span>
-          </div>
-          <span class="text-xs text-text-muted mt-2">Build context</span>
-        </div>
-
-        <!-- Arrow -->
-        <svg class="w-6 h-6 text-text-muted rotate-90 lg:rotate-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-        </svg>
-
-        <!-- Step 3: Reason -->
-        <div class="flex flex-col items-center">
-          <div class="relative group">
-            <div class="w-28 h-28 rounded-2xl border border-white/10 bg-bg-elevated flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-white/20">
-              <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-              </svg>
-              <span class="text-sm font-medium text-text-secondary">Reason</span>
-            </div>
-            <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-bg-elevated border border-white/10 text-xs flex items-center justify-center text-text-muted">3</span>
-          </div>
-          <span class="text-xs text-text-muted mt-2">Decide action</span>
-        </div>
-
-        <!-- Arrow -->
-        <svg class="w-6 h-6 text-text-muted rotate-90 lg:rotate-0 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-        </svg>
-
-        <!-- Step 4: Execute -->
-        <div class="flex flex-col items-center">
-          <div class="relative group">
-            <div class="w-28 h-28 rounded-2xl border border-white/10 bg-bg-elevated flex flex-col items-center justify-center gap-2 transition-all duration-300 hover:border-white/20">
-              <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-              </svg>
-              <span class="text-sm font-medium text-text-secondary">Execute</span>
-            </div>
-            <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-bg-elevated border border-white/10 text-xs flex items-center justify-center text-text-muted">4</span>
-          </div>
-          <span class="text-xs text-text-muted mt-2">Run skill</span>
-        </div>
+            )}
+          </>
+        ))}
       </div>
 
       <!-- Pain Points -->
       <div class="grid sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-        <div class="flex items-start gap-4 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
-          <div class="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
+        {t.problem.painPoints.map((point) => (
+          <div class="flex items-start gap-4 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
+            <div class="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div>
+              <h4 class="font-semibold text-text-primary mb-1">{point.title}</h4>
+              <p class="text-sm text-text-secondary">{point.desc}</p>
+            </div>
           </div>
-          <div>
-            <h4 class="font-semibold text-text-primary mb-1">Token Waste</h4>
-            <p class="text-sm text-text-secondary">Large models burn thousands of tokens just parsing documentation files.</p>
-          </div>
-        </div>
-
-        <div class="flex items-start gap-4 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
-          <div class="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-            </svg>
-          </div>
-          <div>
-            <h4 class="font-semibold text-text-primary mb-1">Inconsistency</h4>
-            <p class="text-sm text-text-secondary">Same query, different results. Every. Single. Time.</p>
-          </div>
-        </div>
-
-        <div class="flex items-start gap-4 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
-          <div class="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <h4 class="font-semibold text-text-primary mb-1">Confusion</h4>
-            <p class="text-sm text-text-secondary">Complex skills overwhelm smaller models with ambiguity.</p>
-          </div>
-        </div>
-
-        <div class="flex items-start gap-4 p-4 rounded-xl bg-red-950/20 border border-red-900/30">
-          <div class="w-10 h-10 rounded-lg bg-red-950/50 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          </div>
-          <div>
-            <h4 class="font-semibold text-text-primary mb-1">No Guarantees</h4>
-            <p class="text-sm text-text-secondary">LLMs interpret text probabilistically. Errors are inevitable.</p>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
 
@@ -161,13 +101,19 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
     <div>
       <div class="text-center mb-16">
         <span class="inline-block px-3 py-1 text-xs font-medium tracking-wider uppercase text-cyan-400 bg-cyan-950/30 rounded-full mb-4">
-          The Solution
+          {t.solution.label}
         </span>
         <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
-          Skip the guesswork. <span class="text-cyan-400">Query.</span> Execute.
+          {lang === 'zh' ? (
+            <span>{t.solution.headline}</span>
+          ) : (
+            <>
+              Skip the guesswork. <span class="text-cyan-400">Query.</span> Execute.
+            </>
+          )}
         </h2>
         <p class="text-lg text-text-secondary max-w-2xl mx-auto">
-          OntoSkills eliminates reading and understanding. An OWL 2 reasoner handles the heavy lifting — deterministically.
+          {t.solution.subheadline}
         </p>
       </div>
 
@@ -180,13 +126,13 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
               <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
-              <span class="text-sm font-medium text-text-muted line-through">Read</span>
+              <span class="text-sm font-medium text-text-muted line-through">{t.problem.steps[0].name}</span>
             </div>
             <svg class="absolute -top-1 -right-1 w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <span class="text-xs text-text-muted mt-2">Eliminated</span>
+          <span class="text-xs text-text-muted mt-2">{lang === 'zh' ? '已消除' : 'Eliminated'}</span>
         </div>
 
         <!-- Arrow (faded) -->
@@ -201,13 +147,13 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
               <svg class="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
               </svg>
-              <span class="text-sm font-medium text-text-muted line-through">Understand</span>
+              <span class="text-sm font-medium text-text-muted line-through">{t.problem.steps[1].name}</span>
             </div>
             <svg class="absolute -top-1 -right-1 w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <span class="text-xs text-text-muted mt-2">Eliminated</span>
+          <span class="text-xs text-text-muted mt-2">{lang === 'zh' ? '已消除' : 'Eliminated'}</span>
         </div>
 
         <!-- Arrow (brighter) -->
@@ -222,12 +168,12 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
               <svg class="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
               </svg>
-              <span class="text-sm font-semibold text-cyan-400">Reason</span>
+              <span class="text-sm font-semibold text-cyan-400">{t.problem.steps[2].name}</span>
               <span class="text-[10px] text-cyan-500/80 font-medium">OWL 2</span>
             </div>
             <span class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-cyan-500 text-xs flex items-center justify-center text-black font-bold">~</span>
           </div>
-          <span class="text-xs text-cyan-400 mt-2 font-medium">Reasoner</span>
+          <span class="text-xs text-cyan-400 mt-2 font-medium">{lang === 'zh' ? '推理器' : 'Reasoner'}</span>
         </div>
 
         <!-- Arrow (bright) -->
@@ -242,13 +188,13 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
               <svg class="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
               </svg>
-              <span class="text-sm font-semibold text-green-400">Execute</span>
+              <span class="text-sm font-semibold text-green-400">{t.problem.steps[3].name}</span>
             </div>
             <svg class="absolute -top-1 -right-1 w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <span class="text-xs text-green-400 mt-2 font-medium">Deterministic</span>
+          <span class="text-xs text-green-400 mt-2 font-medium">{lang === 'zh' ? '确定性' : 'Deterministic'}</span>
         </div>
       </div>
 
@@ -257,27 +203,35 @@ const sparqlQuery = 'SELECT ?skill WHERE { ?skill resolvesIntent "create_pdf" }'
         <div class="bg-bg-elevated border border-white/10 rounded-2xl p-6 font-mono text-sm overflow-x-auto">
           <div class="space-y-3">
             <div class="flex items-center gap-3">
-              <span class="text-text-muted w-16 flex-shrink-0">Agent</span>
-              <span class="text-text-secondary">"I need to create a PDF"</span>
+              <span class="text-text-muted w-16 flex-shrink-0">{lang === 'zh' ? '代理' : 'Agent'}</span>
+              <span class="text-text-secondary">{t.solution.codeExample.agent}</span>
             </div>
             <div class="flex items-center gap-3">
               <span class="text-cyan-400 w-16 flex-shrink-0">SPARQL</span>
               <code class="text-cyan-300 bg-cyan-950/30 px-2 py-0.5 rounded">{sparqlQuery}</code>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-green-400 w-16 flex-shrink-0">Result</span>
-              <span class="text-green-300 bg-green-950/30 px-2 py-0.5 rounded">pdf-generator</span>
-              <span class="text-text-muted text-xs">// deterministic match</span>
+              <span class="text-green-400 w-16 flex-shrink-0">{lang === 'zh' ? '结果' : 'Result'}</span>
+              <span class="text-green-300 bg-green-950/30 px-2 py-0.5 rounded">{t.solution.codeExample.result}</span>
+              <span class="text-text-muted text-xs">// {lang === 'zh' ? '确定性匹配' : 'deterministic match'}</span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-text-muted w-16 flex-shrink-0">Action</span>
-              <span class="text-text-secondary">Execute skill payload</span>
+              <span class="text-text-muted w-16 flex-shrink-0">{lang === 'zh' ? '动作' : 'Action'}</span>
+              <span class="text-text-secondary">{t.solution.codeExample.action}</span>
             </div>
           </div>
         </div>
 
         <p class="text-center text-lg text-text-secondary mt-8">
-          No reading. No guessing. Just <span class="text-cyan-400 font-semibold">query → execute</span>.
+          {lang === 'zh' ? (
+            <>
+              无需阅读。无需猜测。只需 <span class="text-cyan-400 font-semibold">查询 → 执行</span>。
+            </>
+          ) : (
+            <>
+              No reading. No guessing. Just <span class="text-cyan-400 font-semibold">query → execute</span>.
+            </>
+          )}
         </p>
       </div>
     </div>
