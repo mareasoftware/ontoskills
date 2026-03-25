@@ -6,13 +6,14 @@ Handles serialization of skills to RDF/Turtle format.
 
 import hashlib
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
 from rdflib import Graph, Namespace, RDF, OWL, Literal, URIRef, BNode
 from rdflib.namespace import DCTERMS, SKOS, PROV
 
-from compiler.schemas import ExtractedSkill
+from compiler.schemas import ExtractedSkill, FileInfo
 from compiler.exceptions import OntologyValidationError
 from compiler.config import BASE_URI, OUTPUT_DIR, resolve_ontology_root
 from compiler.core_ontology import get_oc_namespace
@@ -203,27 +204,39 @@ def serialize_skill(
         # Link skill to knowledge node
         graph.add((skill_uri, oc.impartsKnowledge, kn_uri))
 
-    # === Phase 2 Components (blank nodes) ===
+    # === Phase 2 Components ===
+
+    # Pre-index files by relative_path for O(1) lookup (instead of O(N*M))
+    files_index: dict[str, FileInfo] = {}
+    for f in getattr(skill, 'files', []):
+        files_index[f.relative_path] = f
+
+    # Helper to create deterministic blank node IDs
+    def make_bnode(component_type: str, identifier: str) -> BNode:
+        """Create a deterministic blank node ID from skill hash + component."""
+        # Use first 8 chars of skill hash for uniqueness
+        hash_prefix = skill.hash[:8]
+        safe_id = re.sub(r'[^a-zA-Z0-9]', '_', identifier)
+        return BNode(f"ref_{hash_prefix}_{component_type}_{safe_id}")
 
     # Reference Files (progressive disclosure)
-    for ref in getattr(skill, 'reference_files', []):
-        ref_node = BNode()
+    for i, ref in enumerate(getattr(skill, 'reference_files', [])):
+        ref_node = make_bnode("ref", ref.relative_path)
         graph.add((skill_uri, oc.hasReferenceFile, ref_node))
         graph.add((ref_node, RDF.type, oc.ReferenceFile))
         graph.add((ref_node, oc.relativePath, Literal(ref.relative_path)))
         graph.add((ref_node, oc.purpose, Literal(ref.purpose)))
 
-        # Look up file info for hash/size/mime
-        for f in getattr(skill, 'files', []):
-            if f.relative_path == ref.relative_path:
-                graph.add((ref_node, oc.contentHash, Literal(f.content_hash)))
-                graph.add((ref_node, oc.fileSize, Literal(f.file_size)))
-                graph.add((ref_node, oc.mimeType, Literal(f.mime_type)))
-                break
+        # O(1) lookup using pre-indexed files
+        if ref.relative_path in files_index:
+            f = files_index[ref.relative_path]
+            graph.add((ref_node, oc.contentHash, Literal(f.content_hash)))
+            graph.add((ref_node, oc.fileSize, Literal(f.file_size)))
+            graph.add((ref_node, oc.mimeType, Literal(f.mime_type)))
 
     # Executable Scripts
     for script in getattr(skill, 'executable_scripts', []):
-        script_node = BNode()
+        script_node = make_bnode("script", script.relative_path)
         graph.add((skill_uri, oc.hasExecutableScript, script_node))
         graph.add((script_node, RDF.type, oc.ExecutableScript))
         graph.add((script_node, oc.relativePath, Literal(script.relative_path)))
@@ -235,7 +248,7 @@ def serialize_skill(
 
         # Requirements as blank nodes
         for req in script.requirements:
-            req_node = BNode()
+            req_node = make_bnode("req", req)
             graph.add((script_node, oc.hasRequirement, req_node))
             graph.add((req_node, RDF.type, oc.Requirement))
             graph.add((req_node, oc.requirementType, Literal("Tool")))
@@ -245,15 +258,14 @@ def serialize_skill(
         if script.produces_output:
             graph.add((script_node, oc.producesOutput, Literal(script.produces_output)))
 
-        # Look up file info for hash
-        for f in getattr(skill, 'files', []):
-            if f.relative_path == script.relative_path:
-                graph.add((script_node, oc.contentHash, Literal(f.content_hash)))
-                break
+        # O(1) lookup using pre-indexed files
+        if script.relative_path in files_index:
+            f = files_index[script.relative_path]
+            graph.add((script_node, oc.contentHash, Literal(f.content_hash)))
 
     # Workflows
     for wf in getattr(skill, 'workflows', []):
-        wf_node = BNode()
+        wf_node = make_bnode("workflow", wf.workflow_id)
         graph.add((skill_uri, oc.hasWorkflow, wf_node))
         graph.add((wf_node, RDF.type, oc.Workflow))
         graph.add((wf_node, oc.workflowId, Literal(wf.workflow_id)))
@@ -261,7 +273,7 @@ def serialize_skill(
         graph.add((wf_node, oc.description, Literal(wf.description)))
 
         for step in wf.steps:
-            step_node = BNode()
+            step_node = make_bnode("step", f"{wf.workflow_id}_{step.step_id}")
             graph.add((wf_node, oc.hasStep, step_node))
             graph.add((step_node, RDF.type, oc.WorkflowStep))
             graph.add((step_node, oc.stepId, Literal(step.step_id)))
@@ -273,7 +285,7 @@ def serialize_skill(
 
     # Examples
     for ex in getattr(skill, 'examples', []):
-        ex_node = BNode()
+        ex_node = make_bnode("example", ex.name)
         graph.add((skill_uri, oc.hasExample, ex_node))
         graph.add((ex_node, RDF.type, oc.Example))
         graph.add((ex_node, oc.exampleName, Literal(ex.name)))

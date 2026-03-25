@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 
 from compiler.schemas import Frontmatter, FileInfo, DirectoryScan
-from compiler.extractor import generate_skill_id, resolve_package_id, generate_qualified_skill_id
+from compiler.extractor import resolve_package_id, generate_qualified_skill_id
 
 
 class LoaderError(Exception):
@@ -77,7 +77,8 @@ def parse_frontmatter(content: str) -> Frontmatter:
         LoaderError: If frontmatter is missing or invalid
     """
     # Match YAML frontmatter between --- delimiters
-    match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+    # Supports both LF and CRLF, and allows optional trailing newline
+    match = re.match(r'^---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n|$)', content, re.DOTALL)
     if not match:
         raise LoaderError("SKILL.md missing YAML frontmatter (--- delimiters)")
 
@@ -162,20 +163,22 @@ def scan_skill_directory(skill_dir: Path, package_id: str | None = None) -> Dire
     dir_hash = hashlib.sha256()
 
     for f in sorted(skill_dir.rglob('*')):
-        if f.is_file() and not f.name.startswith('.'):
-            rel_path = str(f.relative_to(skill_dir))
+        # Skip hidden files and symlinks (security: prevent escape via symlink)
+        if f.is_file() and not f.name.startswith('.') and not f.is_symlink():
+            # Use as_posix() for cross-platform compatibility (always uses /)
+            rel_path = f.relative_to(skill_dir).as_posix()
 
             # SECURITY: Path traversal protection
             # Reject paths containing '..' in any path component
             if '..' in rel_path.split('/'):
                 continue
 
-            # SECURITY: Reject backslashes (Windows-style paths)
-            if '\\' in rel_path:
-                continue
-
-            # SECURITY: Reject absolute paths within relative path
-            if rel_path.startswith('/'):
+            # SECURITY: Verify resolved path stays within skill_dir
+            try:
+                resolved = f.resolve()
+                resolved.relative_to(skill_dir)
+            except ValueError:
+                # Path escapes skill_dir boundary
                 continue
 
             file_hash = compute_file_hash(f)
