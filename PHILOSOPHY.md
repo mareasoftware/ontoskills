@@ -6,7 +6,7 @@
 
 ## 0. Neuro-Symbolic AI Agent Platform
 
-OntoSkills is not just a compiler — it's a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
+OntoSkills are not just a compiler — they are a **complete neuro-symbolic platform** for building deterministic, enterprise-grade AI agents. The ecosystem consists of five layered components:
 
 ```mermaid
 flowchart LR
@@ -164,7 +164,7 @@ Without formal semantics, every LLM query about skills is a **gamble on interpre
 
 ---
 
-This is the **knowledge retrieval problem** in the age of LLMs — and OntoSkills solves it by making skills **queryable, not readable**.
+This is the **knowledge retrieval problem** in the age of LLMs — and OntoSkills solve it by making skills **queryable, not readable**.
 
 ---
 
@@ -191,7 +191,7 @@ Each letter represents a capability that solves a specific problem in skill mode
 
 ## 4. Neuro-Symbolic Architecture
 
-OntoSkills is **neuro-symbolic**: it combines neural and symbolic AI paradigms.
+OntoSkills are **neuro-symbolic**: they combine neural and symbolic AI paradigms.
 
 ```mermaid
 flowchart LR
@@ -283,7 +283,7 @@ This enables **informed querying** — the LLM knows the ontology's structure be
 
 ## 8. Enterprise Focus
 
-OntoSkills is designed for **production enterprise environments**:
+OntoSkills are designed for **production enterprise environments**:
 
 ### Determinism Over Flexibility
 
@@ -333,4 +333,4 @@ OntoSkills builds on decades of research in Knowledge Representation, Logical Re
 * Heath, T., Bizer, C. (2011). "Linked Data: Evolving the Web into a Global Data Space". *Synthesis Lectures on the Semantic Web*.
 * SPARQL 1.1 Query Language (2013). https://www.w3.org/TR/sparql11-query/
 
-*OntoSkills is the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*
+*OntoSkills are the bridge: neural flexibility for extraction, symbolic rigor for storage, precise queries for retrieval.*

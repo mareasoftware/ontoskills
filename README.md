@@ -40,7 +40,7 @@
 
 ---
 
-## What is OntoSkills?
+## What are OntoSkills?
 
 OntoSkills transforms natural language skill definitions into **validated OWL 2 ontologies** — queryable knowledge graphs that enable deterministic reasoning for AI agents.
 
@@ -111,7 +111,7 @@ Or use `npx ontoskills` without installing.
 
 ## Documentation
 
-- **[Overview](https://ontoskills.sh/overview/)** — What is OntoSkills and why it matters
+- **[Overview](https://ontoskills.sh/overview/)** — What are OntoSkills and why they matter
 - **[Getting Started](https://ontoskills.sh/getting-started/)** — Installation and first steps
 - **[Architecture](https://ontoskills.sh/architecture/)** — How the system works
 - **[Knowledge Extraction](https://ontoskills.sh/knowledge-extraction/)** — Extracting value from skills
