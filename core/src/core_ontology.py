@@ -488,9 +488,6 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     )))
 
     # ========== Phase 2: File Properties ==========
-    from rdflib.collection import Collection
-    from rdflib.namespace import XSD
-
     # Create union domain class for file properties (ReferenceFile OR ExecutableScript)
     file_domain = BNode()
     g.add((file_domain, RDF.type, OWL.Class))
@@ -554,6 +551,7 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # oc:requirementType (DatatypeProperty)
     g.add((oc.requirementType, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.requirementType, RDFS.domain, oc.Requirement))
     g.add((oc.requirementType, RDFS.label, Literal("requirement type")))
     g.add((oc.requirementType, RDFS.comment, Literal(
         "Type of requirement (Tool, EnvVar, Hardware, API, Knowledge)"
