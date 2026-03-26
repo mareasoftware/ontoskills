@@ -6,7 +6,6 @@ Handles serialization of skills to RDF/Turtle format.
 
 import hashlib
 import logging
-import re
 from pathlib import Path
 from typing import Optional
 

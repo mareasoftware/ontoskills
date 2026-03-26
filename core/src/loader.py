@@ -7,10 +7,9 @@ Handles:
 - File hash computation for progressive disclosure
 """
 
-import re
 import hashlib
+import re
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -111,7 +110,10 @@ def parse_frontmatter(content: str) -> Frontmatter:
 
 
 def compute_file_hash(path: Path) -> str:
-    """Compute SHA-256 hash of file content.
+    """Compute SHA-256 hash of file content using streaming read.
+
+    Reads file in chunks to avoid loading large files (e.g., PDFs) entirely
+    into memory.
 
     Args:
         path: Path to file
@@ -119,7 +121,11 @@ def compute_file_hash(path: Path) -> str:
     Returns:
         Hexadecimal SHA-256 hash string
     """
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    hasher = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def scan_skill_directory(skill_dir: Path, package_id: str | None = None) -> DirectoryScan:
@@ -180,8 +186,8 @@ def scan_skill_directory(skill_dir: Path, package_id: str | None = None) -> Dire
         if any(part in ('__pycache__', 'node_modules', '.venv', 'venv') for part in parts):
             continue
 
-        # SECURITY: Path traversal protection
-        if '..' in parts:
+        # SECURITY: Path traversal protection (Unix and Windows styles)
+        if '..' in parts or '\\' in rel_path:
             continue
 
         # SECURITY: Verify resolved path stays within skill_dir

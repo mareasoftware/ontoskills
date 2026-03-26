@@ -6,7 +6,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-25T23:01:49.353041" ;
+    dcterms:created "2026-03-26T10:18:33.854617" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 

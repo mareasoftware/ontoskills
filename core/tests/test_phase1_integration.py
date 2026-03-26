@@ -11,14 +11,11 @@ import pytest
 from pathlib import Path
 
 from compiler.loader import (
-    parse_frontmatter,
     scan_skill_directory,
     compute_file_hash,
     LoaderError,
 )
 from compiler.schemas import (
-    Frontmatter,
-    FileInfo,
     DirectoryScan,
     CompiledSkill,
     ExtractedSkill,

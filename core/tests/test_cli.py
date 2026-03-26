@@ -341,12 +341,16 @@ skill:test-skill a oc:Skill ;
 
     runner = CliRunner()
 
-    # Create mock for extracted skill
+    # Create mock for extracted skill with real list attributes
+    # (MagicMock defaults would break enrich_extracted_skill which calls .append())
     mock_extracted = MagicMock()
     mock_extracted.id = "test-skill"
     mock_extracted.nature = "Extracted skill"
     mock_extracted.genus = "action"
     mock_extracted.intents = ["test"]
+    mock_extracted.extends = []  # Real list for .append() in enrich_extracted_skill
+    mock_extracted.depends_on = []  # Real list for filtering
+    mock_extracted.state_transitions = MagicMock()
     mock_extracted.state_transitions.requires_state = []
     mock_extracted.state_transitions.yields_state = []
     mock_extracted.model_dump = MagicMock(return_value={
@@ -378,6 +382,9 @@ skill:test-skill a oc:Skill ;
         mock_extracted.nature = "Extracted skill"
         mock_extracted.genus = "action"
         mock_extracted.intents = ["test"]
+        mock_extracted.extends = []  # Real list for .append() in enrich_extracted_skill
+        mock_extracted.depends_on = []  # Real list for filtering
+        mock_extracted.state_transitions = MagicMock()
         mock_extracted.state_transitions.requires_state = []
         mock_extracted.state_transitions.yields_state = []
         mock_extracted.model_dump = MagicMock(return_value={

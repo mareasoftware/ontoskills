@@ -41,27 +41,42 @@ from compiler.schemas import CompiledSkill
 console = Console()
 
 
-def infer_parent_skill_id(skill_dir: Path, input_path: Path) -> str | None:
+def infer_parent_skill_id(skill_dir: Path, input_path: Path, skill_parent_map: dict | None = None) -> str | None:
     """Infer the nearest parent skill from the directory structure.
 
     A nested skill inherits from the closest ancestor directory that contains
     its own `SKILL.md`. This makes inheritance deterministic and avoids relying
     on the extractor to rediscover obvious filesystem relationships.
+
+    Args:
+        skill_dir: Path to the skill directory
+        input_path: Root input path
+        skill_parent_map: Optional map of skill_dir -> (qualified_id, package_id)
+                         to get canonical frontmatter-based skill IDs
+
+    Returns:
+        The canonical parent skill ID (from frontmatter if available) or None
     """
     current = skill_dir.parent
     input_root = input_path.resolve()
 
     while current != input_root and current != current.parent:
         if (current / "SKILL.md").exists():
+            # Use frontmatter-based ID from skill_parent_map if available
+            if skill_parent_map and current in skill_parent_map:
+                qualified_id, _ = skill_parent_map[current]
+                # Extract short ID from qualified ID (package/skill_id -> skill_id)
+                return qualified_id.split('/')[-1]
+            # Fallback to directory name (for cases outside main compilation)
             return generate_skill_id(current.name)
         current = current.parent
 
     return None
 
 
-def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path):
+def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path, skill_parent_map: dict | None = None):
     """Apply deterministic compiler-side enrichments to extracted skills."""
-    parent_skill_id = infer_parent_skill_id(skill_dir, input_path)
+    parent_skill_id = infer_parent_skill_id(skill_dir, input_path, skill_parent_map)
     if parent_skill_id and parent_skill_id != extracted.id and parent_skill_id not in extracted.extends:
         extracted.extends.append(parent_skill_id)
     if extracted.extends:
@@ -184,12 +199,15 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
 
     # Build skill_parent_map for Rule A using frontmatter names (not directory names)
     # This ensures parent/child IDs remain consistent
+    # Also cache DirectoryScan results to avoid double scanning
     skill_parent_map = {}  # skill_dir -> (parent_skill_id, package_id)
+    dir_scan_cache = {}  # skill_dir -> DirectoryScan (cached from first pass)
     for skill_file in skill_md_files:
         skill_dir = skill_file.parent
         try:
             # Scan to get frontmatter name (canonical skill ID)
             dir_scan = scan_skill_directory(skill_dir)
+            dir_scan_cache[skill_dir] = dir_scan  # Cache for reuse
             skill_id = dir_scan.skill_id  # From frontmatter.name
         except LoaderError:
             # Fallback to directory name if frontmatter invalid
@@ -201,12 +219,14 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     for skill_file in skill_md_files:
         skill_dir = skill_file.parent
 
-        # Phase 1: Scan directory and extract frontmatter
-        try:
-            dir_scan = scan_skill_directory(skill_dir)
-        except LoaderError as e:
-            console.print(f"[red]Phase 1 scan failed for {skill_dir.name}: {e}[/red]")
-            continue
+        # Phase 1: Use cached scan result (or rescan if not cached)
+        dir_scan = dir_scan_cache.get(skill_dir)
+        if dir_scan is None:
+            try:
+                dir_scan = scan_skill_directory(skill_dir)
+            except LoaderError as e:
+                console.print(f"[red]Phase 1 scan failed for {skill_dir.name}: {e}[/red]")
+                continue
 
         # Use Phase 1 data for IDs and hash
         skill_id = dir_scan.skill_id
@@ -254,7 +274,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         # Phase 2: LLM extraction
         try:
             extracted = tool_use_loop(skill_dir, skill_hash, skill_id)
-            extracted = enrich_extracted_skill(extracted, skill_dir, input_path)
+            extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map)
 
             # Create CompiledSkill with Phase 1 data
             compiled = CompiledSkill(
@@ -329,7 +349,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         # LLM extraction with context - use SHORT ID for extracted.id
         try:
             extracted = tool_use_loop(skill_dir, sub_skill_hash, sub_skill_short_id, parent_context=parent_context)
-            extracted = enrich_extracted_skill(extracted, skill_dir, input_path)
+            extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map)
 
             # Defer serialization until after dry_run check
             sub_skills_to_serialize.append((
