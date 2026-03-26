@@ -16,9 +16,9 @@ const {
 const baseStyles = 'inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary';
 
 const variants = {
-  primary: 'border border-white/10 bg-white text-black hover:bg-neutral-200',
-  secondary: 'bg-transparent border border-white/10 text-text-primary hover:bg-white/5 hover:border-white/20',
-  ghost: 'text-text-secondary hover:text-text-primary'
+  primary: 'border border-white/10 bg-gradient-to-r from-white to-neutral-100 text-black hover:from-neutral-100 hover:to-white shadow-lg shadow-white/5',
+  secondary: 'bg-transparent border border-white/10 text-text-primary hover:bg-gradient-to-r hover:from-white/5 hover:to-cyan-500/5 hover:border-cyan-500/30',
+  ghost: 'text-text-secondary hover:text-cyan-400'
 };
 
 const sizes = {
