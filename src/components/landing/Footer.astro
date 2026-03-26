@@ -33,26 +33,26 @@ const communityLinks = [
 ];
 ---
 
-<footer class="border-t border-border/60 py-12 bg-transparent">
+<footer class="border-t border-white/10 py-12 sm:py-16 bg-transparent">
   <div class="section-shell">
     <!-- Logo at top -->
-    <div class="flex justify-center mb-10">
-      <a href={homeHref} class="flex items-center gap-2">
+    <div class="flex justify-center mb-10 sm:mb-12">
+      <a href={homeHref} class="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <img src={logo.src} alt="OntoSkills" class="h-6 w-auto" />
         <span class="font-semibold text-text-primary">OntoSkills</span>
       </a>
     </div>
 
-    <!-- 3-column grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+    <!-- 3-column grid - centered on mobile -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12 mb-10 sm:mb-12 text-center sm:text-left">
       <!-- Product Column -->
       <div>
-        <h3 class="font-semibold text-text-primary mb-4">{t.product}</h3>
+        <h3 class="font-semibold text-text-primary mb-4 text-sm uppercase tracking-wider">{t.product}</h3>
         <nav class="flex flex-col gap-3">
           {productLinks.map((link) => (
             <a
               href={link.href}
-              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+              class="text-text-secondary hover:text-cyan-400 transition-colors text-sm"
             >
               {link.label}
             </a>
@@ -62,12 +62,12 @@ const communityLinks = [
 
       <!-- Resources Column -->
       <div>
-        <h3 class="font-semibold text-text-primary mb-4">{t.resources}</h3>
+        <h3 class="font-semibold text-text-primary mb-4 text-sm uppercase tracking-wider">{t.resources}</h3>
         <nav class="flex flex-col gap-3">
           {resourceLinks.map((link) => (
             <a
               href={link.href}
-              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+              class="text-text-secondary hover:text-cyan-400 transition-colors text-sm"
             >
               {link.label}
             </a>
@@ -77,16 +77,19 @@ const communityLinks = [
 
       <!-- Community Column -->
       <div>
-        <h3 class="font-semibold text-text-primary mb-4">{t.community}</h3>
+        <h3 class="font-semibold text-text-primary mb-4 text-sm uppercase tracking-wider">{t.community}</h3>
         <nav class="flex flex-col gap-3">
           {communityLinks.map((link) => (
             <a
               href={link.href}
-              class="text-text-secondary hover:text-text-primary transition-colors text-sm"
+              class="text-text-secondary hover:text-cyan-400 transition-colors text-sm inline-flex items-center justify-center sm:justify-start gap-1.5"
               target="_blank"
               rel="noopener"
             >
               {link.label}
+              <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
             </a>
           ))}
         </nav>
@@ -94,7 +97,7 @@ const communityLinks = [
     </div>
 
     <!-- Copyright line at bottom -->
-    <div class="text-center text-text-muted text-sm">
+    <div class="text-center text-text-muted text-sm pt-8 border-t border-white/5">
       {t.copyright}
     </div>
   </div>

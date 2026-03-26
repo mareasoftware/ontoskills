@@ -230,7 +230,7 @@ const footer = {
     gettingStarted: 'Getting Started',
     cliReference: 'CLI Reference',
     architecture: 'Architecture',
-    copyright: '© 2026 OntoSkills. Built with Astro + Starlight.',
+    copyright: '© 2026 OntoSkills. All rights reserved.',
   },
   zh: {
     product: '产品',
@@ -241,7 +241,7 @@ const footer = {
     gettingStarted: '开始使用',
     cliReference: 'CLI 参考',
     architecture: '架构',
-    copyright: '© 2026 OntoSkills. 基于 Astro + Starlight 构建。',
+    copyright: '© 2026 OntoSkills. 保留所有权利。',
   },
 };
 
