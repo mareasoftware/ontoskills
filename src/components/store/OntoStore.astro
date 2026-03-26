@@ -18,7 +18,7 @@ const {
   lang = defaultLang,
 } = Astro.props;
 
-const rootId = `ontoskills-store`;
+const rootId = `ontoskills-store-${lang}`;
 
 // i18n strings
 const i18n = {
@@ -338,23 +338,23 @@ const t = i18n[lang];
   // Handle ViewTransitions - reinitialize when navigating to this page
   const initOnPageLoad = () => {
     const currentRoot = document.getElementById(rootId);
+    // Only initialize if this specific component instance exists on the new page
     if (!currentRoot) return;
 
     // Re-query DOM elements for the new page
-    const currentSearch = currentRoot.querySelector('[data-role="search"]');
     const currentGrid = currentRoot.querySelector('[data-role="grid"]');
     const currentStatus = currentRoot.querySelector('[data-role="status"]');
     const currentCount = currentRoot.querySelector('[data-role="count"]');
+    const currentSearch = currentRoot.querySelector('[data-role="search"]');
 
-    if (currentGrid && currentCount && currentStatus) {
-      // Reset state and reload
-      skills = [];
-      currentStatus.textContent = i18n.connecting;
-      loadStore();
+    if (currentGrid && currentStatus && currentCount) {
+      // Reset state and reload only if grid is empty
+      if (currentGrid.children.length === 0) {
+        skills = [];
+        currentStatus.textContent = i18n.connecting;
+        loadStore();
+      }
     }
-
-    // Re-attach search listener
-    currentSearch?.addEventListener('input', render);
   };
 
   // Run on ViewTransition navigation
