@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-26T19:06:58.970258" ;
+    dcterms:created "2026-03-26T19:10:33.017696" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 
@@ -244,25 +244,25 @@ oc:expectedOutcome a owl:DatatypeProperty ;
 oc:fileHash a owl:DatatypeProperty ;
     rdfs:label "file hash" ;
     rdfs:comment "SHA-256 hash of file content" ;
-    rdfs:domain _:N7d3e7948f16b42ccb1fa2f52674a22e6 ;
+    rdfs:domain _:N5b48e06a52104e22a26fe1a1524a2705 ;
     rdfs:range xsd:string .
 
 oc:fileMimeType a owl:DatatypeProperty ;
     rdfs:label "file MIME type" ;
     rdfs:comment "MIME type of the file" ;
-    rdfs:domain _:N7d3e7948f16b42ccb1fa2f52674a22e6 ;
+    rdfs:domain _:N5b48e06a52104e22a26fe1a1524a2705 ;
     rdfs:range xsd:string .
 
 oc:filePath a owl:DatatypeProperty ;
     rdfs:label "file path" ;
     rdfs:comment "Relative path from skill directory" ;
-    rdfs:domain _:N7d3e7948f16b42ccb1fa2f52674a22e6 ;
+    rdfs:domain _:N5b48e06a52104e22a26fe1a1524a2705 ;
     rdfs:range xsd:string .
 
 oc:fileSize a owl:DatatypeProperty ;
     rdfs:label "file size" ;
     rdfs:comment "File size in bytes" ;
-    rdfs:domain _:N7d3e7948f16b42ccb1fa2f52674a22e6 ;
+    rdfs:domain _:N5b48e06a52104e22a26fe1a1524a2705 ;
     rdfs:range xsd:integer .
 
 oc:generatedBy a owl:DatatypeProperty ;
@@ -581,9 +581,12 @@ oc:Skill a owl:Class ;
     rdfs:label "Skill" ;
     rdfs:comment "Base class for all executable skills in the ontology" .
 
-_:N51280833dda445ffa9f27283f0b2bb15 rdf:first oc:ReferenceFile ;
-    rdf:rest ( oc:ExecutableScript ) .
+_:N6e2a589eb8d7469897c0fd01d16ed176 rdf:first oc:ExecutableScript ;
+    rdf:rest () .
 
-_:N7d3e7948f16b42ccb1fa2f52674a22e6 a owl:Class ;
-    owl:unionOf _:N51280833dda445ffa9f27283f0b2bb15 .
+_:Na6577c8e0768425884eb195cf720ac5d rdf:first oc:ReferenceFile ;
+    rdf:rest _:N6e2a589eb8d7469897c0fd01d16ed176 .
+
+_:N5b48e06a52104e22a26fe1a1524a2705 a owl:Class ;
+    owl:unionOf _:Na6577c8e0768425884eb195cf720ac5d .
 
