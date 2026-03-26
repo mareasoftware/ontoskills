@@ -4,7 +4,7 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.9.3] - 2026-03-26
+## [0.9.2] - 2026-03-26
 
 ### Changed
 
@@ -19,14 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `oc:dependsOn` on steps with Literal → `oc:stepDependsOn` (ObjectProperty)
   - `oc:relativePath` → `oc:filePath`
   - `oc:mimeType` → `oc:fileMimeType`
-
-### Fixed
-
-- **Reserved words validation** — Now blocks OntoSkills system words (ontoskills, marea, mareasw, core, system, index) in any segment of skill name (not just prefix/suffix)
-- **Missing RDFS.domain** — Added domain declaration for `oc:requirementType` property
-- **Duplicate imports** — Removed redundant import statements in core_ontology.py
-
-## [0.9.2] - 2026-03-25
+- **SYSTEM_PROMPT** — Added extraction instructions for reference files, executable scripts, workflows, and examples
 
 ### Added
 
@@ -37,9 +30,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Blank node serialization** — Reference files, executable scripts, workflows, examples serialized as RDF blank nodes
 - **Progressive disclosure support** — File metadata (hash, size, MIME type) for lazy loading
 
-### Changed
+### Fixed
 
-- **SYSTEM_PROMPT** — Added extraction instructions for reference files, executable scripts, workflows, and examples
+- **Reserved words validation** — Now blocks OntoSkills system words (ontoskills, marea, mareasw, core, system, index) in any segment of skill name (not just prefix/suffix)
+- **Missing RDFS.domain** — Added domain declaration for `oc:requirementType` property
+- **Duplicate imports** — Removed redundant import statements in core_ontology.py
 
 ### Security
 
