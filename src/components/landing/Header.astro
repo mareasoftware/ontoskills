@@ -25,14 +25,15 @@ if (currentPath === '/' || currentPath === '') {
 } else if (currentPath === '/zh/ontostore/' || currentPath === '/zh/ontostore') {
   // OntoStore ZH -> EN
   alternateHref = '/ontostore/';
-} else if (currentPath.startsWith('/zh/')) {
+} else if (currentPath === '/zh' || currentPath.startsWith('/zh/')) {
   // Chinese to English: /zh/how-it-works/ -> /en/how-it-works/
-  alternateHref = currentPath.replace(/^\/zh\//, '/en/') || '/';
-} else if (currentPath.startsWith('/en/')) {
+  const replaced = currentPath.replace(/^\/zh\/?/, '/en/');
+  alternateHref = replaced === '/en/' ? '/' : replaced;
+} else if (currentPath === '/en' || currentPath.startsWith('/en/')) {
   // English to Chinese: /en/how-it-works/ -> /zh/how-it-works/
-  alternateHref = currentPath.replace(/^\/en\//, '/zh/');
+  alternateHref = currentPath.replace(/^\/en\/?/, '/zh/');
 } else {
-  // Other non-localized pages stay the same
+  // Other non-localized pages stay the same (if any)
   alternateHref = currentPath;
 }
 
@@ -41,12 +42,15 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
 </svg>`;
 ---
 
-<header class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/90 backdrop-blur">
-  <nav class="section-shell">
+<header class="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur">
+  <!-- Gradient border bottom -->
+  <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+
+  <nav class="section-shell relative">
     <div class="flex items-center justify-between h-16">
       <a href={homeHref} class="flex items-center gap-2">
         <img src={logo.src} alt="OntoSkills" class="h-8 w-auto" />
-        <span class="font-semibold text-text-primary">OntoSkills</span>
+        <span class="font-semibold text-text-primary text-lg">OntoSkills</span>
       </a>
 
       <div class="hidden md:flex items-center gap-6">
