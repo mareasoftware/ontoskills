@@ -115,13 +115,17 @@ const t = i18n[lang];
   </div>
 </section>
 
-<script define:vars={{ rootId, storeIndexUrl: OFFICIAL_STORE_INDEX_URL, storeRepoUrl: OFFICIAL_STORE_REPO_URL, i18n: t }} is:inline>
-  const root = document.getElementById(rootId);
-  const search = root?.querySelector('[data-role="search"]');
-  const grid = root?.querySelector('[data-role="grid"]');
-  const status = root?.querySelector('[data-role="status"]');
-  const count = root?.querySelector('[data-role="count"]');
+<script define:vars={{ rootId, storeIndexUrl: OFFICIAL_STORE_INDEX_URL, storeRepoUrl: OFFICIAL_STORE_REPO_URL, i18n: t }}>
+  // Unique keys per language to persist skills across ViewTransitions
+  const skillsKey = `ontoskills-skills-${rootId}`;
+  const abortKey = `ontoskills-abort-${rootId}`;
 
+  // Initialize skills array if not exists
+  if (!window[skillsKey]) {
+    window[skillsKey] = [];
+  }
+
+  // Helper functions defined outside initStore (pure functions, no DOM access)
   const escapeHtml = (value) =>
     value
       .replaceAll('&', '&amp;')
@@ -142,8 +146,6 @@ const t = i18n[lang];
       installCommand: `npx ontoskills install ${qualifiedId}`,
     };
   };
-
-  let skills = [];
 
   const renderRow = (skill, index) => {
     const aliases = skill.aliases.length ? skill.aliases.slice(0, 3).map(a => `<span class="px-2 py-0.5 rounded bg-white/5 text-xs text-text-muted">${escapeHtml(a)}</span>`).join('') : '';
@@ -190,173 +192,187 @@ const t = i18n[lang];
     `;
   };
 
-  const render = () => {
-    if (!grid || !count || !status) return;
-    const query = (search?.value || '').trim().toLowerCase();
-    const filtered = skills.filter((skill) => {
-      const haystack = [
-        skill.packageId,
-        skill.skillId,
-        skill.qualifiedId,
-        skill.description,
-        skill.aliases.join(' ')
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
-    });
+  const initStore = () => {
+    const root = document.getElementById(rootId);
+    if (!root) return;
 
-    count.textContent = `${filtered.length} ${filtered.length === 1 ? i18n.skill_one : i18n.skill_other}`;
-
-    if (!skills.length) {
-      status.innerHTML = `
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
-          <span>${i18n.unableToLoad}</span>
-          <button
-            data-action="retry"
-            class="px-3 py-1.5 rounded-md bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors text-sm font-medium"
-          >
-            ${i18n.retry || 'Retry'}
-          </button>
-          <a href="${storeRepoUrl}" target="_blank" rel="noopener" class="text-cyan-400 hover:text-cyan-300 underline text-sm">
-            ${i18n.openStore}
-          </a>
-        </div>
-      `;
-      grid.innerHTML = '';
-      return;
+    // Abort previous initialization if exists
+    if (window[abortKey]) {
+      window[abortKey].abort();
     }
+    const abortController = new AbortController();
+    window[abortKey] = abortController;
+    const { signal } = abortController;
 
-    status.textContent = query
-      ? `${i18n.showingResults} "${search.value.trim()}"`
-      : i18n.allSkills;
+    // Get reference to skills array from window
+    const skills = window[skillsKey];
+    const search = root.querySelector('[data-role="search"]');
+    const grid = root.querySelector('[data-role="grid"]');
+    const status = root.querySelector('[data-role="status"]');
+    const count = root.querySelector('[data-role="count"]');
 
-    if (!filtered.length) {
-      grid.innerHTML = `
-        <div class="px-4 sm:px-6 py-12 text-center">
-          <svg class="w-12 h-12 mx-auto mb-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-text-secondary mb-2">${escapeHtml(i18n.noMatch)}</p>
-          <p class="text-sm text-text-muted">${escapeHtml(i18n.trySearch)}</p>
-        </div>
-      `;
-      return;
-    }
-
-    grid.innerHTML = filtered.map(renderRow).join('');
-  };
-
-  const loadStore = async () => {
-    try {
-      status.textContent = i18n.connecting;
-      const indexResponse = await fetch(storeIndexUrl, {
-        mode: 'cors',
-        headers: { 'Accept': 'application/json' }
+    const render = () => {
+      if (!grid || !count || !status) return;
+      const query = (search?.value || '').trim().toLowerCase();
+      const filtered = skills.filter((skill) => {
+        const haystack = [
+          skill.packageId,
+          skill.skillId,
+          skill.qualifiedId,
+          skill.description,
+          skill.aliases.join(' ')
+        ]
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(query);
       });
-      if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
-      const indexData = await indexResponse.json();
 
-      // Use allSettled to handle partial failures gracefully
-      const results = await Promise.allSettled(
-        (indexData.packages || []).map(async (entry) => {
-          const manifestUrl = new URL(entry.manifest_url, storeIndexUrl).toString();
-          const response = await fetch(manifestUrl, {
-            mode: 'cors',
-            headers: { 'Accept': 'application/json' }
-          });
-          if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
-          return response.json();
-        })
-      );
+      count.textContent = `${filtered.length} ${filtered.length === 1 ? i18n.skill_one : i18n.skill_other}`;
 
-      // Only use fulfilled manifests, log rejected ones
-      const manifests = results
-        .filter((r) => r.status === 'fulfilled')
-        .map((r) => r.value);
-
-      const failedCount = results.filter((r) => r.status === 'rejected').length;
-      if (failedCount > 0) {
-        console.warn(`${failedCount} manifest(s) failed to load`);
+      if (!skills.length) {
+        status.innerHTML = `
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+            <span>${i18n.unableToLoad}</span>
+            <button
+              data-action="retry"
+              class="px-3 py-1.5 rounded-md bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors text-sm font-medium"
+            >
+              ${i18n.retry || 'Retry'}
+            </button>
+            <a href="${storeRepoUrl}" target="_blank" rel="noopener" class="text-cyan-400 hover:text-cyan-300 underline text-sm">
+              ${i18n.openStore}
+            </a>
+          </div>
+        `;
+        grid.innerHTML = '';
+        return;
       }
 
-      skills = manifests.flatMap((pkg) => (pkg.skills || []).map((skill) => normalizeSkill(pkg, skill)));
-      skills.sort((left, right) => left.qualifiedId.localeCompare(right.qualifiedId));
+      status.textContent = query
+        ? `${i18n.showingResults} "${search.value.trim()}"`
+        : i18n.allSkills;
+
+      if (!filtered.length) {
+        grid.innerHTML = `
+          <div class="px-4 sm:px-6 py-12 text-center">
+            <svg class="w-12 h-12 mx-auto mb-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-text-secondary mb-2">${escapeHtml(i18n.noMatch)}</p>
+            <p class="text-sm text-text-muted">${escapeHtml(i18n.trySearch)}</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(renderRow).join('');
+    };
+
+    const loadStore = async () => {
+      try {
+        status.textContent = i18n.connecting;
+        const indexResponse = await fetch(storeIndexUrl, {
+          mode: 'cors',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
+        const indexData = await indexResponse.json();
+
+        // Use allSettled to handle partial failures gracefully
+        const results = await Promise.allSettled(
+          (indexData.packages || []).map(async (entry) => {
+            const manifestUrl = new URL(entry.manifest_url, storeIndexUrl).toString();
+            const response = await fetch(manifestUrl, {
+              mode: 'cors',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
+            return response.json();
+          })
+        );
+
+        // Only use fulfilled manifests, log rejected ones
+        const manifests = results
+          .filter((r) => r.status === 'fulfilled')
+          .map((r) => r.value);
+
+        const failedCount = results.filter((r) => r.status === 'rejected').length;
+        if (failedCount > 0) {
+          console.warn(`${failedCount} manifest(s) failed to load`);
+        }
+
+        // Clear and repopulate the skills array (mutate, don't reassign!)
+        skills.length = 0;
+        const newSkills = manifests.flatMap((pkg) => (pkg.skills || []).map((skill) => normalizeSkill(pkg, skill)));
+        newSkills.sort((left, right) => left.qualifiedId.localeCompare(right.qualifiedId));
+        skills.push(...newSkills);
+
+        render();
+      } catch (error) {
+        console.error('Failed to load store:', error);
+        skills.length = 0;
+        render();
+      }
+    };
+
+    // Add event listeners with AbortSignal for cleanup
+    root.addEventListener('click', async (event) => {
+      // Handle retry button
+      const retryBtn = event.target.closest('[data-action="retry"]');
+      if (retryBtn) {
+        event.preventDefault();
+        await loadStore();
+        return;
+      }
+
+      // Handle copy button
+      const target = event.target.closest('[data-copy]');
+      if (!target) return;
+      const command = target.getAttribute('data-copy') ?? '';
+      const svg = target.querySelector('svg');
+      const originalHtml = svg?.outerHTML || '';
+
+      try {
+        await navigator.clipboard.writeText(command);
+        // Show checkmark
+        if (svg) {
+          svg.outerHTML = '<svg class="w-3.5 h-3.5 text-green-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+        }
+        target.classList.add('opacity-100');
+        setTimeout(() => {
+          const newSvg = target.querySelector('svg');
+          if (newSvg) newSvg.outerHTML = originalHtml;
+          target.classList.remove('opacity-100');
+        }, 1500);
+      } catch {
+        // Show X on failure
+        if (svg) {
+          svg.outerHTML = '<svg class="w-3.5 h-3.5 text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
+        }
+        setTimeout(() => {
+          const newSvg = target.querySelector('svg');
+          if (newSvg) newSvg.outerHTML = originalHtml;
+        }, 1500);
+      }
+    }, { signal });
+
+    search?.addEventListener('input', render, { signal });
+
+    // Initial load - use cache if available, otherwise fetch
+    if (skills.length > 0) {
       render();
-    } catch (error) {
-      console.error('Failed to load store:', error);
-      skills = [];
-      render();
+    } else {
+      loadStore();
     }
   };
 
-  root?.addEventListener('click', async (event) => {
-    // Handle retry button
-    const retryBtn = event.target.closest('[data-action="retry"]');
-    if (retryBtn) {
-      event.preventDefault();
-      await loadStore();
-      return;
-    }
+  // Run on astro:page-load only (not immediately - let the event handle first load too)
+  document.addEventListener('astro:page-load', initStore);
 
-    // Handle copy button
-    const target = event.target.closest('[data-copy]');
-    if (!target) return;
-    const command = target.getAttribute('data-copy') ?? '';
-    const svg = target.querySelector('svg');
-    const originalHtml = svg?.outerHTML || '';
-
-    try {
-      await navigator.clipboard.writeText(command);
-      // Show checkmark
-      if (svg) {
-        svg.outerHTML = '<svg class="w-3.5 h-3.5 text-green-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
-      }
-      target.classList.add('opacity-100');
-      setTimeout(() => {
-        const newSvg = target.querySelector('svg');
-        if (newSvg) newSvg.outerHTML = originalHtml;
-        target.classList.remove('opacity-100');
-      }, 1500);
-    } catch {
-      // Show X on failure
-      if (svg) {
-        svg.outerHTML = '<svg class="w-3.5 h-3.5 text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
-      }
-      setTimeout(() => {
-        const newSvg = target.querySelector('svg');
-        if (newSvg) newSvg.outerHTML = originalHtml;
-      }, 1500);
-    }
-  });
-
-  search?.addEventListener('input', render);
-
-  // Initial load
-  loadStore();
-
-  // Handle ViewTransitions - reinitialize when navigating to this page
-  const initOnPageLoad = () => {
-    const currentRoot = document.getElementById(rootId);
-    // Only initialize if this specific component instance exists on the new page
-    if (!currentRoot) return;
-
-    // Re-query DOM elements for the new page
-    const currentGrid = currentRoot.querySelector('[data-role="grid"]');
-    const currentStatus = currentRoot.querySelector('[data-role="status"]');
-    const currentCount = currentRoot.querySelector('[data-role="count"]');
-    const currentSearch = currentRoot.querySelector('[data-role="search"]');
-
-    if (currentGrid && currentStatus && currentCount) {
-      // Reset state and reload only if grid is empty
-      if (currentGrid.children.length === 0) {
-        skills = [];
-        currentStatus.textContent = i18n.connecting;
-        loadStore();
-      }
-    }
-  };
-
-  // Run on ViewTransition navigation
-  document.addEventListener('astro:page-load', initOnPageLoad);
+  // Also run immediately for SSR/first page load before ViewTransitions are active
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStore);
+  } else {
+    initStore();
+  }
 </script>
