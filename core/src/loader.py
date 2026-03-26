@@ -194,12 +194,18 @@ def scan_skill_directory(skill_dir: Path, package_id: str | None = None) -> Dire
             if f.is_symlink():
                 continue
 
-            # SECURITY: Path traversal protection (Unix and Windows styles)
-            if '..' in filename or '\\' in filename:
+            # SECURITY: Path traversal protection
+            # Reject exact segment ".." and any backslash (Windows path separator)
+            # Note: '..' in filename would incorrectly reject legitimate files like "notes..md"
+            if filename == '..' or '\\' in filename:
                 continue
 
             # Use as_posix() for cross-platform compatibility (always uses /)
             rel_path = f.relative_to(skill_dir).as_posix()
+
+            # Also check for ".." as a path segment in the relative path
+            if '/../' in f'/{rel_path}/' or rel_path.startswith('../') or rel_path.endswith('/..'):
+                continue
 
             # SECURITY: Verify resolved path stays within skill_dir
             try:

@@ -298,9 +298,9 @@ def serialize_skill(
                     dep_node = step_nodes[dep_id]
                     graph.add((step_node, oc.stepDependsOn, dep_node))
 
-    # Examples
-    for ex in getattr(skill, 'examples', []):
-        ex_node = make_bnode("example", ex.name)
+    # Examples (use index for unique BNode IDs to avoid collisions with same name)
+    for idx, ex in enumerate(getattr(skill, 'examples', [])):
+        ex_node = make_bnode("example", f"{idx}:{ex.name}")
         graph.add((skill_uri, oc.hasExample, ex_node))
         graph.add((ex_node, RDF.type, oc.Example))
         graph.add((ex_node, oc.exampleName, Literal(ex.name)))
