@@ -102,3 +102,93 @@ a:hover {
   border: 1px solid var(--sl-color-border) !important;
   border-radius: 999px !important;
 }
+
+/* Tables - centered text, cleaner look */
+.sl-markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.75rem 1rem;
+}
+
+.sl-markdown-content th {
+  font-weight: 600;
+  background: transparent;
+  border-bottom: 1px solid var(--sl-color-border);
+}
+
+.sl-markdown-content td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Remove border from last row */
+.sl-markdown-content tr:last-child td {
+  border-bottom: none;
+}
+
+/* Headings - cleaner, no borders */
+.sl-markdown-content h1 {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 1.5rem;
+}
+
+.sl-markdown-content h2 {
+  border-bottom: none;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.sl-markdown-content h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Content panel - cleaner */
+.content-panel {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Blockquote - minimal */
+.sl-markdown-content blockquote {
+  border-left: 2px solid var(--sl-color-accent) !important;
+  border-radius: 0 !important;
+  padding-left: 1rem !important;
+  margin-left: 0 !important;
+}
+
+/* Code blocks - keep border but subtle */
+pre.expressive-code {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Card styling */
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+/* Right sidebar (table of contents) - cleaner */
+.right-sidebar {
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.right-sidebar button {
+  border: none;
+}
+
+/* Pagination links */
+.pagination-links {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pagination-links a {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
