@@ -227,11 +227,11 @@ class Frontmatter(BaseModel):
             raise ValueError(f"Skill name exceeds 64 characters: {len(v)}")
         if not re.match(r'^[a-z0-9-]+$', v):
             raise ValueError("Skill name must be lowercase with hyphens only")
-        # Check for reserved words as exact match or prefix/suffix
-        reserved = ('anthropic', 'claude')
-        v_lower = v.lower()
+        # Check for OntoSkills reserved words anywhere in the skill name
+        reserved = ('ontoskills', 'marea', 'mareasw', 'core', 'system', 'index')
+        segments = v.lower().split('-')
         for word in reserved:
-            if v_lower == word or v_lower.startswith(f"{word}-") or v_lower.endswith(f"-{word}"):
+            if word in segments:
                 raise ValueError(f"Reserved word '{word}' not allowed in skill name")
         return v
 
