@@ -267,7 +267,8 @@ def _check_workflow_cycles(g: Graph) -> list[LintIssue]:
     """
     issues: list[LintIssue] = []
 
-    for skill_uri in g.subjects(OC.hasWorkflow):
+    # Deduplicate skill URIs (subjects yields once per triple)
+    for skill_uri in dict.fromkeys(g.subjects(OC.hasWorkflow)):
         # Get skill ID for reporting
         identifier_obj = next(g.objects(skill_uri, DCTERMS.identifier), None)
         skill_id = str(identifier_obj) if identifier_obj else _local(skill_uri)

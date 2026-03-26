@@ -2,7 +2,7 @@ import json
 import re
 import warnings
 from enum import Enum
-from pydantic import BaseModel, field_validator, model_validator, computed_field
+from pydantic import BaseModel, Field, field_validator, model_validator, computed_field
 from typing import Literal, Any
 
 
@@ -24,9 +24,9 @@ class StateTransition(BaseModel):
     Uses structured state URIs that the Rust MCP server can reason about.
     All state URIs must match the pattern: oc:[A-Z][a-zA-Z0-9]*
     """
-    requires_state: list[str] = []  # URIs like ["oc:SystemAuthenticated"]
-    yields_state: list[str] = []    # URIs like ["oc:DocumentCreated"]
-    handles_failure: list[str] = [] # URIs like ["oc:PermissionDenied"]
+    requires_state: list[str] = Field(default_factory=list)  # URIs like ["oc:SystemAuthenticated"]
+    yields_state: list[str] = Field(default_factory=list)    # URIs like ["oc:DocumentCreated"]
+    handles_failure: list[str] = Field(default_factory=list) # URIs like ["oc:PermissionDenied"]
 
     @field_validator('requires_state', 'yields_state', 'handles_failure')
     @classmethod
@@ -96,15 +96,15 @@ class ExtractedSkill(BaseModel):
     genus: str
     differentia: str
     intents: list[str]
-    requirements: list[Requirement]
-    depends_on: list[str] = []
-    extends: list[str] = []
-    contradicts: list[str] = []
+    requirements: list[Requirement] = Field(default_factory=list)
+    depends_on: list[str] = Field(default_factory=list)
+    extends: list[str] = Field(default_factory=list)
+    contradicts: list[str] = Field(default_factory=list)
     state_transitions: StateTransition | None = None
     generated_by: str = "unknown"
     execution_payload: ExecutionPayload | None = None
     provenance: str | None = None
-    knowledge_nodes: list[KnowledgeNode] = []
+    knowledge_nodes: list[KnowledgeNode] = Field(default_factory=list)
 
     @field_validator('depends_on', 'extends', 'contradicts')
     @classmethod
@@ -218,7 +218,7 @@ class Frontmatter(BaseModel):
     name: str
     description: str
     version: str | None = None
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator('name')
     @classmethod
@@ -281,7 +281,7 @@ class ExecutableScript(BaseModel):
     executor: Literal["python", "bash", "node", "other"]
     execution_intent: Literal["execute", "read_only"] = "execute"
     command_template: str | None = None
-    requirements: list[str] = []  # Plain tool names: ["pypdf", "pdfplumber"]
+    requirements: list[str] = Field(default_factory=list)  # Plain tool names: ["pypdf", "pdfplumber"]
     produces_output: str | None = None
 
 
@@ -290,7 +290,7 @@ class Example(BaseModel):
     name: str
     input_description: str
     output_example: str
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
 
 
 class WorkflowStep(BaseModel):
@@ -298,7 +298,7 @@ class WorkflowStep(BaseModel):
     step_id: str
     description: str
     expected_outcome: str | None = None
-    depends_on: list[str] = []
+    depends_on: list[str] = Field(default_factory=list)
 
 
 class Workflow(BaseModel):
@@ -322,10 +322,10 @@ class CompiledSkill(ExtractedSkill):
     """
     # From Phase 1
     frontmatter: Frontmatter | None = None
-    files: list[FileInfo] = []
+    files: list[FileInfo] = Field(default_factory=list)
 
     # From Phase 2
-    reference_files: list[ReferenceFile] = []
-    executable_scripts: list[ExecutableScript] = []
-    examples: list[Example] = []
-    workflows: list[Workflow] = []
+    reference_files: list[ReferenceFile] = Field(default_factory=list)
+    executable_scripts: list[ExecutableScript] = Field(default_factory=list)
+    examples: list[Example] = Field(default_factory=list)
+    workflows: list[Workflow] = Field(default_factory=list)
