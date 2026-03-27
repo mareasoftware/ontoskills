@@ -218,9 +218,9 @@ Edit `fields.json` to add values...
 
 ---
 
-## Skill Components (v0.9.2+)
+## Skill Components (v0.10.0+)
 
-OntoSkills v0.9.2+ supports structured components for progressive disclosure:
+OntoSkills v0.10.0+ supports structured components for progressive disclosure:
 
 ### Reference Files
 

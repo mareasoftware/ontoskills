@@ -178,12 +178,20 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     asset_files = []         # Rule C: direct copy
 
     for file_path in files_to_process:
+        # Apply same security filters as scan_skill_directory()
+        # - Skip symlinked files to avoid copying external targets
+        # - Skip paths with backslash (valid on POSIX but problematic)
+        if file_path.is_symlink():
+            continue
+        rel_path = file_path.relative_to(input_path)
+        if any('\\' in part for part in rel_path.parts):
+            continue
+
         if file_path.name == "SKILL.md":
             skill_md_files.append(file_path)
         elif file_path.suffix == ".md":
             # Exclude reference/** paths - these are progressive disclosure docs, not sub-skills
             # They're already scanned in Phase 1 for hashing/metadata
-            rel_path = file_path.relative_to(input_path)
             if "reference" in rel_path.parts:
                 asset_files.append(file_path)  # Treat as asset, not sub-skill
             else:

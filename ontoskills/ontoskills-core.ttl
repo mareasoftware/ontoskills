@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-26T20:08:43.292190" ;
+    dcterms:created "2026-03-27T13:07:55.439739" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 
@@ -244,25 +244,25 @@ oc:expectedOutcome a owl:DatatypeProperty ;
 oc:fileHash a owl:DatatypeProperty ;
     rdfs:label "file hash" ;
     rdfs:comment "SHA-256 hash of file content" ;
-    rdfs:domain _:N4b2976923f0e4133954154bee7739580 ;
+    rdfs:domain oc:FileResource ;
     rdfs:range xsd:string .
 
 oc:fileMimeType a owl:DatatypeProperty ;
     rdfs:label "file MIME type" ;
     rdfs:comment "MIME type of the file" ;
-    rdfs:domain _:N4b2976923f0e4133954154bee7739580 ;
+    rdfs:domain oc:FileResource ;
     rdfs:range xsd:string .
 
 oc:filePath a owl:DatatypeProperty ;
     rdfs:label "file path" ;
     rdfs:comment "Relative path from skill directory" ;
-    rdfs:domain _:N4b2976923f0e4133954154bee7739580 ;
+    rdfs:domain oc:FileResource ;
     rdfs:range xsd:string .
 
 oc:fileSize a owl:DatatypeProperty ;
     rdfs:label "file size" ;
     rdfs:comment "File size in bytes" ;
-    rdfs:domain _:N4b2976923f0e4133954154bee7739580 ;
+    rdfs:domain oc:FileResource ;
     rdfs:range xsd:integer .
 
 oc:generatedBy a owl:DatatypeProperty ;
@@ -468,6 +468,9 @@ oc:ExecutableSkill a owl:Class ;
     rdfs:comment "A skill with an executable code payload" ;
     rdfs:subClassOf oc:Skill .
 
+oc:FileResourceUnion rdf:first oc:ReferenceFile ;
+    rdf:rest ( oc:ExecutableScript ) .
+
 oc:enables a owl:ObjectProperty ;
     rdfs:label "enables" ;
     rdfs:comment "Skill enables another skill (inverse of dependsOn)" ;
@@ -549,6 +552,9 @@ oc:StrategicInsight a owl:Class ;
     rdfs:label "StrategicInsight" ;
     rdfs:subClassOf oc:KnowledgeNode .
 
+oc:FileResource a owl:Class ;
+    owl:unionOf oc:FileResourceUnion .
+
 oc:Workflow a owl:Class ;
     rdfs:label "Workflow" ;
     rdfs:comment "A sequential workflow with dependencies between steps" .
@@ -580,10 +586,4 @@ oc:State a owl:Class ;
 oc:Skill a owl:Class ;
     rdfs:label "Skill" ;
     rdfs:comment "Base class for all executable skills in the ontology" .
-
-_:N4f86723ec026488587761a392eeaa39c rdf:first oc:ReferenceFile ;
-    rdf:rest ( oc:ExecutableScript ) .
-
-_:N4b2976923f0e4133954154bee7739580 a owl:Class ;
-    owl:unionOf _:N4f86723ec026488587761a392eeaa39c .
 
