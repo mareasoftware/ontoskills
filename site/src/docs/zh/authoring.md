@@ -218,9 +218,9 @@ SKILL.md → examples.md
 
 ---
 
-## 技能组件 (v0.10.0+)
+## 技能组件
 
-OntoSkills v0.10.0+ 支持渐进式披露的结构化组件：
+OntoSkills 支持渐进式披露的结构化组件：
 
 ### 参考文件
 
