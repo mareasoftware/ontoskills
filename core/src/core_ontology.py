@@ -489,9 +489,10 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # ========== Phase 2: File Properties ==========
     # Create union domain class for file properties (ReferenceFile OR ExecutableScript)
-    file_domain = BNode()
+    # Use named URI for deterministic serialization (avoid BNode churn in diffs)
+    file_domain = oc.FileResource
     g.add((file_domain, RDF.type, OWL.Class))
-    file_union_list = BNode()
+    file_union_list = oc.FileResourceUnion
     Collection(g, file_union_list, [oc.ReferenceFile, oc.ExecutableScript])
     g.add((file_domain, OWL.unionOf, file_union_list))
 

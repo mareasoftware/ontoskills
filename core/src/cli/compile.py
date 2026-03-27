@@ -323,8 +323,13 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         rel_path = md_file.relative_to(input_path)
         output_ttl_path = output_path / rel_path.with_suffix(".ttl")
 
+        # Skip sub-skills whose parent failed Phase 1 (not in skill_parent_map)
+        if skill_dir not in skill_parent_map:
+            logger.warning(f"Skipping {md_file.name}: parent skill not in skill_parent_map (failed Phase 1)")
+            continue
+
         # Get parent context
-        parent_qualified_id, package_id = skill_parent_map.get(skill_dir, ("local/unknown", "local"))
+        parent_qualified_id, package_id = skill_parent_map[skill_dir]
 
         # Extract parent local ID from qualified ID (uses frontmatter name, not directory name)
         # Format: {package_id}/{skill_id}
