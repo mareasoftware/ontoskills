@@ -240,8 +240,8 @@ class Frontmatter(BaseModel):
     def validate_description(cls, v: str) -> str:
         if len(v) > 1024:
             raise ValueError(f"Description exceeds 1024 characters: {len(v)}")
-        if re.search(r'<[^>]+>', v):
-            raise ValueError("Description contains XML tags (not allowed)")
+        if re.search(r'<[a-zA-Z][^>]*>', v):
+            raise ValueError("Description contains XML/HTML tags (not allowed)")
         return v
 
 

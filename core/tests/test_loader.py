@@ -143,7 +143,7 @@ name: test-skill
 description: A <b>bold</b> description
 ---
 # Content"""
-        with pytest.raises(LoaderError, match="XML tags"):
+        with pytest.raises(LoaderError, match="XML/HTML tags"):
             parse_frontmatter(content)
 
     def test_parse_frontmatter_accepts_max_length_name(self):
