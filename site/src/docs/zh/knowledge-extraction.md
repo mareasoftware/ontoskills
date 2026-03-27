@@ -21,6 +21,15 @@ description: OntoCore 如何从技能中提取结构化知识
 | **执行负载** | `oc:hasPayload` | 可选的要执行的代码 |
 | **溯源** | `oc:generatedBy` | 证明（哪个 LLM 编译的）|
 
+### 组件
+
+| 元素 | 属性 | 描述 |
+|------|------|------|
+| **参考文件** | `oc:hasReferenceFile` | 支持文档，带 `purpose`（api-reference、examples、guide、domain-specific、other）|
+| **可执行脚本** | `oc:hasExecutableScript` | 脚本，带 `executor`、`executionIntent`、`requirements` |
+| **工作流** | `oc:hasWorkflow` | 多步骤流程，带 `hasStep` 依赖关系 |
+| **示例** | `oc:hasExample` | 输入/输出对，用于模式匹配 |
+
 ---
 
 ## 知识节点

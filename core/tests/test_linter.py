@@ -126,3 +126,82 @@ oc:C a oc:Skill ; oc:resolvesIntent "c" ; oc:dependsOn oc:A .
     result = lint_ontology(path)
     assert result.has_errors
     assert any(i.code == "circular-dep" for i in result.issues)
+
+
+def test_workflow_step_cycle_detected(tmp_path):
+    """A workflow with a cycle in step dependencies (oc:stepDependsOn) should be flagged."""
+    path = _write(tmp_path, """
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "test_workflow" ;
+    oc:hasWorkflow oc:Workflow1 .
+
+oc:Workflow1 a oc:Workflow ;
+    oc:hasStep oc:StepA, oc:StepB, oc:StepC .
+
+oc:StepA a oc:WorkflowStep ;
+    oc:stepId "step-a" .
+
+oc:StepB a oc:WorkflowStep ;
+    oc:stepId "step-b" ;
+    oc:stepDependsOn oc:StepC .
+
+oc:StepC a oc:WorkflowStep ;
+    oc:stepId "step-c" ;
+    oc:stepDependsOn oc:StepB .
+""")
+    result = lint_ontology(path)
+    assert result.has_errors
+    assert any(i.code == "workflow-cycle" for i in result.issues)
+
+
+def test_workflow_step_three_node_cycle_detected(tmp_path):
+    """A → B → C → A cycle in workflow steps should be detected."""
+    path = _write(tmp_path, """
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "test_workflow" ;
+    oc:hasWorkflow oc:Workflow1 .
+
+oc:Workflow1 a oc:Workflow ;
+    oc:hasStep oc:StepA, oc:StepB, oc:StepC .
+
+oc:StepA a oc:WorkflowStep ;
+    oc:stepId "step-a" ;
+    oc:stepDependsOn oc:StepC .
+
+oc:StepB a oc:WorkflowStep ;
+    oc:stepId "step-b" ;
+    oc:stepDependsOn oc:StepA .
+
+oc:StepC a oc:WorkflowStep ;
+    oc:stepId "step-c" ;
+    oc:stepDependsOn oc:StepB .
+""")
+    result = lint_ontology(path)
+    assert result.has_errors
+    assert any(i.code == "workflow-cycle" for i in result.issues)
+
+
+def test_workflow_no_cycle_clean(tmp_path):
+    """A workflow with valid step dependencies (no cycles) should be clean."""
+    path = _write(tmp_path, """
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "test_workflow" ;
+    oc:hasWorkflow oc:Workflow1 .
+
+oc:Workflow1 a oc:Workflow ;
+    oc:hasStep oc:StepA, oc:StepB, oc:StepC .
+
+oc:StepA a oc:WorkflowStep ;
+    oc:stepId "step-a" .
+
+oc:StepB a oc:WorkflowStep ;
+    oc:stepId "step-b" ;
+    oc:stepDependsOn oc:StepA .
+
+oc:StepC a oc:WorkflowStep ;
+    oc:stepId "step-c" ;
+    oc:stepDependsOn oc:StepB .
+""")
+    result = lint_ontology(path)
+    workflow_cycles = [i for i in result.issues if i.code == "workflow-cycle"]
+    assert len(workflow_cycles) == 0, f"Unexpected workflow cycle: {workflow_cycles}"

@@ -4,6 +4,63 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.0] - 2026-03-27
+
+### Changed
+
+- **OWL Semantic Fixes** — Breaking changes to ontology properties for correct OWL reasoning:
+  - `oc:contentHash` on files → `oc:fileHash` (domain: ReferenceFile, ExecutableScript via owl:unionOf)
+  - `oc:executor` on scripts → `oc:scriptExecutor` (domain: ExecutableScript)
+  - `oc:executionIntent` → `oc:scriptIntent`
+  - `oc:commandTemplate` → `oc:scriptCommand`
+  - `oc:producesOutput` → `oc:scriptOutput`
+  - `oc:hasRequirement` on scripts → `oc:scriptHasRequirement`
+  - `oc:description` on workflows → `dcterms:description`
+  - `oc:dependsOn` on steps with Literal → `oc:stepDependsOn` (ObjectProperty)
+  - `oc:relativePath` → `oc:filePath`
+  - `oc:mimeType` → `oc:fileMimeType`
+- **SYSTEM_PROMPT** — Added extraction instructions for reference files, executable scripts, workflows, and examples
+
+### Added
+
+- **Phase 1 Loader** (`loader.py`) — Python-only preprocessing before LLM extraction:
+  - `parse_frontmatter()` — YAML parsing with Anthropic-compatible validation
+  - `scan_skill_directory()` — Directory structure enumeration with file hashes
+- **New Pydantic models** — `Frontmatter`, `FileInfo`, `DirectoryScan`, `ReferenceFile`, `ExecutableScript`, `Example`, `Workflow`, `WorkflowStep`, `CompiledSkill`
+- **Blank node serialization** — Reference files, executable scripts, workflows, examples serialized as RDF blank nodes
+- **Progressive disclosure support** — File metadata (hash, size, MIME type) for lazy loading
+
+### Fixed
+
+- **Reserved words validation** — Now blocks OntoSkills system words (ontoskills, marea, mareasw, core, system, index) in any segment of skill name (not just prefix/suffix)
+- **Missing RDFS.domain** — Added domain declaration for `oc:requirementType` property
+- **Duplicate imports** — Removed redundant import statements in core_ontology.py
+- **BNode uniqueness** — Example blank nodes now use index-based identifiers to avoid collisions
+- **CLI module execution** — Added `__main__.py` to enable `python -m compiler.cli`
+- **Workflow cycle detection** — Linter now correctly detects cycles in `oc:stepDependsOn`
+- **Parent skill ID** — CLI compile uses frontmatter-based skill ID for parent relationships
+- **Parent inheritance robustness** — Skip parents not in skill_parent_map to avoid extends references to non-existent modules
+- **Name validation** — Tightened regex to disallow leading/trailing and repeated hyphens
+- **Workflow dependency warning** — Log warning when step dependency references non-existent step_id
+- **Reference docs handling** — Exclude `reference/**` from Rule B sub-skill processing (treat as assets)
+- **File read error handling** — Wrap `read_text()` errors in `LoaderError` for graceful per-skill failure handling
+
+### Security
+
+- **Path traversal protection** — Rejects `..` in file paths, backslashes, and absolute paths
+- **Symlink protection** — Rejects symlinked skill directories to prevent filesystem escape
+- **Backslash pruning** — Directories containing `\` are pruned during directory scan
+
+### Performance
+
+- **Directory scanning** — Switched from `rglob` to `os.walk` with early pruning of excluded directories
+- **Deterministic hashing** — Files sorted before directory hash computation for reproducibility
+
+### Tests
+
+- 3 new tests for workflow cycle detection
+- 32 new tests for loader module (55 total tests now passing)
+
 ## [0.9.1] - 2026-03-23
 
 ### Changed

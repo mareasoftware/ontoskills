@@ -1,7 +1,8 @@
 import json
+import re
 import warnings
 from enum import Enum
-from pydantic import BaseModel, field_validator, model_validator, computed_field
+from pydantic import BaseModel, Field, field_validator, model_validator, computed_field
 from typing import Literal, Any
 
 
@@ -23,9 +24,9 @@ class StateTransition(BaseModel):
     Uses structured state URIs that the Rust MCP server can reason about.
     All state URIs must match the pattern: oc:[A-Z][a-zA-Z0-9]*
     """
-    requires_state: list[str] = []  # URIs like ["oc:SystemAuthenticated"]
-    yields_state: list[str] = []    # URIs like ["oc:DocumentCreated"]
-    handles_failure: list[str] = [] # URIs like ["oc:PermissionDenied"]
+    requires_state: list[str] = Field(default_factory=list)  # URIs like ["oc:SystemAuthenticated"]
+    yields_state: list[str] = Field(default_factory=list)    # URIs like ["oc:DocumentCreated"]
+    handles_failure: list[str] = Field(default_factory=list) # URIs like ["oc:PermissionDenied"]
 
     @field_validator('requires_state', 'yields_state', 'handles_failure')
     @classmethod
@@ -95,15 +96,15 @@ class ExtractedSkill(BaseModel):
     genus: str
     differentia: str
     intents: list[str]
-    requirements: list[Requirement]
-    depends_on: list[str] = []
-    extends: list[str] = []
-    contradicts: list[str] = []
+    requirements: list[Requirement] = Field(default_factory=list)
+    depends_on: list[str] = Field(default_factory=list)
+    extends: list[str] = Field(default_factory=list)
+    contradicts: list[str] = Field(default_factory=list)
     state_transitions: StateTransition | None = None
     generated_by: str = "unknown"
     execution_payload: ExecutionPayload | None = None
     provenance: str | None = None
-    knowledge_nodes: list[KnowledgeNode] = []
+    knowledge_nodes: list[KnowledgeNode] = Field(default_factory=list)
 
     @field_validator('depends_on', 'extends', 'contradicts')
     @classmethod
@@ -201,3 +202,130 @@ class ExtractedSkill(BaseModel):
     def skill_type(self) -> Literal["executable", "declarative"]:
         """Derive skill type from presence of execution_payload."""
         return "executable" if self.execution_payload is not None else "declarative"
+
+
+# =============================================================================
+# Phase 1 Models (Python-only, no LLM)
+# =============================================================================
+
+class Frontmatter(BaseModel):
+    """YAML frontmatter extracted via Python parser.
+
+    Validates Anthropic skill authoring requirements:
+    - name: max 64 chars, lowercase, hyphens only, no reserved words
+    - description: max 1024 chars, no XML tags
+    """
+    name: str
+    description: str
+    version: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if len(v) > 64:
+            raise ValueError(f"Skill name exceeds 64 characters: {len(v)}")
+        if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', v):
+            raise ValueError("Skill name must be lowercase alphanumeric with single hyphens (no leading/trailing/repeated hyphens)")
+        # Check for OntoSkills reserved words anywhere in the skill name
+        reserved = ('ontoskills', 'marea', 'mareasw', 'core', 'system', 'index')
+        segments = v.lower().split('-')
+        for word in reserved:
+            if word in segments:
+                raise ValueError(f"Reserved word '{word}' not allowed in skill name")
+        return v
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v: str) -> str:
+        if len(v) > 1024:
+            raise ValueError(f"Description exceeds 1024 characters: {len(v)}")
+        if re.search(r'<[a-zA-Z][^>]*>', v):
+            raise ValueError("Description contains XML/HTML tags (not allowed)")
+        return v
+
+
+class FileInfo(BaseModel):
+    """File metadata computed via Python, not LLM."""
+    relative_path: str
+    content_hash: str
+    file_size: int
+    mime_type: str
+
+
+class DirectoryScan(BaseModel):
+    """Phase 1 output - all filesystem metadata."""
+    frontmatter: Frontmatter
+    skill_id: str
+    qualified_id: str
+    content_hash: str
+    provenance_path: str
+    files: list[FileInfo]
+    skill_md_content: str
+    file_tree: str  # Formatted string for LLM context
+
+
+# =============================================================================
+# Phase 2 Models (LLM Extraction)
+# =============================================================================
+
+class ReferenceFile(BaseModel):
+    """Reference file identified by LLM for progressive disclosure."""
+    relative_path: str
+    purpose: Literal["api-reference", "examples", "guide", "domain-specific", "other"]
+
+
+class ExecutableScript(BaseModel):
+    """Executable script identified by LLM."""
+    relative_path: str
+    executor: Literal["python", "bash", "node", "other"]
+    execution_intent: Literal["execute", "read_only"] = "execute"
+    command_template: str | None = None
+    requirements: list[str] = Field(default_factory=list)  # Plain tool names: ["pypdf", "pdfplumber"]
+    produces_output: str | None = None
+
+
+class Example(BaseModel):
+    """Input/output example pair for pattern matching."""
+    name: str
+    input_description: str
+    output_example: str
+    tags: list[str] = Field(default_factory=list)
+
+
+class WorkflowStep(BaseModel):
+    """Single workflow step."""
+    step_id: str
+    description: str
+    expected_outcome: str | None = None
+    depends_on: list[str] = Field(default_factory=list)
+
+
+class Workflow(BaseModel):
+    """Sequential workflow with dependencies."""
+    workflow_id: str
+    name: str
+    description: str
+    steps: list[WorkflowStep]
+
+
+# =============================================================================
+# Merged Model (Phase 1 + Phase 2)
+# =============================================================================
+
+class CompiledSkill(ExtractedSkill):
+    """Final compiler output - extends ExtractedSkill with new fields.
+
+    Includes:
+    - Phase 1 data: frontmatter, files (from loader.py)
+    - Phase 2 data: reference_files, executable_scripts, examples, workflows
+    """
+    # From Phase 1
+    frontmatter: Frontmatter | None = None
+    files: list[FileInfo] = Field(default_factory=list)
+
+    # From Phase 2
+    reference_files: list[ReferenceFile] = Field(default_factory=list)
+    executable_scripts: list[ExecutableScript] = Field(default_factory=list)
+    examples: list[Example] = Field(default_factory=list)
+    workflows: list[Workflow] = Field(default_factory=list)

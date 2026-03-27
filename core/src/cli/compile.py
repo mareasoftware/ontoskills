@@ -11,7 +11,6 @@ from rdflib import Graph, RDF
 
 from compiler.extractor import (
     generate_skill_id,
-    compute_skill_hash,
     generate_qualified_skill_id,
     generate_sub_skill_id,
     resolve_package_id,
@@ -36,31 +35,58 @@ from compiler.exceptions import (
     OrphanSubSkillsError,
 )
 from compiler.config import SKILLS_DIR, OUTPUT_DIR, resolve_ontology_root
+from compiler.loader import scan_skill_directory, LoaderError
+from compiler.schemas import CompiledSkill
 
 console = Console()
 
 
-def infer_parent_skill_id(skill_dir: Path, input_path: Path) -> str | None:
+def infer_parent_skill_id(skill_dir: Path, input_path: Path, skill_parent_map: dict | None = None) -> str | None:
     """Infer the nearest parent skill from the directory structure.
 
     A nested skill inherits from the closest ancestor directory that contains
     its own `SKILL.md`. This makes inheritance deterministic and avoids relying
     on the extractor to rediscover obvious filesystem relationships.
+
+    Args:
+        skill_dir: Path to the skill directory
+        input_path: Root input path
+        skill_parent_map: Optional map of skill_dir -> (qualified_id, package_id)
+                         to get canonical frontmatter-based skill IDs
+
+    Returns:
+        The canonical parent skill ID (from frontmatter if available) or None
     """
-    current = skill_dir.parent
+    # Normalize all paths to avoid mixing resolved and unresolved paths
+    current = skill_dir.resolve().parent
     input_root = input_path.resolve()
+
+    # Normalize skill_parent_map keys for consistent lookups
+    normalized_map: dict | None = None
+    if skill_parent_map is not None:
+        normalized_map = {Path(p).resolve(): v for p, v in skill_parent_map.items()}
 
     while current != input_root and current != current.parent:
         if (current / "SKILL.md").exists():
-            return generate_skill_id(current.name)
+            if normalized_map is not None:
+                # Map provided: only accept parent if it passed Phase 1 and will be compiled
+                if current in normalized_map:
+                    qualified_id, _ = normalized_map[current]
+                    # Extract short ID from qualified ID (package/skill_id -> skill_id)
+                    return qualified_id.split('/')[-1]
+                # Parent has SKILL.md but failed Phase 1 - continue walking up
+                # to find a valid parent (avoids extends to non-existent module)
+            else:
+                # No map provided (outside main compilation): use directory name as fallback
+                return generate_skill_id(current.name)
         current = current.parent
 
     return None
 
 
-def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path):
+def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path, skill_parent_map: dict | None = None):
     """Apply deterministic compiler-side enrichments to extracted skills."""
-    parent_skill_id = infer_parent_skill_id(skill_dir, input_path)
+    parent_skill_id = infer_parent_skill_id(skill_dir, input_path, skill_parent_map)
     if parent_skill_id and parent_skill_id != extracted.id and parent_skill_id not in extracted.extends:
         extracted.extends.append(parent_skill_id)
     if extracted.extends:
@@ -148,14 +174,28 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
 
     # Categorize files by processing rule
     skill_md_files = []      # Rule A: SKILL.md → ontoskill.ttl
-    auxiliary_md_files = []  # Rule B: *.md → *.ttl
+    auxiliary_md_files = []  # Rule B: *.md → *.ttl (excluding reference docs)
     asset_files = []         # Rule C: direct copy
 
     for file_path in files_to_process:
+        # Apply same security filters as scan_skill_directory()
+        # - Skip symlinked files to avoid copying external targets
+        # - Skip paths with backslash (valid on POSIX but problematic)
+        if file_path.is_symlink():
+            continue
+        rel_path = file_path.relative_to(input_path)
+        if any('\\' in part for part in rel_path.parts):
+            continue
+
         if file_path.name == "SKILL.md":
             skill_md_files.append(file_path)
         elif file_path.suffix == ".md":
-            auxiliary_md_files.append(file_path)
+            # Exclude reference/** paths - these are progressive disclosure docs, not sub-skills
+            # They're already scanned in Phase 1 for hashing/metadata
+            if "reference" in rel_path.parts:
+                asset_files.append(file_path)  # Treat as asset, not sub-skill
+            else:
+                auxiliary_md_files.append(file_path)
         else:
             asset_files.append(file_path)
 
@@ -181,19 +221,49 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     compiled_skills = []
     skill_output_paths = []
 
-    # Build skill_parent_map for Rule A (needed for qualified IDs)
-    skill_parent_map = {}  # skill_dir -> (parent_skill_id, package_id)
+    # Build skill_parent_map for Rule A using frontmatter names (not directory names)
+    # This ensures parent/child IDs remain consistent
+    # Also cache DirectoryScan results to avoid double scanning
+    skill_parent_map = {}  # skill_dir -> (qualified_parent_id, package_id)
+    dir_scan_cache = {}  # skill_dir -> DirectoryScan (cached from first pass)
     for skill_file in skill_md_files:
         skill_dir = skill_file.parent
-        skill_id = generate_skill_id(skill_dir.name)
-        package_id = resolve_package_id(skill_dir)
-        qualified_parent_id = generate_qualified_skill_id(package_id, skill_id)
-        skill_parent_map[skill_dir] = (qualified_parent_id, package_id)
+        try:
+            # Scan to get frontmatter name (canonical skill ID)
+            dir_scan = scan_skill_directory(skill_dir)
+            dir_scan_cache[skill_dir] = dir_scan  # Cache for reuse
+            skill_id = dir_scan.skill_id  # From frontmatter.name
+            package_id = resolve_package_id(skill_dir)
+            qualified_parent_id = generate_qualified_skill_id(package_id, skill_id)
+            skill_parent_map[skill_dir] = (qualified_parent_id, package_id)
+        except LoaderError as e:
+            # Phase 1 scan failed; do not add to skill_parent_map
+            # so this directory cannot be selected as a parent during inheritance inference
+            console.print(f"[red]Phase 1 scan failed while building parent map for {skill_dir.name}: {e}[/red]")
+            continue
 
     for skill_file in skill_md_files:
         skill_dir = skill_file.parent
-        skill_id = generate_skill_id(skill_dir.name)
-        skill_hash = compute_skill_hash(skill_dir)
+
+        # Phase 1: Use cached scan result (or rescan if not cached)
+        dir_scan = dir_scan_cache.get(skill_dir)
+        if dir_scan is None:
+            try:
+                dir_scan = scan_skill_directory(skill_dir)
+            except LoaderError as e:
+                console.print(f"[red]Phase 1 scan failed for {skill_dir.name}: {e}[/red]")
+                continue
+
+        # Use Phase 1 data for IDs and hash
+        skill_id = dir_scan.skill_id
+        skill_hash = dir_scan.content_hash
+        # Derive package_id from dir_scan.qualified_id (format: package_id/skill_id)
+        # Use rsplit to handle package IDs with slashes (e.g., office/public/skill -> office/public)
+        # Fallback to resolve_package_id if qualified_id not available
+        if dir_scan.qualified_id and '/' in dir_scan.qualified_id:
+            package_id = dir_scan.qualified_id.rsplit('/', 1)[0]
+        else:
+            package_id = resolve_package_id(skill_dir)
 
         logger.info(f"Processing skill: {skill_id}")
 
@@ -220,29 +290,35 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             except Exception as e:
                 logger.debug(f"Could not read existing skill: {e}")
 
-        # Security check
-        if skill_file.exists():
-            content = skill_file.read_text(encoding="utf-8")
-            try:
-                threats, passed = security_check(content, skip_llm=skip_security)
-                if not passed:
-                    console.print(f"[red]Security check failed for {skill_id}[/red]")
-                    for threat in threats:
-                        console.print(f"  - {threat.type}: {threat.match}")
-                    continue
-            except SecurityError as e:
-                console.print(f"[red]Security error: {e}[/red]")
+        # Security check (use Phase 1 content)
+        try:
+            threats, passed = security_check(dir_scan.skill_md_content, skip_llm=skip_security)
+            if not passed:
+                console.print(f"[red]Security check failed for {skill_id}[/red]")
+                for threat in threats:
+                    console.print(f"  - {threat.type}: {threat.match}")
                 continue
+        except SecurityError as e:
+            console.print(f"[red]Security error: {e}[/red]")
+            continue
 
-        # LLM extraction
+        # Phase 2: LLM extraction
         try:
             extracted = tool_use_loop(skill_dir, skill_hash, skill_id)
-            extracted = enrich_extracted_skill(extracted, skill_dir, input_path)
+            extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map)
+
+            # Create CompiledSkill with Phase 1 data
+            compiled = CompiledSkill(
+                **extracted.model_dump(),
+                frontmatter=dir_scan.frontmatter,
+                files=dir_scan.files,
+            )
+
             # Keep short/local ID for parent skill (sub-skills extend to this short parent ID)
-            # Note: extracted.id remains the short skill ID (e.g., "brainstorming"), used as extends_parent
+            # Note: compiled.id remains the short skill ID (e.g., "brainstorming"), used as extends_parent
             # Store with package_id for later serialization
-            _, package_id = skill_parent_map.get(skill_dir, (skill_id, "local"))
-            compiled_skills.append((extracted, package_id))
+            _, pkg_id = skill_parent_map.get(skill_dir, (skill_id, "local"))
+            compiled_skills.append((compiled, pkg_id))
             skill_output_paths.append(output_skill_path)
 
             logger.info(f"Successfully extracted: {skill_id}")
@@ -261,11 +337,19 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         rel_path = md_file.relative_to(input_path)
         output_ttl_path = output_path / rel_path.with_suffix(".ttl")
 
+        # Skip sub-skills whose parent failed Phase 1 (not in skill_parent_map)
+        if skill_dir not in skill_parent_map:
+            logger.warning(f"Skipping {md_file.name}: parent skill not in skill_parent_map (failed Phase 1)")
+            continue
+
         # Get parent context
-        parent_qualified_id, package_id = skill_parent_map.get(skill_dir, ("local/unknown", "local"))
+        parent_qualified_id, package_id = skill_parent_map[skill_dir]
+
+        # Extract parent local ID from qualified ID (uses frontmatter name, not directory name)
+        # Format: {package_id}/{skill_id}
+        parent_local_id = parent_qualified_id.split('/')[-1] if '/' in parent_qualified_id else parent_qualified_id
 
         # Generate IDs: short ID from filename, qualified ID from full path
-        parent_local_id = generate_skill_id(skill_dir.name)
         sub_skill_short_id = generate_skill_id(md_file.stem)  # Normalized/slugified
         sub_skill_qualified_id = generate_sub_skill_id(package_id, parent_local_id, md_file.name)
         sub_skill_hash = compute_sub_skill_hash(md_file)
@@ -304,7 +388,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         # LLM extraction with context - use SHORT ID for extracted.id
         try:
             extracted = tool_use_loop(skill_dir, sub_skill_hash, sub_skill_short_id, parent_context=parent_context)
-            extracted = enrich_extracted_skill(extracted, skill_dir, input_path)
+            extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map)
 
             # Defer serialization until after dry_run check
             sub_skills_to_serialize.append((

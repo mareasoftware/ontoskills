@@ -218,6 +218,82 @@ Edit `fields.json` to add values...
 
 ---
 
+## Skill Components
+
+OntoSkills supports structured components for progressive disclosure:
+
+### Reference Files
+
+Organize supporting documentation by purpose:
+
+```text
+pdf-skill/
+├── SKILL.md
+└── reference/
+    ├── api.md      # api-reference
+    ├── examples.md # examples
+    └── guide.md    # guide
+```
+
+The compiler identifies reference files and their purpose:
+- `api-reference`: API docs, method references
+- `examples`: Code examples, usage patterns
+- `guide`: Tutorials, how-tos
+- `domain-specific`: Domain knowledge
+- `other`: Everything else
+
+### Executable Scripts
+
+Bundle utility scripts with clear intent:
+
+```text
+pdf-skill/
+├── SKILL.md
+└── scripts/
+    ├── extract.py   # execution_intent: "execute"
+    └── validate.py  # execution_intent: "execute"
+```
+
+Scripts are serialized with:
+- `executor`: python, bash, node, other
+- `execution_intent`: "execute" or "read_only"
+- `requirements`: Required tools (e.g., ["pypdf"])
+
+### Workflows
+
+Define multi-step processes:
+
+```markdown
+## PDF Form Filling Workflow
+
+**Step 1: Analyze**
+Run: `python scripts/analyze_form.py input.pdf`
+
+**Step 2: Fill**
+Edit `fields.json` with values
+
+**Step 3: Verify**
+Run: `python scripts/verify.py output.pdf`
+```
+
+### Examples
+
+Provide input/output pairs for pattern matching:
+
+```markdown
+## Commit Message Examples
+
+**Example 1:**
+- Input: Added JWT auth
+- Output: `feat(auth): implement JWT authentication`
+
+**Example 2:**
+- Input: Fixed date bug
+- Output: `fix(reports): correct timezone handling`
+```
+
+---
+
 ## Knowledge Nodes
 
 OntoSkills extracts structured knowledge from your SKILL.md. Write clear sections that map to node types:

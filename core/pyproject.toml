@@ -1,6 +1,6 @@
 [project]
 name = "ontocore"
-version = "0.9.1"
+version = "0.10.0"
 description = "OntoCore — Neuro-symbolic skill compiler. Compiles SKILL.md into validated OWL 2 ontologies."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,7 @@ dependencies = [
     "rich>=13.0.0",
     "owlrl>=1.0.0",
     "pyshacl>=0.25.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

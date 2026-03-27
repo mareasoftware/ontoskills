@@ -155,4 +155,42 @@ Example:
   "severity_level": "CRITICAL"
 }
 ```
+
+## REFERENCE FILES
+
+Identify reference files from the directory structure that support progressive disclosure:
+- `api-reference`: API docs, method references, technical specs
+- `examples`: Code examples, usage patterns, templates
+- `guide`: Tutorials, how-tos, walkthroughs
+- `domain-specific`: Domain knowledge (finance, sales, legal)
+- `other`: Everything else
+
+Reference files are loaded only when needed, not at skill activation.
+
+## EXECUTABLE SCRIPTS
+
+For scripts in `scripts/` or similar directories, identify:
+- `executor`: "python" | "bash" | "node" | "other"
+- `execution_intent`:
+  - `"execute"`: Script should be run for side effects
+  - `"read_only"`: Script is reference material (shown, not executed)
+- `command_template`: Optional command pattern like "python {script} {input}"
+- `requirements`: List of required tools (e.g., ["pypdf", "pdfplumber"])
+
+## WORKFLOWS
+
+Extract checklist-style workflows as step sequences with dependencies:
+- Each workflow has `workflow_id`, `name`, `description`
+- Each step has `step_id`, `description`, `expected_outcome`
+- Steps can `depends_on` previous steps by their step_id
+
+## EXAMPLES
+
+Extract input/output example pairs for pattern matching:
+- `name`: Descriptive name for the example
+- `input_description`: What the user provides
+- `output_example`: Expected output format
+- `tags`: Optional categorization
+
+Examples help agents understand expected behavior patterns.
 """

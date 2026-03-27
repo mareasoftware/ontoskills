@@ -16,8 +16,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from rdflib import Graph, Namespace, RDF, RDFS, OWL, Literal, URIRef, BNode
+from rdflib import Graph, Namespace, RDF, RDFS, OWL, Literal, URIRef, BNode, XSD
 from rdflib.namespace import DCTERMS, SKOS, PROV
+from rdflib.collection import Collection
 
 from compiler.config import BASE_URI, CORE_STATES, FAILURE_STATES, OUTPUT_DIR
 
@@ -459,6 +460,304 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
         g.add((state_uri, RDFS.subClassOf, oc.State))
         g.add((state_uri, RDFS.label, Literal(state_name)))
         g.add((state_uri, SKOS.prefLabel, Literal(state_name)))
+
+    # ========== Phase 2: Progressive Disclosure Classes ==========
+
+    # oc:ReferenceFile - Reference file for progressive disclosure
+    g.add((oc.ReferenceFile, RDF.type, OWL.Class))
+    g.add((oc.ReferenceFile, RDFS.label, Literal("Reference File")))
+    g.add((oc.ReferenceFile, RDFS.comment, Literal(
+        "A reference file for progressive disclosure (e.g., API docs, examples)"
+    )))
+
+    # oc:hasReferenceFile (ObjectProperty)
+    g.add((oc.hasReferenceFile, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasReferenceFile, RDFS.domain, oc.Skill))
+    g.add((oc.hasReferenceFile, RDFS.range, oc.ReferenceFile))
+    g.add((oc.hasReferenceFile, RDFS.label, Literal("has reference file")))
+    g.add((oc.hasReferenceFile, RDFS.comment, Literal(
+        "Links a skill to a reference file for progressive disclosure"
+    )))
+
+    # oc:purpose (DatatypeProperty)
+    g.add((oc.purpose, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.purpose, RDFS.domain, oc.ReferenceFile))
+    g.add((oc.purpose, RDFS.label, Literal("purpose")))
+    g.add((oc.purpose, RDFS.comment, Literal(
+        "Purpose of a reference file (api-reference, examples, guide, domain-specific, other)"
+    )))
+
+    # ========== Phase 2: File Properties ==========
+    # Create union domain class for file properties (ReferenceFile OR ExecutableScript)
+    # Use named URI for deterministic serialization (avoid BNode churn in diffs)
+    file_domain = oc.FileResource
+    g.add((file_domain, RDF.type, OWL.Class))
+    file_union_list = oc.FileResourceUnion
+    Collection(g, file_union_list, [oc.ReferenceFile, oc.ExecutableScript])
+    g.add((file_domain, OWL.unionOf, file_union_list))
+
+    # oc:filePath - Relative path from skill directory
+    g.add((oc.filePath, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.filePath, RDFS.label, Literal("file path")))
+    g.add((oc.filePath, RDFS.comment, Literal(
+        "Relative path from skill directory"
+    )))
+    g.add((oc.filePath, RDFS.domain, file_domain))
+    g.add((oc.filePath, RDFS.range, XSD.string))
+
+    # oc:fileHash - SHA-256 hash of file content
+    g.add((oc.fileHash, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.fileHash, RDFS.label, Literal("file hash")))
+    g.add((oc.fileHash, RDFS.comment, Literal(
+        "SHA-256 hash of file content"
+    )))
+    g.add((oc.fileHash, RDFS.domain, file_domain))
+    g.add((oc.fileHash, RDFS.range, XSD.string))
+
+    # oc:fileSize - File size in bytes
+    g.add((oc.fileSize, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.fileSize, RDFS.label, Literal("file size")))
+    g.add((oc.fileSize, RDFS.comment, Literal(
+        "File size in bytes"
+    )))
+    g.add((oc.fileSize, RDFS.domain, file_domain))
+    g.add((oc.fileSize, RDFS.range, XSD.integer))
+
+    # oc:fileMimeType - MIME type of the file
+    g.add((oc.fileMimeType, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.fileMimeType, RDFS.label, Literal("file MIME type")))
+    g.add((oc.fileMimeType, RDFS.comment, Literal(
+        "MIME type of the file"
+    )))
+    g.add((oc.fileMimeType, RDFS.domain, file_domain))
+    g.add((oc.fileMimeType, RDFS.range, XSD.string))
+
+    # ========== Phase 2: Executable Script Classes ==========
+
+    # oc:ExecutableScript - Executable script associated with skill
+    g.add((oc.ExecutableScript, RDF.type, OWL.Class))
+    g.add((oc.ExecutableScript, RDFS.label, Literal("Executable Script")))
+    g.add((oc.ExecutableScript, RDFS.comment, Literal(
+        "An executable script associated with a skill"
+    )))
+
+    # oc:hasExecutableScript (ObjectProperty)
+    g.add((oc.hasExecutableScript, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasExecutableScript, RDFS.domain, oc.Skill))
+    g.add((oc.hasExecutableScript, RDFS.range, oc.ExecutableScript))
+    g.add((oc.hasExecutableScript, RDFS.label, Literal("has executable script")))
+    g.add((oc.hasExecutableScript, RDFS.comment, Literal(
+        "Links a skill to an executable script"
+    )))
+
+    # oc:requirementType (DatatypeProperty)
+    g.add((oc.requirementType, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.requirementType, RDFS.domain, oc.Requirement))
+    g.add((oc.requirementType, RDFS.label, Literal("requirement type")))
+    g.add((oc.requirementType, RDFS.comment, Literal(
+        "Type of requirement (Tool, EnvVar, Hardware, API, Knowledge)"
+    )))
+
+    # ========== Phase 2: Executable Script Properties ==========
+
+    # oc:scriptExecutor - Executor for script (python, bash, node)
+    g.add((oc.scriptExecutor, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.scriptExecutor, RDFS.domain, oc.ExecutableScript))
+    g.add((oc.scriptExecutor, RDFS.label, Literal("script executor")))
+    g.add((oc.scriptExecutor, RDFS.comment, Literal(
+        "Executor for the script (python, bash, node, etc.)"
+    )))
+    g.add((oc.scriptExecutor, RDFS.range, XSD.string))
+
+    # oc:scriptIntent - Whether script should be executed or read-only
+    g.add((oc.scriptIntent, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.scriptIntent, RDFS.domain, oc.ExecutableScript))
+    g.add((oc.scriptIntent, RDFS.label, Literal("script intent")))
+    g.add((oc.scriptIntent, RDFS.comment, Literal(
+        "Whether script should be executed or is read-only"
+    )))
+    g.add((oc.scriptIntent, RDFS.range, XSD.string))
+
+    # oc:scriptCommand - Command template for executing the script
+    g.add((oc.scriptCommand, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.scriptCommand, RDFS.domain, oc.ExecutableScript))
+    g.add((oc.scriptCommand, RDFS.label, Literal("script command")))
+    g.add((oc.scriptCommand, RDFS.comment, Literal(
+        "Command template for executing the script"
+    )))
+    g.add((oc.scriptCommand, RDFS.range, XSD.string))
+
+    # oc:scriptOutput - Description of script output
+    g.add((oc.scriptOutput, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.scriptOutput, RDFS.domain, oc.ExecutableScript))
+    g.add((oc.scriptOutput, RDFS.label, Literal("script output")))
+    g.add((oc.scriptOutput, RDFS.comment, Literal(
+        "Description of what the script produces"
+    )))
+    g.add((oc.scriptOutput, RDFS.range, XSD.string))
+
+    # oc:scriptHasRequirement - Links script to its requirements
+    g.add((oc.scriptHasRequirement, RDF.type, OWL.ObjectProperty))
+    g.add((oc.scriptHasRequirement, RDFS.domain, oc.ExecutableScript))
+    g.add((oc.scriptHasRequirement, RDFS.range, oc.Requirement))
+    g.add((oc.scriptHasRequirement, RDFS.label, Literal("script has requirement")))
+    g.add((oc.scriptHasRequirement, RDFS.comment, Literal(
+        "Links an executable script to its requirements"
+    )))
+
+    # ========== Phase 2: Workflow Classes ==========
+
+    # oc:Workflow - Sequential workflow with dependencies
+    g.add((oc.Workflow, RDF.type, OWL.Class))
+    g.add((oc.Workflow, RDFS.label, Literal("Workflow")))
+    g.add((oc.Workflow, RDFS.comment, Literal(
+        "A sequential workflow with dependencies between steps"
+    )))
+
+    # oc:WorkflowStep - Single step in a workflow
+    g.add((oc.WorkflowStep, RDF.type, OWL.Class))
+    g.add((oc.WorkflowStep, RDFS.label, Literal("Workflow Step")))
+    g.add((oc.WorkflowStep, RDFS.comment, Literal(
+        "A single step in a workflow with optional dependencies"
+    )))
+
+    # oc:hasWorkflow (ObjectProperty)
+    g.add((oc.hasWorkflow, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasWorkflow, RDFS.domain, oc.Skill))
+    g.add((oc.hasWorkflow, RDFS.range, oc.Workflow))
+    g.add((oc.hasWorkflow, RDFS.label, Literal("has workflow")))
+    g.add((oc.hasWorkflow, RDFS.comment, Literal(
+        "Links a skill to a workflow"
+    )))
+
+    # oc:workflowId (DatatypeProperty)
+    g.add((oc.workflowId, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.workflowId, RDFS.domain, oc.Workflow))
+    g.add((oc.workflowId, RDFS.label, Literal("workflow ID")))
+    g.add((oc.workflowId, RDFS.comment, Literal(
+        "Unique identifier for a workflow"
+    )))
+
+    # oc:workflowName (DatatypeProperty)
+    g.add((oc.workflowName, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.workflowName, RDFS.domain, oc.Workflow))
+    g.add((oc.workflowName, RDFS.label, Literal("workflow name")))
+    g.add((oc.workflowName, RDFS.comment, Literal(
+        "Human-readable name for a workflow"
+    )))
+
+    # oc:hasStep (ObjectProperty)
+    g.add((oc.hasStep, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasStep, RDFS.domain, oc.Workflow))
+    g.add((oc.hasStep, RDFS.range, oc.WorkflowStep))
+    g.add((oc.hasStep, RDFS.label, Literal("has step")))
+    g.add((oc.hasStep, RDFS.comment, Literal(
+        "Links a workflow to its steps"
+    )))
+
+    # oc:stepId (DatatypeProperty)
+    g.add((oc.stepId, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.stepId, RDFS.domain, oc.WorkflowStep))
+    g.add((oc.stepId, RDFS.label, Literal("step ID")))
+    g.add((oc.stepId, RDFS.comment, Literal(
+        "Unique identifier for a workflow step"
+    )))
+
+    # oc:expectedOutcome (DatatypeProperty)
+    g.add((oc.expectedOutcome, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.expectedOutcome, RDFS.domain, oc.WorkflowStep))
+    g.add((oc.expectedOutcome, RDFS.label, Literal("expected outcome")))
+    g.add((oc.expectedOutcome, RDFS.comment, Literal(
+        "Expected outcome of a workflow step"
+    )))
+
+    # ========== Phase 2: Workflow Step Dependencies ==========
+
+    # oc:stepDependsOn - Dependency between workflow steps (ObjectProperty!)
+    g.add((oc.stepDependsOn, RDF.type, OWL.ObjectProperty))
+    g.add((oc.stepDependsOn, RDFS.domain, oc.WorkflowStep))
+    g.add((oc.stepDependsOn, RDFS.range, oc.WorkflowStep))
+    g.add((oc.stepDependsOn, RDFS.label, Literal("step depends on")))
+    g.add((oc.stepDependsOn, RDFS.comment, Literal(
+        "Indicates that one workflow step depends on another step"
+    )))
+
+    # ========== Phase 2: Example Classes ==========
+
+    # oc:Example - Input/output example for pattern matching
+    g.add((oc.Example, RDF.type, OWL.Class))
+    g.add((oc.Example, RDFS.label, Literal("Example")))
+    g.add((oc.Example, RDFS.comment, Literal(
+        "An input/output example for pattern matching"
+    )))
+
+    # oc:hasExample (ObjectProperty)
+    g.add((oc.hasExample, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasExample, RDFS.domain, oc.Skill))
+    g.add((oc.hasExample, RDFS.range, oc.Example))
+    g.add((oc.hasExample, RDFS.label, Literal("has example")))
+    g.add((oc.hasExample, RDFS.comment, Literal(
+        "Links a skill to an input/output example"
+    )))
+
+    # oc:exampleName (DatatypeProperty)
+    g.add((oc.exampleName, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.exampleName, RDFS.domain, oc.Example))
+    g.add((oc.exampleName, RDFS.label, Literal("example name")))
+    g.add((oc.exampleName, RDFS.comment, Literal(
+        "Name of an example"
+    )))
+
+    # oc:inputDescription (DatatypeProperty)
+    g.add((oc.inputDescription, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.inputDescription, RDFS.domain, oc.Example))
+    g.add((oc.inputDescription, RDFS.label, Literal("input description")))
+    g.add((oc.inputDescription, RDFS.comment, Literal(
+        "Description of input for an example"
+    )))
+
+    # oc:outputExample (DatatypeProperty)
+    g.add((oc.outputExample, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.outputExample, RDFS.domain, oc.Example))
+    g.add((oc.outputExample, RDFS.label, Literal("output example")))
+    g.add((oc.outputExample, RDFS.comment, Literal(
+        "Example output"
+    )))
+
+    # oc:hasTag (DatatypeProperty)
+    g.add((oc.hasTag, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasTag, RDFS.domain, oc.Example))
+    g.add((oc.hasTag, RDFS.label, Literal("has tag")))
+    g.add((oc.hasTag, RDFS.comment, Literal(
+        "Tag for categorizing examples"
+    )))
+
+    # ========== Phase 2: Frontmatter Properties ==========
+
+    # oc:hasName (DatatypeProperty)
+    g.add((oc.hasName, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasName, RDFS.domain, oc.Skill))
+    g.add((oc.hasName, RDFS.label, Literal("has name")))
+    g.add((oc.hasName, RDFS.comment, Literal(
+        "Name from frontmatter"
+    )))
+
+    # oc:hasDescription (DatatypeProperty)
+    g.add((oc.hasDescription, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasDescription, RDFS.domain, oc.Skill))
+    g.add((oc.hasDescription, RDFS.label, Literal("has description")))
+    g.add((oc.hasDescription, RDFS.comment, Literal(
+        "Description from frontmatter"
+    )))
+
+    # ========== Phase 2: Generic Requirement Class ==========
+
+    # oc:Requirement - Generic requirement
+    g.add((oc.Requirement, RDF.type, OWL.Class))
+    g.add((oc.Requirement, RDFS.label, Literal("Requirement")))
+    g.add((oc.Requirement, RDFS.comment, Literal(
+        "A generic requirement (tool, environment variable, etc.)"
+    )))
 
     # Save to file
     output_path.parent.mkdir(parents=True, exist_ok=True)

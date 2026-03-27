@@ -13,7 +13,7 @@ def test_default_base_uri():
 
         # Need to reload the config module to pick up new env vars
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.BASE_URI == 'https://ontoskills.sh/ontology#'
@@ -25,7 +25,7 @@ def test_custom_base_uri():
 
     with patch.dict(os.environ, {'ONTOSKILLS_BASE_URI': custom_uri}):
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.BASE_URI == custom_uri
@@ -39,7 +39,7 @@ def test_default_paths():
         os.environ.pop('ONTOSKILLS_OUTPUT_DIR', None)
 
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         # Paths are now absolute, resolved from PROJECT_ROOT
@@ -53,7 +53,7 @@ def test_custom_skills_dir():
 
     with patch.dict(os.environ, {'ONTOSKILLS_SKILLS_DIR': custom_dir}):
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.SKILLS_DIR == custom_dir
@@ -65,7 +65,7 @@ def test_custom_output_dir():
 
     with patch.dict(os.environ, {'ONTOSKILLS_OUTPUT_DIR': custom_dir}):
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.OUTPUT_DIR == custom_dir
@@ -87,7 +87,7 @@ def test_default_anthropic_model():
 
         # Patch before any import happens
         with patch('compiler.env.load_local_env'):
-            import config
+            from compiler import config
 
         assert config.ANTHROPIC_MODEL == 'claude-opus-4-6'
 
@@ -98,7 +98,7 @@ def test_custom_anthropic_model():
 
     with patch.dict(os.environ, {'ANTHROPIC_MODEL': custom_model}):
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.ANTHROPIC_MODEL == custom_model
@@ -120,7 +120,7 @@ def test_default_security_model():
 
         # Patch before any import happens
         with patch('compiler.env.load_local_env'):
-            import config
+            from compiler import config
 
         assert config.SECURITY_MODEL == 'claude-opus-4-6'
 
@@ -131,7 +131,7 @@ def test_custom_security_model():
 
     with patch.dict(os.environ, {'SECURITY_MODEL': custom_model}):
         import importlib
-        import config
+        from compiler import config
         importlib.reload(config)
 
         assert config.SECURITY_MODEL == custom_model
@@ -139,19 +139,19 @@ def test_custom_security_model():
 
 def test_max_iterations_constant():
     """Verify MAX_ITERATIONS is set correctly."""
-    import config
+    from compiler import config
     assert config.MAX_ITERATIONS == 20
 
 
 def test_extraction_timeout_constant():
     """Verify EXTRACTION_TIMEOUT is set correctly."""
-    import config
+    from compiler import config
     assert config.EXTRACTION_TIMEOUT == 120
 
 
 def test_core_states_dict():
     """Verify CORE_STATES contains all required states."""
-    import config
+    from compiler import config
 
     expected_states = [
         'SystemAuthenticated',
@@ -172,7 +172,7 @@ def test_core_states_dict():
 
 def test_failure_states_dict():
     """Verify FAILURE_STATES contains all required states."""
-    import config
+    from compiler import config
 
     expected_states = [
         'PermissionDenied',

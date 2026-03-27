@@ -21,6 +21,15 @@ Every skill is compiled with:
 | **Execution Payload** | `oc:hasPayload` | Optional code to execute |
 | **Provenance** | `oc:generatedBy` | Attestation (which LLM compiled it) |
 
+### Components
+
+| Element | Property | Description |
+|----------|-----------|-------------|
+| **Reference Files** | `oc:hasReferenceFile` | Supporting docs with `purpose` (api-reference, examples, guide, domain-specific, other) |
+| **Executable Scripts** | `oc:hasExecutableScript` | Scripts with `executor`, `executionIntent`, `requirements` |
+| **Workflows** | `oc:hasWorkflow` | Multi-step processes with `hasStep` dependencies |
+| **Examples** | `oc:hasExample` | Input/output pairs for pattern matching |
+
 ---
 
 ## Knowledge Nodes

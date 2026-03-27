@@ -292,15 +292,24 @@ def test_force_flag_bypasses_hash(tmp_path):
     """Test that --force flag bypasses hash check and triggers recompilation."""
     from unittest.mock import patch, MagicMock
     from compiler.cli import cli  # Use correct import path
-    from compiler.extractor import compute_skill_hash
+    from compiler.loader import scan_skill_directory
     from compiler.config import BASE_URI
     import compiler.cli.compile  # Import module for patching
 
-    # Create a skill directory with SKILL.md
+    # Create a skill directory with SKILL.md (with valid YAML frontmatter)
     skill_dir = tmp_path / "skills" / "test-skill"
     skill_dir.mkdir(parents=True)
     skill_file = skill_dir / "SKILL.md"
-    skill_file.write_text("# Test Skill\n\nThis is a test skill.", encoding="utf-8")
+    skill_content = '''---
+name: test-skill
+description: A test skill for testing force flag.
+---
+
+# Test Skill
+
+This is a test skill.
+'''
+    skill_file.write_text(skill_content, encoding="utf-8")
 
     # Create output directory with an existing ontoskill.ttl that has matching hash
     output_dir = tmp_path / "output"
@@ -308,9 +317,11 @@ def test_force_flag_bypasses_hash(tmp_path):
     output_skill_dir.mkdir(parents=True)
     output_skill_path = output_skill_dir / "ontoskill.ttl"
 
+    # Get hash from Phase 1 loader
+    dir_scan = scan_skill_directory(skill_dir)
+    skill_hash = dir_scan.content_hash
+
     # Create a fake existing skill with the same hash
-    # Use the correct namespace from config
-    skill_hash = compute_skill_hash(skill_dir)
     existing_ttl = f'''
 @prefix oc: <{BASE_URI}> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
@@ -330,36 +341,118 @@ skill:test-skill a oc:Skill ;
 
     runner = CliRunner()
 
-    # Create mock for extracted skill
+    # Create mock for extracted skill with real list attributes
+    # (MagicMock defaults would break enrich_extracted_skill which calls .append())
     mock_extracted = MagicMock()
     mock_extracted.id = "test-skill"
     mock_extracted.nature = "Extracted skill"
     mock_extracted.genus = "action"
     mock_extracted.intents = ["test"]
+    mock_extracted.extends = []  # Real list for .append() in enrich_extracted_skill
+    mock_extracted.depends_on = []  # Real list for filtering
+    mock_extracted.state_transitions = MagicMock()
     mock_extracted.state_transitions.requires_state = []
     mock_extracted.state_transitions.yields_state = []
+    mock_extracted.model_dump = MagicMock(return_value={
+        "id": "test-skill",
+        "hash": skill_hash,
+        "nature": "Extracted skill",
+        "genus": "action",
+        "differentia": "test",
+        "intents": ["test"],
+        "requirements": [],
+        "depends_on": [],
+        "extends": [],
+        "contradicts": [],
+        "state_transitions": None,
+        "generated_by": "test",
+        "execution_payload": None,
+        "provenance": None,
+        "knowledge_nodes": [],
+    })
 
     with patch.object(compiler.cli.compile, 'tool_use_loop') as mock_tool_use_loop, \
          patch.object(compiler.cli.compile, 'serialize_skill_to_module'):
         mock_tool_use_loop.return_value = mock_extracted
 
-        # Without --force, the hash matches and tool_use_loop should NOT be called
-        result_no_force = runner.invoke(cli, [
+        # First: verify baseline behavior (without --force, matching hash causes skip)
+        mock_tool_use_loop.reset_mock()
+        mock_extracted.model_dump.reset_mock()
+        mock_extracted.reset_mock()
+        mock_extracted.id = "test-skill"
+        mock_extracted.nature = "Extracted skill"
+        mock_extracted.genus = "action"
+        mock_extracted.intents = ["test"]
+        mock_extracted.extends = []  # Real list for .append() in enrich_extracted_skill
+        mock_extracted.depends_on = []  # Real list for filtering
+        mock_extracted.state_transitions = MagicMock()
+        mock_extracted.state_transitions.requires_state = []
+        mock_extracted.state_transitions.yields_state = []
+        mock_extracted.model_dump = MagicMock(return_value={
+            "id": "test-skill",
+            "hash": skill_hash,
+            "nature": "Extracted skill",
+            "genus": "action",
+            "differentia": "test",
+            "intents": ["test"],
+            "requirements": [],
+            "depends_on": [],
+            "extends": [],
+            "contradicts": [],
+            "state_transitions": None,
+            "generated_by": "test",
+            "execution_payload": None,
+            "provenance": None,
+            "knowledge_nodes": [],
+        })
+
+        # Without --force, tool_use_loop should NOT be called (hash matches)
+        # Use --skip-security to avoid LLM security check in test
+        result_without_force = runner.invoke(cli, [
             'compile',
             '-i', str(tmp_path / "skills"),
             '-o', str(output_dir),
+            '--skip-security',
             '-y'  # Skip confirmation
         ])
 
-        assert result_no_force.exit_code == 0
-        # tool_use_loop should NOT have been called since hash matches
-        assert mock_tool_use_loop.call_count == 0
+        assert result_without_force.exit_code == 0
+        # tool_use_loop should NOT have been called (hash match causes skip)
+        assert mock_tool_use_loop.call_count == 0, \
+            "Expected cache hit to skip extraction, but tool_use_loop was called"
 
-        # Reset the mock
+        # Second: verify --force bypasses hash check
         mock_tool_use_loop.reset_mock()
+        mock_extracted.model_dump.reset_mock()
+        mock_extracted.reset_mock()
+        mock_extracted.id = "test-skill"
+        mock_extracted.nature = "Extracted skill"
+        mock_extracted.genus = "action"
+        mock_extracted.intents = ["test"]
+        mock_extracted.extends = []  # Real list for .append() in enrich_extracted_skill
+        mock_extracted.depends_on = []  # Real list for filtering
+        mock_extracted.state_transitions = MagicMock()
+        mock_extracted.state_transitions.requires_state = []
+        mock_extracted.state_transitions.yields_state = []
+        mock_extracted.model_dump = MagicMock(return_value={
+            "id": "test-skill",
+            "hash": skill_hash,
+            "nature": "Extracted skill",
+            "genus": "action",
+            "differentia": "test",
+            "intents": ["test"],
+            "requirements": [],
+            "depends_on": [],
+            "extends": [],
+            "contradicts": [],
+            "state_transitions": None,
+            "generated_by": "test",
+            "execution_payload": None,
+            "provenance": None,
+            "knowledge_nodes": [],
+        })
 
         # With --force, tool_use_loop SHOULD be called even though hash matches
-        # Use --skip-security to avoid LLM security check in test
         result_with_force = runner.invoke(cli, [
             'compile',
             '-i', str(tmp_path / "skills"),
@@ -371,7 +464,8 @@ skill:test-skill a oc:Skill ;
 
         assert result_with_force.exit_code == 0
         # tool_use_loop SHOULD have been called with --force
-        assert mock_tool_use_loop.call_count == 1
+        assert mock_tool_use_loop.call_count == 1, \
+            "Expected --force to bypass cache and trigger extraction"
 
 
 def test_infer_parent_skill_id_from_nested_skill_path(tmp_path):
