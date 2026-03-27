@@ -10,7 +10,7 @@ Both OntoCore and OntoMCP must support the same ontology format version to work 
 
 | OntoCore | OntoMCP | Ontology Format | Status   |
 |----------|---------|-----------------|----------|
-| 0.10.0   | 0.9.1   | 0.10            | Current  |
+| 0.10.0   | 0.10.0  | 0.10            | Current  |
 | 0.9.1    | 0.9.1   | 0.9             | Compatible |
 | 0.9.0    | 0.9.0   | 0.9             | Compatible |
 

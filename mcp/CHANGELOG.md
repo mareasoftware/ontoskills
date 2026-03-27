@@ -4,6 +4,12 @@ All notable changes to ontomcp (Rust MCP Server) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.10.0] - 2026-03-27
+
+### Changed
+
+- **OWL property rename** — `oc:executor` → `oc:scriptExecutor` in SPARQL queries and test fixtures to align with OntoCore 0.10.0 ontology changes
+
 ## [0.9.1] - 2026-03-24
 
 ### Added
