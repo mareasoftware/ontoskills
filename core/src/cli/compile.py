@@ -219,12 +219,13 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             dir_scan = scan_skill_directory(skill_dir)
             dir_scan_cache[skill_dir] = dir_scan  # Cache for reuse
             skill_id = dir_scan.skill_id  # From frontmatter.name
+            package_id = resolve_package_id(skill_dir)
+            qualified_parent_id = generate_qualified_skill_id(package_id, skill_id)
+            skill_parent_map[skill_dir] = (qualified_parent_id, package_id)
         except LoaderError:
-            # Fallback to directory name if frontmatter invalid
-            skill_id = generate_skill_id(skill_dir.name)
-        package_id = resolve_package_id(skill_dir)
-        qualified_parent_id = generate_qualified_skill_id(package_id, skill_id)
-        skill_parent_map[skill_dir] = (qualified_parent_id, package_id)
+            # Phase 1 scan failed; do not add to skill_parent_map
+            # so this directory cannot be selected as a parent during inheritance inference
+            continue
 
     for skill_file in skill_md_files:
         skill_dir = skill_file.parent
