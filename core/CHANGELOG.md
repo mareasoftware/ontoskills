@@ -35,14 +35,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Reserved words validation** — Now blocks OntoSkills system words (ontoskills, marea, mareasw, core, system, index) in any segment of skill name (not just prefix/suffix)
 - **Missing RDFS.domain** — Added domain declaration for `oc:requirementType` property
 - **Duplicate imports** — Removed redundant import statements in core_ontology.py
+- **BNode uniqueness** — Example blank nodes now use index-based identifiers to avoid collisions
+- **CLI module execution** — Added `__main__.py` to enable `python -m compiler.cli`
+- **Workflow cycle detection** — Linter now correctly detects cycles in `oc:stepDependsOn`
+- **Parent skill ID** — CLI compile uses frontmatter-based skill ID for parent relationships
 
 ### Security
 
 - **Path traversal protection** — Rejects `..` in file paths, backslashes, and absolute paths
+- **Symlink protection** — Rejects symlinked skill directories to prevent filesystem escape
+- **Backslash pruning** — Directories containing `\` are pruned during directory scan
+
+### Performance
+
+- **Directory scanning** — Switched from `rglob` to `os.walk` with early pruning of excluded directories
+- **Deterministic hashing** — Files sorted before directory hash computation for reproducibility
 
 ### Tests
 
-- 32 new tests for loader module (50 total tests now passing)
+- 3 new tests for workflow cycle detection
+- 32 new tests for loader module (55 total tests now passing)
 
 ## [0.9.1] - 2026-03-23
 
