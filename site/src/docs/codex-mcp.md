@@ -56,8 +56,4 @@ npx ontoskills install core
 ```
 
 - Then compile or import source skills — they are auto-enabled on install for MCP access
-
-## Notes
-
-- v1 automates Codex global setup only
-- for repository-local Codex MCP config, `ontoskills` currently prints manual steps instead of forcing a non-standard config file
+- `--codex` automates Codex global setup only; for repository-local Codex MCP config, `ontoskills` currently prints manual steps instead of forcing a non-standard config file
