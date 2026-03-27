@@ -4,7 +4,7 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.9.2] - 2026-03-26
+## [0.10.0] - 2026-03-27
 
 ### Changed
 
@@ -39,6 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **CLI module execution** — Added `__main__.py` to enable `python -m compiler.cli`
 - **Workflow cycle detection** — Linter now correctly detects cycles in `oc:stepDependsOn`
 - **Parent skill ID** — CLI compile uses frontmatter-based skill ID for parent relationships
+- **Parent inheritance robustness** — Skip parents not in skill_parent_map to avoid extends references to non-existent modules
+- **Name validation** — Tightened regex to disallow leading/trailing and repeated hyphens
+- **Workflow dependency warning** — Log warning when step dependency references non-existent step_id
+- **Reference docs handling** — Exclude `reference/**` from Rule B sub-skill processing (treat as assets)
+- **File read error handling** — Wrap `read_text()` errors in `LoaderError` for graceful per-skill failure handling
 
 ### Security
 

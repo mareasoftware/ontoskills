@@ -1,6 +1,6 @@
 [project]
 name = "ontocore"
-version = "0.9.2"
+version = "0.10.0"
 description = "OntoCore — Neuro-symbolic skill compiler. Compiles SKILL.md into validated OWL 2 ontologies."
 readme = "README.md"
 requires-python = ">=3.10"
