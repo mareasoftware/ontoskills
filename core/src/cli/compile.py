@@ -258,9 +258,10 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         skill_id = dir_scan.skill_id
         skill_hash = dir_scan.content_hash
         # Derive package_id from dir_scan.qualified_id (format: package_id/skill_id)
+        # Use rsplit to handle package IDs with slashes (e.g., office/public/skill -> office/public)
         # Fallback to resolve_package_id if qualified_id not available
         if dir_scan.qualified_id and '/' in dir_scan.qualified_id:
-            package_id = dir_scan.qualified_id.split('/')[0]
+            package_id = dir_scan.qualified_id.rsplit('/', 1)[0]
         else:
             package_id = resolve_package_id(skill_dir)
 
