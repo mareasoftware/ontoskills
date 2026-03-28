@@ -147,20 +147,18 @@ const t = translations.hero[lang];
   }
 
   .badge-text-rotating {
+    display: inline-block;
     position: relative;
-    height: 1.4em;
-    overflow: hidden;
-    display: inline-flex;
-    align-items: center;
+    min-width: 14em;
   }
 
   .badge-term {
+    display: inline;
+    animation: rotateBadge 6s ease-in-out infinite;
+    opacity: 0;
     position: absolute;
     left: 0;
     white-space: nowrap;
-    animation: rotateBadge 6s ease-in-out infinite;
-    opacity: 0;
-    transform: translateY(100%);
   }
 
   .badge-term:nth-child(1) { animation-delay: 0s; }
@@ -168,11 +166,11 @@ const t = translations.hero[lang];
   .badge-term:nth-child(3) { animation-delay: 4s; }
 
   @keyframes rotateBadge {
-    0% { opacity: 0; transform: translateY(100%); }
-    5% { opacity: 1; transform: translateY(0); }
-    30% { opacity: 1; transform: translateY(0); }
-    35% { opacity: 0; transform: translateY(-100%); }
-    100% { opacity: 0; transform: translateY(-100%); }
+    0% { opacity: 0; }
+    5% { opacity: 1; }
+    30% { opacity: 1; }
+    35% { opacity: 0; }
+    100% { opacity: 0; }
   }
 
   @keyframes pulse {
