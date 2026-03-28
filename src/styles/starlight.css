@@ -74,8 +74,10 @@
   --custom-border-light: rgba(255, 255, 255, 0.08);
 }
 
-:root {
-  --sl-content-width: 72rem;
+@media (min-width: 72rem) {
+  :root {
+    --sl-content-width: 72rem;
+  }
 }
 
 body {
