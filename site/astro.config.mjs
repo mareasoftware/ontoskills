@@ -27,11 +27,11 @@ export default defineConfig({
       head: [
         {
           tag: 'meta',
-          attrs: { property: 'og:image', content: 'https://ontoskills.sh/ontoskills-logo.png' }
+          attrs: { property: 'og:image', content: 'https://ontoskills.sh/og-image.png' }
         },
         {
           tag: 'meta',
-          attrs: { name: 'twitter:image', content: 'https://ontoskills.sh/ontoskills-logo.png' }
+          attrs: { name: 'twitter:image', content: 'https://ontoskills.sh/og-image.png' }
         }
       ],
       components: {
