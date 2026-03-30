@@ -14,7 +14,7 @@ const homeHref = lang === 'en' ? '/' : `/${lang}/`;
 
 const productLinks = [
   { label: 'OntoCore', href: `/${lang}/ontocore/` },
-  { label: 'OntoStore', href: '/ontostore/' },
+  { label: 'OntoStore', href: lang === 'en' ? '/ontostore/' : `/${lang}/ontostore/` },
   { label: 'OntoMCP', href: `/${lang}/mcp/` },
   { label: t.roadmap, href: `/${lang}/roadmap/` }
 ];

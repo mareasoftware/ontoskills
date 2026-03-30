@@ -39,7 +39,7 @@ const t = translations.hero[lang];
         <a href={`/${lang}/getting-started/`} class="hero-btn hero-btn-primary">
           {t.secondaryCta}
         </a>
-        <a href="/ontostore/" class="hero-btn hero-btn-secondary">
+        <a href={lang === 'en' ? '/ontostore/' : `/${lang}/ontostore/`} class="hero-btn hero-btn-secondary">
           {t.cta}
         </a>
       </div>

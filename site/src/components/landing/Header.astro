@@ -54,7 +54,7 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
       </a>
 
       <div class="hidden md:flex items-center gap-6">
-        <a href="/ontostore/" class="text-text-secondary hover:text-text-primary transition-colors">{t.ontostore}</a>
+        <a href={lang === 'en' ? '/ontostore/' : `/${lang}/ontostore/`} class="text-text-secondary hover:text-text-primary transition-colors">{t.ontostore}</a>
         <a href={`/${lang}/how-it-works/`} class="text-text-secondary hover:text-text-primary transition-colors">{t.howItWorks}</a>
         <a href={`/${lang}/overview/`} class="text-text-secondary hover:text-text-primary transition-colors">{t.docs}</a>
 
@@ -79,7 +79,7 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
       </label>
 
       <div class="hidden peer-checked:flex md:hidden absolute top-16 left-0 right-0 border-b border-white/10 bg-black/95 backdrop-blur flex-col p-4 gap-4">
-        <a href="/ontostore/" class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.ontostore}</a>
+        <a href={lang === 'en' ? '/ontostore/' : `/${lang}/ontostore/`} class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.ontostore}</a>
         <a href={`/${lang}/how-it-works/`} class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.howItWorks}</a>
         <a href={`/${lang}/overview/`} class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.docs}</a>
 
