@@ -24,6 +24,7 @@
     --shadow-panel: none;
 
     --gradient-text: linear-gradient(180deg, #fafafa 0%, #a3a3a3 100%);
+    --gradient-brand: linear-gradient(135deg, #52c7e8 0%, #85f496 100%);
   }
 
   html {
@@ -107,6 +108,17 @@
 
   .section-shell {
     @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .site-title-gradient {
+    transition: all 0.3s ease;
+  }
+
+  a:hover .site-title-gradient {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .section-kicker {

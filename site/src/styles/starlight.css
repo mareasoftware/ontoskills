@@ -134,15 +134,19 @@ a:hover {
   color: var(--sl-color-accent-high);
 }
 
-/* Site title - unified with main site */
+/* Site title - brand gradient on hover */
 .site-title {
   color: var(--sl-color-text) !important;
   font-size: 1.125rem !important;
   font-weight: 600 !important;
+  transition: all 0.3s ease;
 }
 
 .site-title:hover {
-  color: var(--sl-color-text-accent) !important;
+  background: linear-gradient(135deg, #52c7e8 0%, #85f496 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
 }
 
 .site-title img {
