@@ -254,6 +254,12 @@ get_skill("pdf-generator")
     scroll-behavior: smooth;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   /* Pipeline step hover */
   .pipeline-step {
     transition: transform 0.2s ease;

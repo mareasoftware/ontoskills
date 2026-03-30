@@ -276,7 +276,8 @@ const t = i18n[lang];
         status.textContent = i18n.connecting;
         const indexResponse = await fetch(storeIndexUrl, {
           mode: 'cors',
-          headers: { 'Accept': 'application/json' }
+          headers: { 'Accept': 'application/json' },
+          signal,
         });
         if (!indexResponse.ok) throw new Error(`Index request failed: ${indexResponse.status}`);
         const indexData = await indexResponse.json();
@@ -287,7 +288,8 @@ const t = i18n[lang];
             const manifestUrl = new URL(entry.manifest_url, storeIndexUrl).toString();
             const response = await fetch(manifestUrl, {
               mode: 'cors',
-              headers: { 'Accept': 'application/json' }
+              headers: { 'Accept': 'application/json' },
+              signal,
             });
             if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`);
             return response.json();
