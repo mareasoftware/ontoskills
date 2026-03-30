@@ -1,5 +1,5 @@
 ---
-title: MCP with Claude Code
+title: MCP 与 Claude Code
 description: 在 Claude Code 中注册和验证 OntoMCP
 sidebar:
   order: 11
