@@ -35,15 +35,15 @@ const subtitles = {
       {t.items.map((product) => (
         <a
           href={product.link}
-          class="product-card group border border-white/10 bg-bg-elevated rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 hover:border-cyan-500/30 hover:bg-white/5"
+          class="product-card group border border-white/10 bg-bg-elevated rounded-2xl p-6 transition-all duration-200 hover:-translate-y-1 hover:border-[#52c7e8]/30 hover:bg-white/5"
         >
           <div class="flex items-center mb-4">
-            <div class="text-cyan-400 mr-3" set:html={icons[product.name as keyof typeof icons]} />
+            <div class="text-[#52c7e8] mr-3" set:html={icons[product.name as keyof typeof icons]} />
             <div class="flex-1">
-              <h3 class="text-xl font-bold text-text-primary group-hover:text-cyan-400 transition-colors">
+              <h3 class="text-xl font-bold text-text-primary group-hover:text-[#85f496] transition-colors">
                 {product.name}
               </h3>
-              <p class="text-sm text-cyan-400 font-medium">{subtitles[lang][product.name as keyof typeof subtitles['en']]}</p>
+              <p class="text-sm text-[#52c7e8] font-medium">{subtitles[lang][product.name as keyof typeof subtitles['en']]}</p>
             </div>
           </div>
 
@@ -54,7 +54,7 @@ const subtitles = {
           <div class="mt-auto space-y-2">
             {product.features.map((feature) => (
               <div class="flex items-center text-sm text-text-secondary">
-                <svg class="w-4 h-4 mr-2 text-cyan-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4 mr-2 text-[#52c7e8] flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
                 {feature}
@@ -98,7 +98,7 @@ const subtitles = {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.03) 0%, transparent 50%);
+    background: radial-gradient(circle at 50% 0%, rgba(82, 199, 232, 0.03) 0%, transparent 50%);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease;

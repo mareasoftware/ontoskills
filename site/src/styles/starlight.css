@@ -45,16 +45,16 @@
   --sl-color-bg-accent: #111111;
 
   --sl-color-text: #f5f5f5;
-  --sl-color-text-accent: #7dd3fc;
+  --sl-color-text-accent: #85f496;
   --sl-color-text-muted: #8a8a8a;
   --sl-color-text-invert: #090909;
 
   --sl-color-accent-low: #111111;
-  --sl-color-accent: #7dd3fc;
+  --sl-color-accent: #52c7e8;
   --sl-color-accent-high: #e5e5e5;
 
   --sl-color-border: rgba(255, 255, 255, 0.1);
-  --sl-color-border-accent: rgba(125, 211, 252, 0.35);
+  --sl-color-border-accent: rgba(82, 199, 232, 0.35);
   --sl-color-hairline: rgba(255, 255, 255, 0.08);
 
   --sl-color-code-bg: #101010;

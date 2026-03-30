@@ -101,14 +101,14 @@ get_skill("pdf-generator")
     <section class="pt-20 pb-8">
       <div class="section-shell">
         <div class="text-center max-w-3xl mx-auto">
-          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium mb-6">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#52c7e8]/10 border border-[#52c7e8]/20 text-[#52c7e8] text-sm font-medium mb-6">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             Pipeline
           </div>
           <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary mb-6 tracking-tight">
-            How it <span class="text-cyan-400">Works</span>
+            How it <span class="text-[#52c7e8]">Works</span>
           </h1>
           <p class="text-xl text-text-secondary max-w-2xl mx-auto">
             From SKILL.md to deterministic execution in 4 simple steps
@@ -124,9 +124,9 @@ get_skill("pdf-generator")
           {steps.map((step, index) => (
             <>
               <div class="pipeline-step flex flex-col items-center text-center px-4 lg:px-6 py-4">
-                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-3 relative">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#52c7e8]/20 to-[#85f496]/20 border border-[#52c7e8]/30 flex items-center justify-center text-[#52c7e8] mb-3 relative">
                   <span class="text-xl font-bold">{step.number}</span>
-                  <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 text-[10px] font-bold text-black flex items-center justify-center">
+                  <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#52c7e8] text-[10px] font-bold text-black flex items-center justify-center">
                     {index + 1}
                   </div>
                 </div>
@@ -134,14 +134,14 @@ get_skill("pdf-generator")
                 <div class="text-xs text-text-muted whitespace-nowrap">{step.subtitle}</div>
               </div>
               {index < steps.length - 1 && (
-                <div class="pipeline-arrow hidden lg:flex items-center text-cyan-500/40">
+                <div class="pipeline-arrow hidden lg:flex items-center text-[#52c7e8]/40">
                   <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
                 </div>
               )}
               {index < steps.length - 1 && (
-                <div class="lg:hidden flex items-center text-cyan-500/40 my-1">
+                <div class="lg:hidden flex items-center text-[#52c7e8]/40 my-1">
                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                   </svg>
@@ -165,12 +165,12 @@ get_skill("pdf-generator")
                   <!-- Step Number Badge -->
                   <div class="flex items-center gap-4">
                     <div class="flex items-center gap-3">
-                      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                        <span class="text-xl font-bold text-cyan-400">{step.number}</span>
+                      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#52c7e8]/20 to-[#85f496]/20 border border-[#52c7e8]/30 flex items-center justify-center">
+                        <span class="text-xl font-bold text-[#52c7e8]">{step.number}</span>
                       </div>
                       <div>
                         <h2 class="text-2xl sm:text-3xl font-bold text-text-primary">{step.title}</h2>
-                        <p class="text-sm text-cyan-400 font-medium">{step.subtitle}</p>
+                        <p class="text-sm text-[#52c7e8] font-medium">{step.subtitle}</p>
                       </div>
                     </div>
                   </div>
@@ -196,7 +196,7 @@ get_skill("pdf-generator")
                 <!-- Code Column -->
                 <div class={` ${index % 2 === 1 ? 'lg:order-1' : ''}`}>
                   <div class="relative">
-                    <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-50"></div>
+                    <div class="absolute -inset-1 bg-gradient-to-r from-[#52c7e8]/20 to-[#85f496]/20 rounded-2xl blur-xl opacity-50"></div>
                     <div class="relative bg-bg-elevated border border-white/10 rounded-2xl overflow-hidden">
                       <!-- Code Header -->
                       <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20">
@@ -224,10 +224,10 @@ get_skill("pdf-generator")
     <!-- CTA Section -->
     <section class="py-20">
       <div class="section-shell">
-        <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-cyan-500/5 via-bg-elevated to-blue-500/5 p-8 sm:p-12 lg:p-16">
+        <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#52c7e8]/5 via-bg-elevated to-[#85f496]/5 p-8 sm:p-12 lg:p-16">
           <!-- Background decoration -->
-          <div class="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-          <div class="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+          <div class="absolute top-0 right-0 w-96 h-96 bg-[#52c7e8]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+          <div class="absolute bottom-0 left-0 w-96 h-96 bg-[#85f496]/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
           <div class="relative text-center">
             <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary mb-4 tracking-tight">

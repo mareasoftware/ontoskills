@@ -14,9 +14,9 @@
     --text-secondary: #d4d4d4;
     --text-muted: #8a8a8a;
 
-    --accent-cyan: #7dd3fc;
-    --accent-blue: #93c5fd;
-    --accent-mint: #bbf7d0;
+    --accent-cyan: #52c7e8;
+    --accent-blue: #6ed8c4;
+    --accent-mint: #85f496;
     --accent-pink: #f9a8d4;
 
     --border: rgba(255, 255, 255, 0.1);
@@ -46,7 +46,7 @@
   }
 
   ::selection {
-    background: rgba(125, 211, 252, 0.2);
+    background: rgba(82, 199, 232, 0.2);
   }
 
   :focus-visible {

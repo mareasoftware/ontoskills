@@ -12,17 +12,17 @@ const rootId = `cmd-${crypto.randomUUID()}`;
 <div id={rootId} class={`command-shell ${compact ? 'rounded-xl p-4' : 'p-5 md:p-6'} relative overflow-hidden`}>
   {label && (
     <div class="mb-3 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.24em] text-text-muted">
-      <span class="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-mint-400"></span>
+      <span class="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-[#52c7e8] to-[#85f496]"></span>
       {label}
     </div>
   )}
   <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-    <code class={`block break-all text-left ${compact ? 'text-sm' : 'text-sm md:text-base'} text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-white`}>
+    <code class={`block break-all text-left ${compact ? 'text-sm' : 'text-sm md:text-base'} text-transparent bg-clip-text bg-gradient-to-r from-white via-[#52c7e8] to-white`}>
       {command}
     </code>
     <button
       type="button"
-      class="copy-trigger inline-flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-mint-500/10 hover:border-cyan-500/30"
+      class="copy-trigger inline-flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-gradient-to-r hover:from-[#52c7e8]/10 hover:to-[#85f496]/10 hover:border-[#52c7e8]/30"
       data-command={command}
     >
       Copy
