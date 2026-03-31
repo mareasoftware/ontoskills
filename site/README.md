@@ -5,7 +5,7 @@ Public site and documentation for [OntoSkills](https://ontoskills.sh) — ontolo
 ## What's here
 
 - **Landing page** (`/`) — redirects to `/en/`, marketing page with i18n support (English, Chinese)
-- **Documentation** (`/en/docs/`, `/zh/docs/`) — Starlight-powered docs with bilingual content
+- **Documentation** (`/en/`, `/zh/`) — Starlight-powered docs with bilingual content (e.g. `/en/overview/`)
 - **OntoStore** (`/en/ontostore/`, `/zh/ontostore/`) — browsable skill registry
 
 ## Tech stack
