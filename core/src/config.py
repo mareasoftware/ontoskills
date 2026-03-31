@@ -22,6 +22,9 @@ BASE_URI = os.getenv(
     'https://ontoskills.sh/ontology#'
 )
 
+CORE_ONTOLOGY_FILENAME = 'core.ttl'
+CORE_ONTOLOGY_URL = 'https://ontoskills.sh/ontology/core.ttl'
+
 # Directory paths (relative to project root by default)
 SKILLS_DIR = os.getenv(
     'ONTOSKILLS_SKILLS_DIR',
