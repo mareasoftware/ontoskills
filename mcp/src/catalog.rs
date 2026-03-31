@@ -11,6 +11,7 @@ use oxigraph::sparql::{QueryResults, SparqlEvaluator};
 use oxigraph::store::Store;
 use serde::Serialize;
 use serde::Deserialize;
+use sha2::{Sha256, Digest};
 use walkdir::WalkDir;
 
 const DEFAULT_BASE_URI: &str = "https://ontoskills.sh/ontology#";
@@ -1295,7 +1296,11 @@ fn load_manifest_tree(
     collect_skill_records_from_file(&canonical, ontology_root, registry_lookup, skill_index, base_uri)?;
 
     let content = std::fs::read_to_string(&canonical)?;
-    for imported in parse_import_paths(&content) {
+    let cache_dir = env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join(".ontoskills").join("state").join("cache"))
+        .unwrap_or_else(|| PathBuf::from(".ontoskills_cache"));
+    for imported in parse_import_paths(&content, &cache_dir) {
         if imported.exists() {
             load_manifest_tree(
                 store,
@@ -1312,8 +1317,10 @@ fn load_manifest_tree(
     Ok(())
 }
 
-fn parse_import_paths(content: &str) -> Vec<PathBuf> {
+fn parse_import_paths(content: &str, cache_dir: &Path) -> Vec<PathBuf> {
     let mut imports = Vec::new();
+
+    // Resolve file:// imports
     for segment in content.split("owl:imports <file://").skip(1) {
         if let Some(raw_path) = segment.split('>').next() {
             let normalized = if raw_path.starts_with('/') {
@@ -1324,7 +1331,63 @@ fn parse_import_paths(content: &str) -> Vec<PathBuf> {
             imports.push(PathBuf::from(normalized));
         }
     }
+
+    // Resolve https:// imports
+    for segment in content.split("owl:imports <https://").skip(1) {
+        if let Some(raw_url) = segment.split('>').next() {
+            let url = format!("https://{}", raw_url);
+            match resolve_https_import(&url, cache_dir) {
+                Ok(local_path) => imports.push(local_path),
+                Err(e) => eprintln!("Warning: failed to resolve https import {}: {:?}", url, e),
+            }
+        }
+    }
+
     imports
+}
+
+/// Compute a safe cache filename from a URL using SHA-256.
+/// Returns <cache_dir>/<sha256>.ttl
+fn url_to_cache_path(url: &str, cache_dir: &Path) -> PathBuf {
+    let mut hasher = Sha256::new();
+    hasher.update(url.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    cache_dir.join(format!("{}.ttl", hash))
+}
+
+/// Resolve an https:// import URL to a local file path.
+/// If cached, return the cached path. Otherwise download, cache, and return.
+fn resolve_https_import(url: &str, cache_dir: &Path) -> Result<PathBuf, CatalogError> {
+    let cached = url_to_cache_path(url, cache_dir);
+    if cached.exists() {
+        return Ok(cached);
+    }
+
+    let response = reqwest::blocking::get(url).map_err(|e| {
+        CatalogError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to fetch {}: {}", url, e),
+        ))
+    })?;
+
+    if !response.status().is_success() {
+        return Err(CatalogError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("HTTP {} fetching {}", response.status(), url),
+        )));
+    }
+
+    let content = response.text().map_err(|e| {
+        CatalogError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to read response from {}: {}", url, e),
+        ))
+    })?;
+
+    std::fs::create_dir_all(cache_dir).map_err(CatalogError::Io)?;
+    std::fs::write(&cached, &content).map_err(CatalogError::Io)?;
+
+    Ok(cached)
 }
 
 #[derive(Debug, Clone)]
@@ -1386,7 +1449,7 @@ fn collect_skill_records_from_file(
     skill_index: &mut Vec<SkillRecord>,
     base_uri: &str,
 ) -> Result<(), CatalogError> {
-    if path.file_name().and_then(|name| name.to_str()) == Some("ontoskills-core.ttl") {
+    if path.file_name().and_then(|name| name.to_str()) == Some("core.ttl") {
         return Ok(());
     }
 
