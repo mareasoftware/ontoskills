@@ -708,25 +708,12 @@ async function installMcp() {
   runCommand("tar", ["-xzf", archivePath, "-C", extractDir]);
 
   const binaryPath = path.join(extractDir, "ontomcp");
-  const coreOntology = path.join(extractDir, "core.ttl");
-  const legacyCoreOntology = path.join(extractDir, "ontoskills-core.ttl");
-  const legacyCoreOntology2 = path.join(extractDir, "ontoclaw-core.ttl");
   await fsp.copyFile(binaryPath, path.join(BIN_DIR, "ontomcp"));
   await fsp.chmod(path.join(BIN_DIR, "ontomcp"), 0o755);
-  if (fs.existsSync(coreOntology)) {
-    await fsp.copyFile(coreOntology, CORE_ONTOLOGY_PATH);
-  } else if (fs.existsSync(legacyCoreOntology)) {
-    await fsp.copyFile(legacyCoreOntology, CORE_ONTOLOGY_PATH);
-  } else if (fs.existsSync(legacyCoreOntology2)) {
-    await fsp.copyFile(legacyCoreOntology2, CORE_ONTOLOGY_PATH);
-  } else {
-    fail(`Release ${release.tag_name} does not contain a core.ttl asset`);
-  }
 
-  // Migrate legacy local file if present
-  const legacyLocal = path.join(ONTOLOGY_DIR, "ontoskills-core.ttl");
-  if (!fs.existsSync(CORE_ONTOLOGY_PATH) && fs.existsSync(legacyLocal)) {
-    await fsp.rename(legacyLocal, CORE_ONTOLOGY_PATH);
+  // Download core ontology from ontoskills.sh
+  if (!fs.existsSync(CORE_ONTOLOGY_PATH)) {
+    await downloadFile(CORE_ONTOLOGY_URL, CORE_ONTOLOGY_PATH);
   }
 
   const releases = await loadReleaseLock();
