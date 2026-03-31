@@ -46,7 +46,7 @@ jobs:
         run: |
           mkdir -p dist/${{ matrix.asset }}
           cp mcp/target/${{ matrix.target }}/release/ontomcp dist/${{ matrix.asset }}/ontomcp
-          cp ontoskills/ontoskills-core.ttl dist/${{ matrix.asset }}/ontoskills-core.ttl
+          cp ontoskills/core.ttl dist/${{ matrix.asset }}/core.ttl
           tar -czf dist/${{ matrix.asset }}.tar.gz -C dist/${{ matrix.asset }} .
 
       - name: Upload artifact
