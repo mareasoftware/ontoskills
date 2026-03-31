@@ -5,10 +5,6 @@ sidebar:
   order: 8
 ---
 
----
-
-
-
 ## Overview
 
 Semantic Intent Discovery enables LLM agents to find skills by natural language intent without knowing exact intent strings. This breaks the O(1) query promise — agents can now discover how to query the ontology.
