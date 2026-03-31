@@ -213,9 +213,9 @@ Use `--skip-security` to bypass LLM review (regex checks still run).
 
 ## SHACL validation
 
-Every skill must pass SHACL validation before being written.
+Every skill must pass SHACL validation before being written. The constitutional shapes are defined in `core/specs/ontoskills.shacl.ttl` and enforce constraints across 6 node shapes.
 
-Constitutional rules enforced:
+**Required fields (blocking):**
 
 | Constraint | Rule |
 |------------|------|
@@ -225,7 +225,13 @@ Constitutional rules enforced:
 | `yieldsState` | Must be valid IRI |
 | `handlesFailure` | Must be valid IRI |
 
+**Type-specific rules:**
+- `ExecutableSkill` must have exactly 1 `hasPayload` (with `code` or `executionPath`)
+- `DeclarativeSkill` must not have `hasPayload`
+
 If validation fails, the skill is **not written** and an error is shown.
+
+See [Skill Authoring](/authoring/) for practical guidance on writing skills that pass validation.
 
 ---
 

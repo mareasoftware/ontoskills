@@ -457,6 +457,33 @@ ontoskills compile my-skill
 ontoskills compile my-skill -v
 ```
 
+### SHACL 验证规则
+
+编译器根据 `core/specs/ontoskills.shacl.ttl` 中定义的宪法 SHACL 形状验证技能。这些规则确保每个编译的技能逻辑有效。
+
+**每个技能必须具有：**
+- 至少一个 `resolvesIntent` — 此技能解决什么用户意图
+- 恰好一个 `generatedBy` — 哪个 LLM 生成了此技能（自动填充）
+
+**状态字段必须是有效的 IRI：**
+- `requiresState` — 前置条件（如 `oc:FileExists`）
+- `yieldsState` — 成功后的后置条件
+- `handlesFailure` — 失败时的状态
+
+**技能类型规则（自动）：**
+- 可执行技能必须恰好有一个负载（`oc:code` 或 `oc:executionPath`）
+- 声明式技能不能有负载
+
+**知识节点必须具有：**
+- `directiveContent` — 实际的知识内容
+- `appliesToContext` — 此知识何时适用
+- `hasRationale` — 为什么这很重要
+
+**警告（非阻止）：**
+- 没有 `impartsKnowledge` 的技能会收到警告 — 考虑添加启发式规则、反模式或最佳实践
+
+大多数字段在提取过程中自动填充。你主要需要确保 SKILL.md 有清晰的意图、结构和知识部分。
+
 ---
 
 ## 检查清单

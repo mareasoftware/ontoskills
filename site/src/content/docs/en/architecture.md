@@ -158,6 +158,7 @@ ontoskills/
 │   │   ├── storage.py          # File I/O, merging, orphan cleanup
 │   │   ├── transformer.py      # LLM tool-use extraction
 │   │   └── validator.py        # SHACL validation gatekeeper
+│   ├── specs/                  # SHACL shapes constitution
 │   └── tests/                  # Test suite
 ├── mcp/                        # OntoMCP — Rust MCP server
 │   ├── Cargo.toml              # Rust package manifest
@@ -167,10 +168,8 @@ ontoskills/
 ├── skills/                     # Input: SKILL.md definitions (user-created)
 ├── ontoskills/                 # Output: compiled .ttl files (gitignored build artifacts)
 │   └── */ontoskill.ttl         # Individual skill modules
-├── site/public/ontology/
-│   └── core.ttl                # Core ontology (canonical, served online)
-└── specs/
-    └── ontoskills.shacl.ttl    # SHACL shapes constitution
+└── site/public/ontology/
+    └── core.ttl                # Core ontology (canonical, served online)
 ```
 
 **Any source skill directory works** — add a `SKILL.md` file and OntoCore will compile it to a validated ontology module.

@@ -213,9 +213,9 @@ OntoCore 是**缓存感知**的：
 
 ## SHACL 验证
 
-每个技能在写入前必须通过 SHACL 验证。
+每个技能在写入前必须通过 SHACL 验证。宪法形状定义在 `core/specs/ontoskills.shacl.ttl` 中，跨 6 个节点形状强制执行约束。
 
-强制执行的宪法规则：
+**必需字段（阻止）：**
 
 | 约束 | 规则 |
 |------|------|
@@ -225,7 +225,13 @@ OntoCore 是**缓存感知**的：
 | `yieldsState` | 必须是有效的 IRI |
 | `handlesFailure` | 必须是有效的 IRI |
 
+**类型特定规则：**
+- `ExecutableSkill` 必须恰好有 1 个 `hasPayload`（带 `code` 或 `executionPath`）
+- `DeclarativeSkill` 不能有 `hasPayload`
+
 如果验证失败，技能**不会被写入**并显示错误。
+
+参见[技能创作](/zh/authoring/)获取通过验证的实用指南。
 
 ---
 

@@ -16,9 +16,8 @@ from compiler.exceptions import OntologyValidationError
 
 logger = logging.getLogger(__name__)
 
-# Path to SHACL shapes file (project root / specs /)
-# src/ -> core/ -> project root
-SHACL_SHAPES_PATH = Path(__file__).parent.parent.parent / "specs" / "ontoskills.shacl.ttl"
+# Path to SHACL shapes file (core/specs/)
+SHACL_SHAPES_PATH = Path(__file__).parent.parent / "specs" / "ontoskills.shacl.ttl"
 
 # Path to core ontology (output directory)
 CORE_ONTOLOGY_PATH = Path(OUTPUT_DIR) / CORE_ONTOLOGY_FILENAME

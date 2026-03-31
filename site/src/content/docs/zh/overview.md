@@ -102,7 +102,6 @@ OntoSkills 使用 **描述逻辑 (OWL 2)** 将技能转换为形式化本体：
 | **OntoStore** | GitHub 仓库 | 官方编译技能商店 |
 | `skills/` | Markdown | 人工编写的源技能 |
 | `ontoskills/` | Turtle | 编译后的本体产物 |
-| `specs/` | Turtle | 用于验证的 SHACL 形状 |
 
 ---
 

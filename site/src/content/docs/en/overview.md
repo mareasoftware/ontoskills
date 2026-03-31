@@ -102,8 +102,6 @@ Every skill is extracted with:
 | **OntoStore** | GitHub repo | Official compiled skill store |
 | `skills/` | Markdown | Input | Human-authored source skills |
 | `ontoskills/` | Turtle | Output | Compiled ontology artifacts |
-| `specs/` | Turtle | Constitution | SHACL shapes for validation |
-
 ---
 
 ## Use cases

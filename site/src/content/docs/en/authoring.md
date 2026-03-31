@@ -457,6 +457,33 @@ Run with `-v` for details:
 ontoskills compile my-skill -v
 ```
 
+### SHACL validation rules
+
+The compiler validates skills against constitutional SHACL shapes defined in `core/specs/ontoskills.shacl.ttl`. These rules ensure every compiled skill is logically valid.
+
+**Every skill must have:**
+- At least one `resolvesIntent` — what user intent this skill solves
+- Exactly one `generatedBy` — which LLM produced this skill (auto-filled)
+
+**State fields must be valid IRIs:**
+- `requiresState` — preconditions (e.g., `oc:FileExists`)
+- `yieldsState` — postconditions after success
+- `handlesFailure` — state on failure
+
+**Skill type rules (automatic):**
+- Executable skills must have exactly one payload (`oc:code` or `oc:executionPath`)
+- Declarative skills must not have a payload
+
+**Knowledge nodes must have:**
+- `directiveContent` — the actual knowledge content
+- `appliesToContext` — when this knowledge applies
+- `hasRationale` — why this matters
+
+**Warnings (non-blocking):**
+- Skills without `impartsKnowledge` get a warning — consider adding heuristics, anti-patterns, or best practices
+
+Most of these are filled automatically during extraction. You mainly need to ensure your SKILL.md has clear intent, structure, and knowledge sections.
+
 ---
 
 ## Checklist
