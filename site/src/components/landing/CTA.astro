@@ -9,7 +9,10 @@ interface Props {
 
 const { lang = defaultLang } = Astro.props;
 const t = translations.cta[lang];
-const href = (subpath: string) => `/${lang}/${subpath}/`;
+const prefix = lang === 'en' ? '' : `/${lang}`;
+const docPrefix = lang === 'en' ? '/docs' : `/${lang}/docs`;
+const pageHref = (subpath: string) => `${prefix}/${subpath}/`;
+const docHref = (subpath: string) => `${docPrefix}/${subpath}/`;
 ---
 
 <section class="py-20 relative overflow-hidden">
@@ -34,10 +37,10 @@ const href = (subpath: string) => `/${lang}/${subpath}/`;
         <CommandSnippet command={t.command} label={t.installMCP} />
       </div>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button href={href('getting-started')} size="lg">
+        <Button href={docHref('getting-started')} size="lg">
           {t.primaryButton}
         </Button>
-        <Button href={href('ontostore')} variant="secondary" size="lg">
+        <Button href={pageHref('ontostore')} variant="secondary" size="lg">
           {t.secondaryButton}
         </Button>
       </div>

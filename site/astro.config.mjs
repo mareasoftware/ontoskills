@@ -37,9 +37,9 @@ export default defineConfig({
       components: {
         PageTitle: './src/components/CustomPageTitle.astro',
       },
-      defaultLocale: 'en',
+      defaultLocale: 'root',
       locales: {
-        en: {
+        root: {
           label: 'English',
           lang: 'en',
         },

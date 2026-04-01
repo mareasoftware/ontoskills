@@ -23,7 +23,7 @@ npx ontoskills install mcp --cursor --project
 ~/.ontoskills/bin/ontomcp
 ```
 
-有关一条命令客户端引导，请参见 [MCP 引导](/zh/mcp-bootstrap/)。
+有关一条命令客户端引导，请参见 [MCP 引导](/mcp-bootstrap/)。
 
 ---
 

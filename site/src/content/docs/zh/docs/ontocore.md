@@ -231,7 +231,7 @@ OntoCore 是**缓存感知**的：
 
 如果验证失败，技能**不会被写入**并显示错误。
 
-参见[技能创作](/zh/authoring/)获取通过验证的实用指南。
+参见[技能创作](/authoring/)获取通过验证的实用指南。
 
 ---
 
@@ -259,7 +259,7 @@ OntoCore 是**缓存感知**的：
 
 ## 下一步
 
-- [快速开始](/zh/getting-started/) — 安装和第一步
-- [架构](/zh/architecture/) — 系统如何工作
-- [知识提取](/zh/knowledge-extraction/) — 理解知识节点
-- [技能创作](/zh/authoring/) — 编写自己的技能
+- [快速开始](/getting-started/) — 安装和第一步
+- [架构](/architecture/) — 系统如何工作
+- [知识提取](/knowledge-extraction/) — 理解知识节点
+- [技能创作](/authoring/) — 编写自己的技能

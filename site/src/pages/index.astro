@@ -1,3 +1,22 @@
 ---
-return Astro.redirect('/en/');
+import LandingLayout from '../layouts/LandingLayout.astro';
+import Header from '../components/landing/Header.astro';
+import Hero from '../components/landing/Hero.astro';
+import ProblemSolution from '../components/landing/ProblemSolution.astro';
+import Products from '../components/landing/Products.astro';
+import Roadmap from '../components/landing/Roadmap.astro';
+import CTA from '../components/landing/CTA.astro';
+import Footer from '../components/landing/Footer.astro';
 ---
+
+<LandingLayout lang="en">
+  <Header lang="en" />
+  <main>
+    <Hero lang="en" />
+    <ProblemSolution lang="en" />
+    <Products lang="en" />
+    <Roadmap lang="en" />
+    <CTA lang="en" />
+  </main>
+  <Footer lang="en" />
+</LandingLayout>

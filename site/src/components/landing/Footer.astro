@@ -9,22 +9,25 @@ interface Props {
 const { lang = defaultLang } = Astro.props;
 const t = translations.footer[lang];
 
-// All pages use /{lang}/... convention
-const href = (subpath: string) => `/${lang}/${subpath}/`;
-const homeHref = `/${lang}/`;
+// Custom pages at root (en) or /zh/; docs under /docs/ (en) or /zh/docs/
+const prefix = lang === 'en' ? '' : `/${lang}`;
+const docPrefix = lang === 'en' ? '/docs' : `/${lang}/docs`;
+const pageHref = (subpath: string) => `${prefix}/${subpath}/`;
+const docHref = (subpath: string) => `${docPrefix}/${subpath}/`;
+const homeHref = lang === 'en' ? '/' : '/zh/';
 
 const productLinks = [
-  { label: 'OntoCore', href: href('ontocore') },
-  { label: 'OntoStore', href: href('ontostore') },
-  { label: 'OntoMCP', href: href('mcp') },
-  { label: t.roadmap, href: href('roadmap') }
+  { label: 'OntoCore', href: docHref('ontocore') },
+  { label: 'OntoStore', href: pageHref('ontostore') },
+  { label: 'OntoMCP', href: docHref('mcp') },
+  { label: t.roadmap, href: docHref('roadmap') }
 ];
 
 const resourceLinks = [
-  { label: t.documentation, href: href('overview') },
-  { label: t.gettingStarted, href: href('getting-started') },
-  { label: t.cliReference, href: href('cli') },
-  { label: t.architecture, href: href('architecture') }
+  { label: t.documentation, href: docHref('overview') },
+  { label: t.gettingStarted, href: docHref('getting-started') },
+  { label: t.cliReference, href: docHref('cli') },
+  { label: t.architecture, href: docHref('architecture') }
 ];
 
 const communityLinks = [

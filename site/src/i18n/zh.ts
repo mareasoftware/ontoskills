@@ -52,7 +52,7 @@ export default {
         name: 'OntoCore',
         description: '编译器。将领域知识转换为 OWL 2 本体。',
         features: ['知识提取', 'OWL 2 DL 合规', 'SPARQL 端点'],
-        link: '/zh/ontocore/',
+        link: '/zh/docs/ontocore/',
       },
       {
         name: 'OntoStore',
@@ -64,7 +64,7 @@ export default {
         name: 'OntoMCP',
         description: '运行时。MCP 服务器，将代理连接到本体知识。',
         features: ['Claude Code 就绪', 'SPARQL 查询', '技能执行'],
-        link: '/zh/mcp/',
+        link: '/zh/docs/mcp/',
       },
     ],
   },

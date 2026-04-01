@@ -7,7 +7,10 @@ interface Props {
 
 const { lang = defaultLang } = Astro.props;
 const t = translations.hero[lang];
-const href = (subpath: string) => `/${lang}/${subpath}/`;
+const prefix = lang === 'en' ? '' : `/${lang}`;
+const docPrefix = lang === 'en' ? '/docs' : `/${lang}/docs`;
+const pageHref = (subpath: string) => `${prefix}/${subpath}/`;
+const docHref = (subpath: string) => `${docPrefix}/${subpath}/`;
 ---
 
 <section class="hero-section">
@@ -37,10 +40,10 @@ const href = (subpath: string) => `/${lang}/${subpath}/`;
       </div>
 
       <div class="hero-buttons">
-        <a href={href('getting-started')} class="hero-btn hero-btn-primary">
+        <a href={docHref('getting-started')} class="hero-btn hero-btn-primary">
           {t.secondaryCta}
         </a>
-        <a href={href('ontostore')} class="hero-btn hero-btn-secondary">
+        <a href={pageHref('ontostore')} class="hero-btn hero-btn-secondary">
           {t.cta}
         </a>
       </div>

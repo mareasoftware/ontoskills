@@ -331,7 +331,7 @@ which wkhtmltopdf || brew install wkhtmltopdf
 对于大型电子表格（>10k 行），以 1000 为块处理以避免内存问题。
 ```
 
-参见 [知识提取](/zh/knowledge-extraction/) 了解所有 26 种节点类型。
+参见 [知识提取](/knowledge-extraction/) 了解所有 26 种节点类型。
 
 ---
 
@@ -518,6 +518,6 @@ ontoskills compile my-skill -v
 
 ## 下一步
 
-- [知识提取](/zh/knowledge-extraction/) — 了解所有 26 种节点类型
-- [OntoCore](/zh/ontocore/) — 编译器参考
-- [快速开始](/zh/getting-started/) — 编译你的第一个技能
+- [知识提取](/knowledge-extraction/) — 了解所有 26 种节点类型
+- [OntoCore](/ontocore/) — 编译器参考
+- [快速开始](/getting-started/) — 编译你的第一个技能
