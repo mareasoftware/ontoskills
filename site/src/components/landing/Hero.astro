@@ -267,10 +267,23 @@ const docHref = (subpath: string) => `${docPrefix}/${subpath}/`;
     font-size: 1.25rem;
     font-weight: 600;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-mint));
+    background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-mint) 100%);
+    background-size: 300% 100%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .stat-item:nth-child(1) .stat-value {
+    background-position: 0% 50%;
+  }
+
+  .stat-item:nth-child(3) .stat-value {
+    background-position: 50% 50%;
+  }
+
+  .stat-item:nth-child(5) .stat-value {
+    background-position: 100% 50%;
   }
 
   .stat-label {
