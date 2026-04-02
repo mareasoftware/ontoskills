@@ -43,10 +43,16 @@ def generate_comparison(ontomcp: dict | None, traditional: dict | None) -> str:
         lines.append("| Query | p50 | p99 | avg | min | max |")
         lines.append("|-------|-----|-----|-----|-----|-----|")
         for r in ontomcp["results"]:
-            lines.append(
-                f"| {r['query_name']} | {fmt_us(r['p50_us'])} | {fmt_us(r['p99_us'])} "
-                f"| {fmt_us(r['avg_us'])} | {fmt_us(r['min_us'])} | {fmt_us(r['max_us'])} |"
+            is_unavailable = r.get("iterations", 0) == 0 or all(
+                r.get(field, 0) == 0 for field in ("p50_us", "p99_us", "avg_us", "min_us", "max_us")
             )
+            if is_unavailable:
+                lines.append(f"| {r['query_name']} | n/a | n/a | n/a | n/a | n/a |")
+            else:
+                lines.append(
+                    f"| {r['query_name']} | {fmt_us(r['p50_us'])} | {fmt_us(r['p99_us'])} "
+                    f"| {fmt_us(r['avg_us'])} | {fmt_us(r['min_us'])} | {fmt_us(r['max_us'])} |"
+                )
         lines.append("")
 
     # --- Traditional section ---

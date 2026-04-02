@@ -93,10 +93,11 @@ def main():
     parser.add_argument(
         "--runs", type=int, default=5, help="Runs per task for traditional bench"
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--ontomcp-only", action="store_true", help="Only run OntoMCP benchmark"
     )
-    parser.add_argument(
+    mode_group.add_argument(
         "--traditional-only", action="store_true", help="Only run traditional benchmark"
     )
 

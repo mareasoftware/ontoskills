@@ -1,4 +1,4 @@
-"""Generate synthetic SKILL.md files for benchmarking."""
+"""Generate synthetic .md skill files for benchmarking."""
 
 import os
 import sys
