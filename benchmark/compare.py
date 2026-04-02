@@ -96,7 +96,7 @@ def generate_comparison(ontomcp: dict | None, traditional: dict | None) -> str:
 
             if trad_task:
                 ontomcp_ms = ontomcp_search["p50_us"] / 1_000
-                trad_ms = trad_task["latency"]["avg_s"] * 1_000
+                trad_ms = trad_task["latency"]["p50_s"] * 1_000
                 speedup = trad_ms / max(0.001, ontomcp_ms)
 
                 lines.append("### Skill Discovery (find skill by intent)\n")

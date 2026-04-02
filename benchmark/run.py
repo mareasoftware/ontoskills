@@ -85,8 +85,7 @@ def main():
     )
     parser.add_argument(
         "--ttl-dir",
-        default=str(BENCHMARK_DIR / "skills"),
-        help="Directory of .ttl ontology files (for OntoMCP bench)",
+        help="Directory of .ttl ontology files (for OntoMCP bench). Required unless --traditional-only.",
     )
     parser.add_argument(
         "--iterations", type=int, default=1000, help="Iterations for OntoMCP bench"
@@ -110,6 +109,12 @@ def main():
     # Check API key early
     if not args.ontomcp_only and not os.environ.get("ANTHROPIC_API_KEY"):
         print("Error: ANTHROPIC_API_KEY not set. Set it or use --ontomcp-only.")
+        sys.exit(1)
+
+    # Validate --ttl-dir when OntoMCP runs
+    if not args.traditional_only and not args.ttl_dir:
+        print("Error: --ttl-dir is required when running the OntoMCP benchmark.")
+        print("  Use --traditional-only to skip it, or provide --ttl-dir /path/to/ttls.")
         sys.exit(1)
 
     # Run benchmarks

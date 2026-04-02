@@ -32,7 +32,7 @@ def load_skill_files(skills_dir: str) -> dict[str, str]:
         sys.exit(1)
 
     for f in sorted(skills_path.glob("*.md")):
-        skills[f.stem] = f.read_text()
+        skills[f.stem] = f.read_text(encoding="utf-8")
 
     return skills
 
@@ -154,8 +154,9 @@ def run_task(
         }
 
     # Stats
-    avg_input = sum(input_tokens_list) // len(input_tokens_list)
-    avg_output = sum(output_tokens_list) // len(output_tokens_list)
+    successful_runs = len(latencies)
+    avg_input = round(sum(input_tokens_list) / successful_runs)
+    avg_output = round(sum(output_tokens_list) / successful_runs)
     total_input = sum(input_tokens_list)
     total_output = sum(output_tokens_list)
 
@@ -179,13 +180,13 @@ def run_task(
         "prompt_chars": prompt_chars,
         "prompt_tokens": prompt_tokens,
         "skill_count": len(skills),
-        "runs": runs,
+        "runs": successful_runs,
         "latency": {
-            "avg_s": round(sum(latencies) / len(latencies), 4),
+            "avg_s": round(sum(latencies) / successful_runs, 4),
             "min_s": round(min(latencies), 4),
             "max_s": round(max(latencies), 4),
-            "p50_s": round(sorted(latencies)[len(latencies) // 2], 4),
-            "p99_s": round(sorted(latencies)[int(len(latencies) * 0.99)], 4),
+            "p50_s": round(sorted(latencies)[successful_runs // 2], 4),
+            "p99_s": round(sorted(latencies)[int(successful_runs * 0.99)], 4),
         },
         "tokens": {
             "input_avg": avg_input,
@@ -196,8 +197,8 @@ def run_task(
         "cost": costs,
         "determinism": {
             "unique_answers": unique_answers,
-            "total_runs": runs,
-            "consistency_pct": round(most_common_count / runs * 100, 1),
+            "total_runs": successful_runs,
+            "consistency_pct": round(most_common_count / successful_runs * 100, 1),
         },
     }
 

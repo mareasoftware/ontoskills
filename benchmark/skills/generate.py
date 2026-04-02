@@ -306,7 +306,7 @@ def main():
     for i, skill in enumerate(all_skills):
         content = generate_skill_md(skill, i)
         filepath = os.path.join(output_dir, f"{skill['name']}.md")
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
 
     print(f"Generated {len(all_skills)} skill files in {output_dir}")

@@ -1,7 +1,9 @@
 use anyhow::Result;
+use oxigraph::io::RdfFormat;
 use oxigraph::store::Store;
 use std::env;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::time::Instant;
 use walkdir::WalkDir;
 
@@ -42,21 +44,15 @@ fn main() -> Result<()> {
     let store = Store::new()?;
     let start = Instant::now();
 
-    let mut skill_count = 0usize;
     let mut loaded_files = 0usize;
 
     for entry in WalkDir::new(ttl_dir).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.extension().map(|e| e == "ttl").unwrap_or(false) {
-            let data = fs::read_to_string(path)?;
-            match store.load_from_read(
-                oxigraph::model::NamedNodeRef::new_unchecked("http://bench.ontoskills.sh/"),
-                data.as_bytes(),
-            ) {
+            let reader = BufReader::new(File::open(path)?);
+            match store.load_from_reader(RdfFormat::Turtle, reader) {
                 Ok(_) => {
                     loaded_files += 1;
-                    skill_count += data.matches("a oc:Skill").count()
-                        + data.matches("a <https://ontoskills.sh/ontology#Skill>").count();
                 }
                 Err(e) => eprintln!("Warning: failed to load {}: {}", path.display(), e),
             }
@@ -64,6 +60,18 @@ fn main() -> Result<()> {
     }
 
     let load_time = start.elapsed();
+
+    // Count skills via SPARQL (authoritative, not substring matching)
+    let oc = "https://ontoskills.sh/ontology#";
+    let total_skills: usize = {
+        let query = format!("SELECT (COUNT(?s) AS ?count) WHERE {{ ?s a <{oc}Skill> }}");
+        let results: Vec<_> = store.query(&query)?.into_bindings().collect();
+        results
+            .first()
+            .and_then(|r| r.get(0))
+            .and_then(|v| v.to_string().parse().ok())
+            .unwrap_or(0)
+    };
 
     // Count triples
     let total_triples: usize = {
@@ -79,14 +87,12 @@ fn main() -> Result<()> {
     println!(
         "Loaded {} files ({} skills, {} triples) in {:.1}ms\n",
         loaded_files,
-        skill_count.max(loaded_files),
+        total_skills,
         total_triples,
         load_time.as_secs_f64() * 1000.0,
     );
 
     // Define benchmark queries using the oc: namespace from core.ttl
-    let oc = "https://ontoskills.sh/ontology#";
-
     let queries: Vec<(&str, String)> = vec![
         (
             "search_skills (by intent)",
@@ -150,12 +156,28 @@ fn main() -> Result<()> {
     let mut results = Vec::new();
 
     for (name, query) in &queries {
+        // Validate query once before timing (fail fast on errors)
+        if let Err(e) = store.query(query.as_str()) {
+            eprintln!("ERROR: query '{}' failed: {}", name, e);
+            results.push(BenchResult {
+                query_name: name.to_string(),
+                skill_count: total_skills,
+                avg_us: 0,
+                min_us: 0,
+                max_us: 0,
+                p50_us: 0,
+                p99_us: 0,
+                iterations: 0,
+            });
+            continue;
+        }
+
         // Guard against iterations == 0 to avoid panic on empty times vec
         if iterations == 0 {
             println!("{:<35} skipped (0 iterations)", name);
             results.push(BenchResult {
                 query_name: name.to_string(),
-                skill_count: skill_count.max(loaded_files),
+                skill_count: total_skills,
                 avg_us: 0,
                 min_us: 0,
                 max_us: 0,
@@ -189,7 +211,7 @@ fn main() -> Result<()> {
 
         results.push(BenchResult {
             query_name: name.to_string(),
-            skill_count: skill_count.max(loaded_files),
+            skill_count: total_skills,
             avg_us: avg,
             min_us: min,
             max_us: max,
@@ -200,7 +222,7 @@ fn main() -> Result<()> {
     }
 
     let report = BenchReport {
-        total_skills: skill_count.max(loaded_files),
+        total_skills,
         total_triples,
         load_time_ms: load_time.as_millis() as u64,
         results,
