@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from rdflib import Graph, Namespace, RDF, OWL, Literal, URIRef, BNode
-from rdflib.namespace import DCTERMS, SKOS, PROV
+from rdflib.namespace import DCTERMS, SKOS, PROV, XSD
 
 from compiler.schemas import ExtractedSkill, FileInfo
 from compiler.exceptions import OntologyValidationError
@@ -321,6 +321,37 @@ def serialize_skill(
     if hasattr(skill, 'frontmatter') and skill.frontmatter:
         graph.add((skill_uri, oc.hasName, Literal(skill.frontmatter.name)))
         graph.add((skill_uri, oc.hasDescription, Literal(skill.frontmatter.description)))
+
+    # === New Metadata Properties (OntoCore refactoring) ===
+
+    if hasattr(skill, 'category') and skill.category:
+        graph.add((skill_uri, oc.hasCategory, Literal(skill.category)))
+
+    if hasattr(skill, 'version') and skill.version:
+        graph.add((skill_uri, oc.hasVersion, Literal(skill.version)))
+
+    if hasattr(skill, 'license') and skill.license:
+        graph.add((skill_uri, oc.hasLicense, Literal(skill.license)))
+
+    if hasattr(skill, 'vendor') and skill.vendor:
+        graph.add((skill_uri, oc.hasVendor, Literal(skill.vendor)))
+
+    if hasattr(skill, 'package_name') and skill.package_name:
+        graph.add((skill_uri, oc.hasPackageName, Literal(skill.package_name)))
+
+    if hasattr(skill, 'is_user_invocable'):
+        # Use typed boolean literal for xsd:boolean range
+        graph.add((skill_uri, oc.isUserInvocable, Literal(skill.is_user_invocable, datatype=XSD.boolean)))
+
+    if hasattr(skill, 'argument_hint') and skill.argument_hint:
+        graph.add((skill_uri, oc.hasArgumentHint, Literal(skill.argument_hint)))
+
+    # Repeatable properties — one triple per value
+    for tool in getattr(skill, 'allowed_tools', []):
+        graph.add((skill_uri, oc.hasAllowedTool, Literal(tool)))
+
+    for alias in getattr(skill, 'aliases', []):
+        graph.add((skill_uri, oc.hasAlias, Literal(alias)))
 
 
 def serialize_skill_to_module(
