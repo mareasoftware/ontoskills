@@ -60,6 +60,50 @@ def mime_type_from_path(path: Path) -> str:
     return MIME_MAP.get(path.suffix.lower(), 'application/octet-stream')
 
 
+# Normalized field mapping for heterogeneous vendor frontmatter
+FIELD_ALIASES: dict[str, list[str]] = {
+    "category": ["category", "categories", "type", "skill_type", "domain"],
+    "version": ["version", "skill_version", "ver"],
+    "license": ["license", "licence", "spdx"],
+    "is_user_invocable": ["user_invocable", "invocable", "interactive"],
+    "argument_hint": ["arguments", "args", "argument_hint", "parameters"],
+    "allowed_tools": ["tools", "allowed_tools", "required_tools", "tool_whitelist"],
+    "aliases": ["aliases", "alias", "also_known_as", "tags"],
+    "depends_on": ["depends_on", "depends_on_skills", "dependencies", "extends", "requires"],
+}
+
+
+def normalize_field_aliases(raw: dict) -> dict:
+    """Map heterogeneous frontmatter keys to canonical field names.
+
+    Iterates FIELD_ALIASES in order. For each canonical name, checks
+    if any alias key exists in raw. First match wins. Does not modify
+    the original raw dict — returns a new dict with canonical keys added.
+    """
+    result = dict(raw)
+    for canonical, aliases in FIELD_ALIASES.items():
+        if canonical in result:
+            continue  # Already have canonical form
+        for alias in aliases:
+            if alias in raw and alias != canonical:
+                result[canonical] = raw[alias]
+                break
+    return result
+
+
+def derive_vendor_and_package(provenance_path: str) -> tuple[str | None, str | None]:
+    """Derive vendor and package_name from the skill's directory structure.
+
+    Expects a path like: .../skills/{vendor}/{package}/...
+    Looks for a 'skills' directory segment and takes the next two levels.
+    """
+    parts = Path(provenance_path).resolve().parts
+    for i, part in enumerate(parts):
+        if part == "skills" and i + 2 < len(parts):
+            return parts[i + 1], parts[i + 2]
+    return None, None
+
+
 def parse_frontmatter(content: str) -> Frontmatter:
     """Parse YAML frontmatter from SKILL.md content.
 
@@ -89,6 +133,8 @@ def parse_frontmatter(content: str) -> Frontmatter:
 
     if not isinstance(raw, dict):
         raise LoaderError("Frontmatter must be a YAML mapping")
+
+    raw = normalize_field_aliases(raw)
 
     if 'name' not in raw:
         raise LoaderError("Frontmatter missing required 'name' field")
