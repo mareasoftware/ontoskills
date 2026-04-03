@@ -395,7 +395,7 @@ def generate_index_manifest(
         output_base = Path(OUTPUT_DIR).resolve()
     else:
         output_base = output_base.resolve()
-    ontology_root = resolve_ontology_root(output_base)
+    ontology_root = output_base
 
     oc = get_oc_namespace()
     g = Graph()

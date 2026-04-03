@@ -137,7 +137,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
-    ontology_root = resolve_ontology_root(output_path)
+    ontology_root = output_path if output_dir != OUTPUT_DIR else resolve_ontology_root(output_path)
     ensure_registry_layout(ontology_root)
 
     # Ensure core ontology exists

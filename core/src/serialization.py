@@ -395,7 +395,7 @@ def serialize_skill_to_module(
     else:
         output_base = Path(output_base).resolve()
 
-    core_ontology_path = resolve_ontology_root(output_base) / CORE_ONTOLOGY_FILENAME
+    core_ontology_path = output_base / CORE_ONTOLOGY_FILENAME
     if core_ontology_path.exists():
         g.add((URIRef(BASE_URI.rstrip('#')), OWL.imports, URIRef(CORE_ONTOLOGY_URL)))
 
