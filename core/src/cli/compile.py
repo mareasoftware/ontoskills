@@ -439,23 +439,32 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     # Serialize each skill module (with qualified ID for URI)
     for (skill, package_id), output_skill_path in zip(compiled_skills, skill_output_paths):
         qualified_id = f"{package_id}/{skill.id}"
-        serialize_skill_to_module(
-            skill, output_skill_path, output_path,
-            qualified_id=qualified_id
-        )
+        try:
+            serialize_skill_to_module(
+                skill, output_skill_path, output_path,
+                qualified_id=qualified_id
+            )
+        except OntologyValidationError as e:
+            console.print(f"[red]Validation failed for {skill.id}: {e}[/red]")
+            continue
 
     # Serialize sub-skill modules (after dry_run check)
     sub_skills_serialized = 0
     for item in sub_skills_to_serialize:
         extracted, output_ttl_path, qualified_id, extends_parent, extends_parent_qualified = item
-        serialize_skill_to_module(
-            extracted,
-            output_ttl_path,
-            output_path,
-            qualified_id=qualified_id,
-            extends_parent=extends_parent,
-            extends_parent_qualified=extends_parent_qualified,
-        )
+        try:
+            serialize_skill_to_module(
+                extracted,
+                output_ttl_path,
+                output_path,
+                qualified_id=qualified_id,
+                extends_parent=extends_parent,
+                extends_parent_qualified=extends_parent_qualified,
+            )
+            sub_skills_serialized += 1
+        except OntologyValidationError as e:
+            console.print(f"[red]Validation failed for sub-skill {extracted.id}: {e}[/red]")
+            continue
         sub_skills_serialized += 1
 
     # Copy assets (after dry_run check)

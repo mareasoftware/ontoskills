@@ -192,8 +192,9 @@ def serialize_skill(
         kn_hash = hashlib.sha256(f"{kn.node_type}:{kn.directive_content}".encode()).hexdigest()[:8]
         kn_uri = oc[f"kn_{kn_hash}"]
 
-        # Add the knowledge node type as class
+        # Add the knowledge node type as class (SHACL requires explicit KnowledgeNode type)
         graph.add((kn_uri, RDF.type, oc[kn.node_type]))
+        graph.add((kn_uri, RDF.type, oc.KnowledgeNode))
         graph.add((kn_uri, oc.directiveContent, Literal(kn.directive_content)))
         graph.add((kn_uri, oc.appliesToContext, Literal(kn.applies_to_context)))
         graph.add((kn_uri, oc.hasRationale, Literal(kn.has_rationale)))
