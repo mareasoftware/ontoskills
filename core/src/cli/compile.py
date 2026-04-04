@@ -41,6 +41,7 @@ from compiler.loader import scan_skill_directory, LoaderError
 from compiler.schemas import CompiledSkill
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 def find_skill_root_dir(start_path: Path, boundary_path: Path) -> Path | None:
@@ -209,7 +210,6 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     """
     from . import setup_logging
     setup_logging(verbose or ctx.obj.get('verbose', False), quiet or ctx.obj.get('quiet', False))
-    logger = logging.getLogger(__name__)
 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
