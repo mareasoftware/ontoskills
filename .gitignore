@@ -6,6 +6,10 @@ docs/superpowers/
 ontostore/
 node_modules/
 .agents/
+mcp/target/
+.env
+*.egg-info/
+__pycache__
 
 # ONNX test fixtures (large files)
 mcp/tests/fixtures/
