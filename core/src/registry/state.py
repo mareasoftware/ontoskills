@@ -70,10 +70,12 @@ def save_registry_lock(lock: RegistryLock, root: Path | None = None) -> None:
 
 
 def discover_local_skill_paths(root: Path | None = None) -> list[Path]:
-    """Discover all skill TTL files (including sub-skill modules).
+    """Discover parent skill TTL files only (ontoskill.ttl).
 
     Sub-skills are compiled as auxiliary .ttl files (e.g., planning.ttl),
-    that should be included in the discovery, not just ontoskill.ttl.
+    but are NOT standalone installable units — they are accessible
+    through the parent skill's oc:extends relationship.
+    Only the parent skill (ontoskill.ttl) appears in the registry.
     """
     base = ontology_root() if root is None else Path(root).resolve()
     excluded = {
@@ -82,14 +84,10 @@ def discover_local_skill_paths(root: Path | None = None) -> list[Path]:
         base / "official",
         base / "community",
     }
-    system_files = {CORE_ONTOLOGY_FILENAME, "index.ttl", "index.enabled.ttl"}
     paths: list[Path] = []
-    for path in base.rglob("*.ttl"):
+    for path in base.rglob("ontoskill.ttl"):
         # Skip if in excluded directories
         if any(parent == path.parent or parent in path.parents for parent in excluded):
-            continue
-        # Skip system files
-        if path.name in system_files:
             continue
         paths.append(path.resolve())
     return sorted(paths)

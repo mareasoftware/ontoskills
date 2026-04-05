@@ -60,11 +60,8 @@ def registry_sources_path(root: Path | None = None) -> Path:
 
 
 def ensure_registry_layout(root: Path | None = None) -> Path:
-    """Ensure all required directories exist and return the ontology root."""
+    """Ensure required directories exist and return the ontology root."""
     base = ontology_root() if root is None else Path(root).resolve()
     base.mkdir(parents=True, exist_ok=True)
-    skills_root(base).mkdir(parents=True, exist_ok=True)
-    skills_vendor_dir(base).mkdir(parents=True, exist_ok=True)
     system_dir(base).mkdir(parents=True, exist_ok=True)
-    ontology_vendor_dir(base).mkdir(parents=True, exist_ok=True)
     return base

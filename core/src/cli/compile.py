@@ -497,15 +497,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         extends_parent_qualified=parent_qualified_id,
                     )
                     sub_skills_serialized += 1
-                    # Track for registry index.json
-                    rel_sub_path = output_ttl_path.relative_to(output_path)
-                    _registry_entries.append({
-                        "skill_id": extracted.id,
-                        "package_id": package_id,
-                        "manifest_url": f"./{rel_sub_path}",
-                        "generated_by": ANTHROPIC_MODEL,
-                        "generated_at": datetime.now().isoformat(),
-                    })
+                    # Sub-skills are NOT tracked in registry — only the parent skill is installable
                 except OntologyValidationError as e:
                     console.print(f"[red]Validation failed for sub-skill {extracted.id}: {e}[/red]")
                     _record_error(sub_skill_short_id, e, "validation")
@@ -562,10 +554,8 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         assets_copied += 1
         logger.debug(f"Copied asset: {asset_file.name}")
 
-    # Collect all skill output paths for index (including sub-skills)
-    all_skill_paths = list(output_path.rglob("*.ttl"))
-    # Exclude system files
-    all_skill_paths = [p for p in all_skill_paths if p.name not in {CORE_ONTOLOGY_FILENAME, "index.ttl", "index.enabled.ttl"}]
+    # Collect only parent skill output paths for index (ontoskill.ttl = parent, *.ttl = sub-skill)
+    all_skill_paths = list(output_path.rglob("ontoskill.ttl"))
 
     # Generate index manifest in system/
     index_path = ontology_root / "system" / "index.ttl"
