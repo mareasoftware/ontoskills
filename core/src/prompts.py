@@ -22,8 +22,10 @@ and extract their essential structure using the Knowledge Architecture framework
 - implements: Realizes abstraction
 - exemplifies: Instance of pattern
 
-When you emit `depends_on`, `extends`, or `contradicts`, ALWAYS use canonical skill ids only
-(e.g. `office`, `docx`, `pptx`, `xlsx`, `pdf`), never prose labels, never file paths, never URIs.
+When you emit `depends_on`, `extends`, or `contradicts`, ONLY use skill IDs from the
+KNOWN SKILLS IN THIS PACKAGE section below. Cross-package references are NOT supported —
+omit them. If a referenced skill is not listed, omit the reference entirely — never invent,
+fabricate, or guess skill IDs. Never use prose labels, file paths, or URIs as relation targets.
 
 Use `extends` only for genuine specialization/inheritance:
 - Child skill builds on a broader parent skill and should inherit its epistemic rules

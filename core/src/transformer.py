@@ -169,7 +169,8 @@ def tool_use_loop(
     skill_dir: Path,
     skill_hash: str,
     skill_id: str,
-    parent_context: dict | None = None
+    parent_context: dict | None = None,
+    skill_registry: "SkillRegistry | None" = None,
 ) -> ExtractedSkill:
     """
     Orchestrates the tool-use conversation with Claude.
@@ -182,6 +183,7 @@ def tool_use_loop(
             - filename: The markdown filename being extracted
             - parent_skill_id: The Qualified ID of the parent skill
             - sibling_names: List of sibling sub-skill filenames
+        skill_registry: Optional SkillRegistry for known-skills context
 
     Returns:
         ExtractedSkill with structured data
@@ -191,6 +193,8 @@ def tool_use_loop(
     """
     # Build system prompt with optional context augmentation
     system_prompt = SYSTEM_PROMPT
+    if skill_registry:
+        system_prompt = system_prompt + skill_registry.build_llm_context_section()
     if parent_context:
         context_augmentation = build_sub_skill_context_prompt(
             filename=parent_context.get("filename", "unknown.md"),
