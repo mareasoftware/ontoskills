@@ -93,17 +93,9 @@ def resolve_package_id(skill_dir: Path, input_path: Path | None = None) -> str:
     intermediate = rel.parts[:-1] if rel.parts and rel.parts[-1] != '.' else ()
 
     if not intermediate:
-        # Skill is directly under vendor dir (e.g., coinbase/trade/)
-        # package_id = vendor (already includes vendor context)
-        author = os.environ.get('DEFAULT_SKILLS_AUTHOR')
-        if author:
-            return f"{author}/{vendor_segment}"
-        logger.warning(
-            "Skill at root of input (%s) with no DEFAULT_SKILLS_AUTHOR set. "
-            "Falling back to 'local/%s'. Set DEFAULT_SKILLS_AUTHOR env var.",
-            skill_dir, vendor_segment,
-        )
-        return f"local/{vendor_segment}"
+        # Skill is directly under vendor dir (e.g., claude-office-skills/apple-shortcuts-integration/)
+        # The vendor IS the author — no need for an extra prefix.
+        return vendor_segment
 
     # Prepend vendor to intermediate segments
     all_parts = (vendor_segment,) + tuple(_normalize_package_id_segment(p) for p in intermediate)
