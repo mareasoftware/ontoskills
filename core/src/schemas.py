@@ -248,9 +248,9 @@ class Frontmatter(BaseModel):
     @field_validator('name')
     @classmethod
     def validate_name(cls, v: str) -> str:
-        # Strip scope prefix (e.g., "ckm:banner-design" → "banner-design")
+        # Convert scope prefix separator (e.g., "ckm:banner-design" → "ckm-banner-design")
         if ':' in v:
-            v = v.rsplit(':', 1)[-1]
+            v = v.replace(':', '-', 1)
 
         # Auto-normalize: lowercase, spaces/underscores → hyphens, collapse repeated hyphens
         normalized = v.lower().strip()
