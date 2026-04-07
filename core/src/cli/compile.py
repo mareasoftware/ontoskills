@@ -377,6 +377,10 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
 
+    # Reset per-invocation error collector (prevents cross-vendor contamination in batch)
+    with _errors_lock:
+        _compile_errors.clear()
+
     # Batch mode: discover vendor subdirectories and compile each one
     if batch:
         vendor_dirs = _discover_vendor_dirs(input_path)
