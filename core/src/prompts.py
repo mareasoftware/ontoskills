@@ -86,6 +86,14 @@ If you cannot identify at least one intent, the skill is incomplete and you shou
 
 Be thorough but concise. Focus on the essential nature of the skill.
 
+## CRITICAL: DO NOT FABRICATE
+
+You MUST only extract information that is explicitly present in the skill files.
+- Do NOT invent execution payloads, scripts, or command templates that don't exist in the files
+- Do NOT fabricate file paths, tool names, or configuration values
+- If the skill does NOT contain scripts, leave `executable_scripts` and `execution_payload` empty
+- If you are unsure whether something exists, leave it out rather than guessing
+
 ## EPISTEMIC KNOWLEDGE EXTRACTION (EXPECTED)
 
 Extract cognitive, physical, and temporal knowledge that this skill imparts to the agent.
@@ -202,7 +210,11 @@ extract it as argument_hint.
 
 ## EXECUTABLE SCRIPTS
 
-For scripts in `scripts/` or similar directories, identify:
+Only extract scripts that ACTUALLY EXIST in the skill directory. Do NOT invent
+script paths, commands, or payloads. If no scripts directory is present, leave all
+script fields empty.
+
+For scripts found in `scripts/` or similar directories, identify:
 - `executor`: "python" | "bash" | "node" | "other"
 - `execution_intent`:
   - `"execute"`: Script should be run for side effects
