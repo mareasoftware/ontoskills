@@ -28,15 +28,13 @@ from compiler.security import security_check, SecurityError
 from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.serialization import serialize_skill_to_module
 from compiler.storage import (
-    generate_index_manifest,
     clean_orphaned_files,
     generate_package_manifest,
     generate_registry_index,
 )
 from compiler.registry import (
-    ensure_registry_layout,
     enabled_index_path,
-    rebuild_registry_indexes,
+    ensure_registry_layout,
 )
 from compiler.exceptions import (
     ExtractionError,
@@ -178,6 +176,7 @@ def _generate_manifests_from_disk(output_path: Path, ontology_root: Path) -> Non
     oc = get_oc_namespace()
     parent_skills = list(output_path.rglob("ontoskill.ttl"))
     all_ttls = list(output_path.rglob("*.ttl"))
+    all_intents_jsons = list(output_path.rglob("intents.json"))
 
     if not parent_skills:
         return
@@ -235,6 +234,12 @@ def _generate_manifests_from_disk(output_path: Path, ontology_root: Path) -> Non
                 except ValueError:
                     pass
 
+            # Check for per-skill intents.json (produced by Block 1 embedding generation)
+            embedding_file = ""
+            skill_intents_json = skill_dir / "intents.json"
+            if skill_intents_json in all_intents_jsons:
+                embedding_file = str(skill_intents_json.relative_to(output_path))
+
             if sub_pkg_dir not in packages_on_disk:
                 packages_on_disk[sub_pkg_dir] = []
             packages_on_disk[sub_pkg_dir].append({
@@ -247,6 +252,7 @@ def _generate_manifests_from_disk(output_path: Path, ontology_root: Path) -> Non
                 "depends_on_skills": extends + depends,
                 "default_enabled": True,
                 "modules": sorted(set(modules)),
+                "embedding_file": embedding_file,
                 "package_id": pkg_id,
             })
 
@@ -263,12 +269,12 @@ def _generate_manifests_from_disk(output_path: Path, ontology_root: Path) -> Non
         # Entry for root index.json
         try:
             rel_manifest = sub_pkg_dir.relative_to(ontology_root)
-            manifest_url = f"./{rel_manifest}/package.json"
+            manifest_path = f"{rel_manifest}/package.json"
         except ValueError:
-            manifest_url = f"./packages/{sub_pkg_dir.relative_to(output_path)}/package.json"
+            manifest_path = f"packages/{sub_pkg_dir.relative_to(output_path)}/package.json"
         registry_packages.append({
             "package_id": pkg_id,
-            "manifest_url": manifest_url,
+            "manifest_path": manifest_path,
             "trust_tier": os.environ.get("ONTOSKILLS_TRUST_TIER", "community"),
             "source_kind": "ontology",
         })
@@ -417,11 +423,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             except Exception as e:
                 console.print(f"[red]Failed {vendor_dir.name}: {e}[/red]")
                 _record_error(vendor_dir.name, str(e), "batch")
-        # Rebuild global indexes spanning all vendors
-        all_skill_paths = list(output_path.rglob("ontoskill.ttl"))
-        index_path = batch_ontology_root / "system" / "index.ttl"
-        generate_index_manifest(all_skill_paths, index_path, batch_ontology_root)
-        rebuild_registry_indexes(batch_ontology_root)
+        # Flush error log
         _write_error_log(output_path)
         return
 
@@ -482,6 +484,20 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             asset_files.append(file_path)
 
     logger.info(f"Core skills: {len(skill_md_files)}, Auxiliary md: {len(auxiliary_md_files)}, Assets: {len(asset_files)}")
+
+    # MANDATORY: load embedding model for per-skill embedding generation
+    embedding_model = None
+    if skill_md_files:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            console.print(
+                "[red]Embedding generation requires sentence_transformers.[/red]\n"
+                "[red]Install with:[/] [bold]pip install sentence-transformers[/bold]"
+            )
+            raise SystemExit(1)
+        console.print("[blue]Loading embedding model for semantic search...[/blue]")
+        embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     # VALIDATION: Sub-skills require parent SKILL.md
     # Group files by directory and check each
@@ -603,6 +619,16 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             )
             extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map, skill_registry)
 
+            # Validate intents exist (mandatory for embedding generation)
+            if not extracted.intents:
+                _record_error(
+                    skill_id,
+                    f"Skill '{skill_id}' has no declared intents. "
+                    "Every skill must declare at least one intent for semantic search.",
+                    "embedding",
+                )
+                return
+
             # Create CompiledSkill with Phase 1 data
             compiled = CompiledSkill(
                 **extracted.model_dump(),
@@ -619,6 +645,11 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         compiled, output_skill_path, output_path,
                         qualified_id=qualified_id
                     )
+                    # Generate per-skill embeddings (mandatory)
+                    if embedding_model is not None:
+                        from compiler.embeddings.exporter import export_skill_embeddings
+                        emb_path = export_skill_embeddings(output_skill_path, embedding_model)
+                        logger.info(f"Generated embeddings for {skill_id}: {emb_path}")
                     with _counters_lock:
                         _skills_serialized[0] += 1
                         _compiled_skills_list.append(compiled)
@@ -691,6 +722,16 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
             )
             extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map, skill_registry)
 
+            # Validate intents exist (mandatory for embedding generation)
+            if not extracted.intents:
+                _record_error(
+                    sub_skill_short_id,
+                    f"Skill '{sub_skill_short_id}' has no declared intents. "
+                    "Every skill must declare at least one intent for semantic search.",
+                    "embedding",
+                )
+                return
+
             if not dry_run:
                 try:
                     serialize_skill_to_module(
@@ -701,6 +742,11 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         extends_parent=parent_local_id,
                         extends_parent_qualified=parent_qualified_id,
                     )
+                    # Generate per-skill embeddings (mandatory)
+                    if embedding_model is not None:
+                        from compiler.embeddings.exporter import export_skill_embeddings
+                        emb_path = export_skill_embeddings(output_ttl_path, embedding_model)
+                        logger.info(f"Generated embeddings for sub-skill {sub_skill_short_id}: {emb_path}")
                     with _counters_lock:
                         _sub_skills_serialized[0] += 1
                 except OntologyValidationError as e:
@@ -793,15 +839,17 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     # Collect only parent skill output paths for index (ontoskill.ttl = parent, *.ttl = sub-skill)
     all_skill_paths = list(output_path.rglob("ontoskill.ttl"))
 
-    # Skip per-vendor system files when invoked from batch (batch generates global ones)
-    if not _ontology_root:
-        # Generate index manifest in system/
-        index_path = ontology_root / "system" / "index.ttl"
-        generate_index_manifest(all_skill_paths, index_path, ontology_root)
-        rebuild_registry_indexes(ontology_root)
-
     # Flush error log to output directory
     _write_error_log(output_path)
+
+    # Check for embedding errors (fatal — every skill must have embeddings)
+    with _errors_lock:
+        embedding_errors = [e for e in _compile_errors if e["kind"] == "embedding"]
+    if embedding_errors:
+        for err in embedding_errors:
+            console.print(f"[red]{err['error']}[/red]")
+        console.print("[red]Compilation failed: skills without declared intents.[/red]")
+        raise SystemExit(1)
 
     # Generate per-package manifest (package.json) by scanning disk
     # This ensures manifests are always up-to-date even for skills skipped by hash match

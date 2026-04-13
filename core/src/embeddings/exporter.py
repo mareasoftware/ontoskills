@@ -157,3 +157,78 @@ def export_embeddings(
         json.dump(intents_data, f)
 
     console.print(f"[green]Exported[/] {len(unique_intents)} [green]intent embeddings to[/] {intents_path}")
+
+
+def export_skill_embeddings(
+    skill_ttl_path: Path,
+    model,  # SentenceTransformer, typed as Any to avoid hard dep at import time
+    output_dir: Path | None = None,
+) -> Path:
+    """Export pre-computed intent embeddings for a single skill.
+
+    Extracts intents from the skill's TTL file, computes L2-normalized
+    embeddings, and writes intents.json next to the ontoskill.ttl.
+
+    Args:
+        skill_ttl_path: Path to the skill's ontoskill.ttl file.
+        model: A pre-loaded SentenceTransformer instance.
+        output_dir: Directory to write intents.json. Defaults to
+                    skill_ttl_path.parent.
+
+    Returns:
+        Path to the written intents.json.
+
+    Raises:
+        ValueError: If the skill has no declared intents.
+    """
+    if output_dir is None:
+        output_dir = skill_ttl_path.parent
+
+    # 1. Extract intents from this single skill's TTL
+    intents = extract_intents_from_ontology(skill_ttl_path)
+
+    if not intents:
+        raise ValueError(
+            f"Skill '{skill_ttl_path.parent.name}' has no declared intents. "
+            "Every skill must declare at least one intent for semantic search."
+        )
+
+    # 2. Deduplicate intents (same intent from same skill)
+    intent_map: dict[str, list[str]] = {}
+    for item in intents:
+        intent = item["intent"]
+        if intent not in intent_map:
+            intent_map[intent] = []
+        intent_map[intent].extend(item["skills"])
+
+    unique_intents = [
+        {"intent": intent, "skills": sorted(set(skills))}
+        for intent, skills in sorted(intent_map.items())
+    ]
+
+    # 3. Compute embeddings (L2-normalized for cosine similarity)
+    import numpy as np
+
+    intent_strings = [item["intent"] for item in unique_intents]
+    embeddings = model.encode(intent_strings, convert_to_numpy=True, normalize_embeddings=True)
+
+    # 4. Build and write intents.json
+    intents_data = {
+        "model": MODEL_NAME,
+        "dimension": EMBEDDING_DIM,
+        "intents": [
+            {
+                "intent": item["intent"],
+                "embedding": emb.tolist(),
+                "skills": item["skills"],
+            }
+            for item, emb in zip(unique_intents, embeddings)
+        ],
+    }
+
+    intents_path = output_dir / "intents.json"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(intents_path, "w") as f:
+        json.dump(intents_data, f)
+
+    return intents_path
