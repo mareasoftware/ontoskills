@@ -24,6 +24,7 @@ const rootId = `ontoskills-store-${lang}`;
 const i18n = {
   en: {
     searchPlaceholder: 'Search by skill, intent, or description...',
+    storeLabel: 'OntoStore',
     loading: 'Loading store…',
     viewRepo: 'View Repo',
     connecting: 'Connecting to the official store…',
@@ -44,6 +45,7 @@ const i18n = {
   },
   zh: {
     searchPlaceholder: '按技能、意图或描述搜索...',
+    storeLabel: 'OntoStore',
     loading: '加载商店中…',
     viewRepo: '查看仓库',
     connecting: '正在连接官方商店…',
@@ -286,7 +288,7 @@ const t = i18n[lang];
         // Use allSettled to handle partial failures gracefully
         const results = await Promise.allSettled(
           (indexData.packages || []).map(async (entry) => {
-            const manifestUrl = new URL(entry.manifest_url, storeIndexUrl).toString();
+            const manifestUrl = new URL(entry.manifest_path, storeIndexUrl).toString();
             const response = await fetch(manifestUrl, {
               mode: 'cors',
               headers: { 'Accept': 'application/json' },
