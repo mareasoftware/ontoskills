@@ -1,4 +1,6 @@
 import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 
@@ -372,7 +374,11 @@ skill:test-skill a oc:Skill ;
     })
 
     with patch.object(compiler.cli.compile, 'tool_use_loop') as mock_tool_use_loop, \
-         patch.object(compiler.cli.compile, 'serialize_skill_to_module'):
+         patch.object(compiler.cli.compile, 'serialize_skill_to_module'), \
+         patch('sentence_transformers.SentenceTransformer') as mock_st, \
+         patch('compiler.embeddings.exporter.export_skill_embeddings') as mock_export:
+        mock_st.return_value = MagicMock()
+        mock_export.return_value = Path("fake/intents.json")
         mock_tool_use_loop.return_value = mock_extracted
 
         # First: verify baseline behavior (without --force, matching hash causes skip)
@@ -545,6 +551,10 @@ class TestExportEmbeddingsCLI:
     """Tests for export-embeddings CLI command."""
 
     @pytest.mark.integration
+    @pytest.mark.skipif(
+        not __import__("importlib").util.find_spec("sentence_transformers"),
+        reason="sentence_transformers not installed"
+    )
     def test_export_embeddings_command(self, tmp_path):
         """export-embeddings command creates output files."""
         from rdflib import Graph, Namespace, Literal, RDF
@@ -645,7 +655,9 @@ def test_dry_run_does_not_write_sub_skill_modules(tmp_path):
     mock_sub_extracted.state_transitions.requires_state = []
     mock_sub_extracted.state_transitions.yields_state = []
 
-    with patch('compiler.cli.compile.tool_use_loop') as mock_tool_use_loop:
+    with patch('compiler.cli.compile.tool_use_loop') as mock_tool_use_loop, \
+         patch('sentence_transformers.SentenceTransformer') as mock_st:
+        mock_st.return_value = MagicMock()
         # First call for parent skill, second for sub-skill
         mock_tool_use_loop.side_effect = [mock_extracted, mock_sub_extracted]
 

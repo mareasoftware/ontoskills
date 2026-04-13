@@ -158,7 +158,7 @@ oc:skill_hello a oc:Skill, oc:DeclarativeSkill ;
                 "packages": [
                     {
                         "package_id": "marea/greeting",
-                        "manifest_url": "./packages/marea/greeting/package.json",
+                        "manifest_path": "packages/marea/greeting/package.json",
                         "trust_tier": "verified",
                         "source_kind": "ontology",
                     }

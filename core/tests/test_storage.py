@@ -861,3 +861,213 @@ def test_system_files_constant():
     assert "registry.lock.json" in SYSTEM_FILES
     assert "registry.sources.json" in SYSTEM_FILES
     assert len(SYSTEM_FILES) == 5
+
+
+# =============================================================================
+# generate_package_manifest() tests
+# =============================================================================
+
+def test_generate_package_manifest_includes_embedding_files(tmp_path):
+    """package.json must list all intents.json files under embedding_files."""
+    import json
+    from compiler.storage import generate_package_manifest
+
+    # Create fake skill directories with intents.json files
+    skill_dir = tmp_path / "my-skill"
+    skill_dir.mkdir()
+    (skill_dir / "ontoskill.ttl").write_text("@prefix oc: <https://ontoskills.sh/ontology#> .")
+    (skill_dir / "intents.json").write_text('{"model":"test","dimension":384,"intents":[]}')
+
+    sub_skill_dir = tmp_path / "my-skill" / "planning"
+    sub_skill_dir.mkdir(parents=True)
+    (sub_skill_dir / "planning.ttl").write_text("@prefix oc: <https://ontoskills.sh/ontology#> .")
+    (sub_skill_dir / "intents.json").write_text('{"model":"test","dimension":384,"intents":[]}')
+
+    compiled_skills = [
+        {
+            "skill_id": "my-skill",
+            "path": "my-skill/ontoskill.ttl",
+            "intents": ["do stuff"],
+            "embedding_file": "my-skill/intents.json",
+        },
+        {
+            "skill_id": "planning",
+            "path": "my-skill/planning/planning.ttl",
+            "intents": ["plan stuff"],
+            "embedding_file": "my-skill/planning/intents.json",
+        },
+    ]
+
+    generate_package_manifest("test/pkg", compiled_skills, tmp_path)
+
+    manifest_path = tmp_path / "package.json"
+    assert manifest_path.exists()
+
+    with open(manifest_path) as f:
+        data = json.load(f)
+
+    assert "embedding_files" in data, "package.json must include embedding_files key"
+    assert "my-skill/intents.json" in data["embedding_files"]
+    assert "my-skill/planning/intents.json" in data["embedding_files"]
+    assert len(data["embedding_files"]) == 2
+
+
+def test_generate_package_manifest_embedding_files_empty_when_none(tmp_path):
+    """package.json must have an empty embedding_files list when no skills have embeddings."""
+    import json
+    from compiler.storage import generate_package_manifest
+
+    compiled_skills = [
+        {
+            "skill_id": "basic-skill",
+            "path": "basic-skill/ontoskill.ttl",
+            "intents": ["do something"],
+        },
+    ]
+
+    generate_package_manifest("test/pkg", compiled_skills, tmp_path)
+
+    manifest_path = tmp_path / "package.json"
+    with open(manifest_path) as f:
+        data = json.load(f)
+
+    assert "embedding_files" in data
+    assert data["embedding_files"] == []
+
+
+# =============================================================================
+# generate_registry_index() tests
+# =============================================================================
+
+def test_generate_registry_index_includes_embedding_model(tmp_path):
+    """index.json must include embedding_model declaration for the global model."""
+    import json
+    from compiler.storage import generate_registry_index
+
+    index_path = tmp_path / "index.json"
+
+    packages = [
+        {
+            "package_id": "test/pkg",
+            "manifest_path": "packages/test/pkg/package.json",
+            "trust_tier": "community",
+            "source_kind": "ontology",
+        },
+    ]
+
+    generate_registry_index(packages, index_path)
+
+    assert index_path.exists()
+
+    with open(index_path) as f:
+        data = json.load(f)
+
+    assert "embedding_model" in data, "index.json must include embedding_model section"
+    model_info = data["embedding_model"]
+    assert model_info["model_name"] == "sentence-transformers/all-MiniLM-L6-v2"
+    assert model_info["dimension"] == 384
+    assert "model_file" in model_info
+    assert "tokenizer_file" in model_info
+
+
+def test_generate_registry_index_preserves_embedding_model_on_merge(tmp_path):
+    """Merging new packages into existing index.json must preserve embedding_model."""
+    import json
+    from compiler.storage import generate_registry_index
+
+    index_path = tmp_path / "index.json"
+
+    # First write
+    packages = [{"package_id": "test/pkg1", "manifest_path": "packages/test/pkg1/package.json"}]
+    generate_registry_index(packages, index_path)
+
+    # Second write (merge)
+    packages2 = [{"package_id": "test/pkg2", "manifest_path": "packages/test/pkg2/package.json"}]
+    generate_registry_index(packages2, index_path)
+
+    with open(index_path) as f:
+        data = json.load(f)
+
+    # embedding_model must still be present after merge
+    assert "embedding_model" in data
+    assert len(data["packages"]) == 2
+
+
+# =============================================================================
+# _generate_manifests_from_disk() embedding discovery tests
+# =============================================================================
+
+def test_generate_manifests_from_disk_discovers_embedding_files(tmp_path):
+    """_generate_manifests_from_disk must scan for intents.json and include in manifest."""
+    import json
+    from compiler.cli.compile import _generate_manifests_from_disk
+
+    # output_path = vendor dir (e.g., "test-vendor")
+    # structure: output_path/my-skill/ontoskill.ttl + intents.json
+    output_path = tmp_path / "test-vendor"
+    skill_dir = output_path / "my-skill"
+    skill_dir.mkdir(parents=True)
+
+    # Write a minimal ontoskill.ttl with a skill
+    ttl_content = """
+@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<https://ontoskills.sh/ontology#skill_my-skill> a oc:Skill ;
+    dcterms:identifier "my-skill" ;
+    oc:resolvesIntent "do something" .
+"""
+    (skill_dir / "ontoskill.ttl").write_text(ttl_content, encoding="utf-8")
+
+    # Write the intents.json (produced by Block 1)
+    intents_data = {
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+        "dimension": 384,
+        "intents": [{"intent": "do something", "embedding": [0.1] * 384, "skills": ["my-skill"]}],
+    }
+    (skill_dir / "intents.json").write_text(json.dumps(intents_data), encoding="utf-8")
+
+    ontology_root = tmp_path
+
+    _generate_manifests_from_disk(output_path, ontology_root)
+
+    # package.json is written to sub_pkg_dir = output_path / parts[0] (e.g., "my-skill")
+    manifest_path = output_path / "my-skill" / "package.json"
+    assert manifest_path.exists(), f"No package.json at {manifest_path}, contents: {list(output_path.rglob('*'))}"
+
+    with open(manifest_path) as f:
+        data = json.load(f)
+
+    assert "embedding_files" in data
+    assert any("intents.json" in f for f in data["embedding_files"]), \
+        f"Expected intents.json in embedding_files, got: {data['embedding_files']}"
+
+
+def test_generate_manifests_from_disk_no_embeddings_produces_empty_list(tmp_path):
+    """_generate_manifests_from_disk must handle missing intents.json gracefully."""
+    import json
+    from compiler.cli.compile import _generate_manifests_from_disk
+
+    output_path = tmp_path / "test-vendor"
+    skill_dir = output_path / "basic-skill"
+    skill_dir.mkdir(parents=True)
+
+    ttl_content = """
+@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<https://ontoskills.sh/ontology#skill_basic-skill> a oc:Skill ;
+    dcterms:identifier "basic-skill" ;
+    oc:resolvesIntent "do stuff" .
+"""
+    (skill_dir / "ontoskill.ttl").write_text(ttl_content, encoding="utf-8")
+
+    _generate_manifests_from_disk(output_path, tmp_path)
+
+    manifest_path = output_path / "basic-skill" / "package.json"
+    assert manifest_path.exists()
+
+    with open(manifest_path) as f:
+        data = json.load(f)
+
+    assert data.get("embedding_files") == []

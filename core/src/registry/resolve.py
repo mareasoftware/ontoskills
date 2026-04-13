@@ -29,9 +29,6 @@ class AmbiguousRefError(ResolveError):
     """Short name matches multiple packages."""
 
 
-class NotStandaloneError(ResolveError):
-    """Skill has intra-package sibling dependencies."""
-
 
 def _load_manifest_for_package(
     package: RegistryPackageEntry,
@@ -40,7 +37,7 @@ def _load_manifest_for_package(
     """Load a package.json manifest from disk relative to manifest_base."""
     from .state import load_manifest
 
-    manifest_path = manifest_base / package.manifest_url.lstrip("./")
+    manifest_path = manifest_base / package.manifest_path.lstrip("./")
     return load_manifest(manifest_path)
 
 
@@ -91,7 +88,7 @@ def resolve_install_ref(
     Args:
         ref: User-facing reference (e.g., "anthropics", "pbakaus/impeccable/harden")
         index: Registry index with all known packages
-        manifest_base: Base directory for resolving manifest_url paths (needed for skill-level)
+        manifest_base: Base directory for resolving manifest_path paths (needed for skill-level)
 
     Returns:
         VendorTarget, PackageTarget, or SkillTarget
@@ -99,7 +96,6 @@ def resolve_install_ref(
     Raises:
         NotFoundError: Reference not found
         AmbiguousRefError: Short name matches multiple packages
-        NotStandaloneError: Skill has sibling dependencies
     """
     package_map = {p.package_id: p for p in index.packages}
 

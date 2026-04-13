@@ -16,9 +16,9 @@ def skill_with_subskills(tmp_path):
     skill_dir.mkdir(parents=True)
 
     # Parent skill
-    (skill_dir / "SKILL.md").write_text("""
----
+    (skill_dir / "SKILL.md").write_text("""---
 name: integration-test
+description: A parent skill for testing sub-skill compilation.
 ---
 
 # Integration Test Skill
@@ -132,7 +132,8 @@ def test_full_compilation_with_subskills(skill_with_subskills, tmp_path):
 
     planning_content = (skill_output / "planning.ttl").read_text()
     assert "oc:extends" in planning_content
-    assert "test/package/integration-test" in planning_content
+    # Parent URI is slugified: skills/integration-test → skill_skills_integration_test
+    assert "oc:skill_skills_integration_test" in planning_content
 
     # Check asset copy
     assert (skill_output / "diagram.png").exists()

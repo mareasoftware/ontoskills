@@ -84,9 +84,12 @@ def install_cmd(ctx, package_ref, ontology_root_arg):
     )
     from compiler.registry.models import RegistryIndex
 
-    # Merge all source indexes into one combined index
+    # Build index from remote registry sources only
     combined_packages = []
     sources = load_registry_sources(root)
+    if not sources.sources:
+        console.print("[red]No registry sources configured. Run 'ontoskills registry add-source' first.[/red]")
+        raise SystemExit(1)
     for source in sources.sources:
         try:
             idx = load_registry_index(source.index_url)
@@ -94,14 +97,9 @@ def install_cmd(ctx, package_ref, ontology_root_arg):
         except Exception:
             continue
 
-    # Also load local index.json if it exists
-    local_index_path = root / "index.json"
-    if local_index_path.exists():
-        try:
-            local_idx = load_registry_index(str(local_index_path))
-            combined_packages.extend(local_idx.packages)
-        except Exception:
-            pass
+    if not combined_packages:
+        console.print("[red]No packages found in configured registries.[/red]")
+        raise SystemExit(1)
 
     index = RegistryIndex(packages=combined_packages)
 
@@ -127,12 +125,14 @@ def install_cmd(ctx, package_ref, ontology_root_arg):
         if not target.standalone:
             deps = ", ".join(target.sibling_deps)
             console.print(
-                f"[red]Cannot install '{target.skill_id}' standalone: depends on {deps}.[/red]\n"
-                f"Install the whole package: [bold]ontoskills install {target.package.package_id}[/bold]"
+                f"[yellow]Skill '{target.skill_id}' depends on sibling skills: {deps}.[/yellow]\n"
+                f"[yellow]Auto-installing the whole package {target.package.package_id} instead...[/yellow]"
             )
-            raise SystemExit(1)
-        package = install_single_skill(target.package, target.skill_id, root=root)
-        console.print(f"[green]Installed skill {target.skill_id} from {package.package_id}[/green]")
+            package = install_package_from_sources(target.package.package_id, root=root)
+            console.print(f"[green]Installed {package.package_id}: {len(package.skills)} skill(s)[/green]")
+        else:
+            package = install_single_skill(target.package, target.skill_id, root=root)
+            console.print(f"[green]Installed skill {target.skill_id} from {package.package_id}[/green]")
 
 
 @click.command('enable')

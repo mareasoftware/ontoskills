@@ -81,23 +81,25 @@ description: Test
         with pytest.raises(LoaderError, match="Invalid YAML"):
             parse_frontmatter(content)
 
-    def test_parse_frontmatter_rejects_invalid_name_uppercase(self):
+    def test_parse_frontmatter_auto_normalizes_uppercase_name(self):
+        """Uppercase names are auto-normalized to lowercase."""
         content = """---
 name: InvalidName
 description: Test
 ---
 # Content"""
-        with pytest.raises(LoaderError, match="lowercase alphanumeric"):
-            parse_frontmatter(content)
+        result = parse_frontmatter(content)
+        assert result.name == "invalidname"
 
-    def test_parse_frontmatter_rejects_invalid_name_spaces(self):
+    def test_parse_frontmatter_auto_normalizes_spaces_to_hyphens(self):
+        """Spaces in names are auto-normalized to hyphens."""
         content = """---
 name: invalid name
 description: Test
 ---
 # Content"""
-        with pytest.raises(LoaderError, match="lowercase alphanumeric"):
-            parse_frontmatter(content)
+        result = parse_frontmatter(content)
+        assert result.name == "invalid-name"
 
     def test_parse_frontmatter_rejects_long_name(self):
         long_name = "a" * 65
@@ -115,17 +117,38 @@ name: ontoskills
 description: Test
 ---
 # Content"""
-        with pytest.raises(LoaderError, match="Reserved word"):
+        with pytest.raises(LoaderError, match="reserved"):
             parse_frontmatter(content)
 
-    def test_parse_frontmatter_rejects_reserved_word_marea(self):
+    def test_parse_frontmatter_rejects_reserved_word_index(self):
+        """'index' is also a reserved word (blocks filesystem conflicts)."""
+        content = """---
+name: index
+description: Test
+---
+# Content"""
+        with pytest.raises(LoaderError, match="reserved"):
+            parse_frontmatter(content)
+
+    def test_parse_frontmatter_allows_compound_with_reserved_prefix(self):
+        """Compound names containing reserved words are allowed (e.g. 'ontoskills-plugin')."""
+        content = """---
+name: ontoskills-plugin
+description: Test
+---
+# Content"""
+        result = parse_frontmatter(content)
+        assert result.name == "ontoskills-plugin"
+
+    def test_parse_frontmatter_allows_marea_helper(self):
+        """'marea-helper' is not a reserved word — only full 'ontoskills' and 'index' are."""
         content = """---
 name: marea-helper
 description: Test
 ---
 # Content"""
-        with pytest.raises(LoaderError, match="Reserved word"):
-            parse_frontmatter(content)
+        result = parse_frontmatter(content)
+        assert result.name == "marea-helper"
 
     def test_parse_frontmatter_rejects_long_description(self):
         long_desc = "x" * 1025

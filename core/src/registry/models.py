@@ -30,6 +30,7 @@ class PackageManifest(BaseModel):
     checksum: str | None = None
     modules: list[str] = Field(default_factory=list)
     skills: list[PackageSkillManifest]
+    embedding_files: list[str] = Field(default_factory=list)
     source_root: str | None = None
     source_files: list[str] = Field(default_factory=list)
 
@@ -75,13 +76,22 @@ class RegistrySources(BaseModel):
 
 class RegistryPackageEntry(BaseModel):
     package_id: str
-    manifest_url: str
+    manifest_path: str
     trust_tier: TrustTier | None = None
     source_kind: SourceKind = "ontology"
 
 
+class EmbeddingModelInfo(BaseModel):
+    """Global embedding model declaration for the registry."""
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    dimension: int = 384
+    model_file: str = "model.onnx"
+    tokenizer_file: str = "tokenizer.json"
+
+
 class RegistryIndex(BaseModel):
     packages: list[RegistryPackageEntry] = Field(default_factory=list)
+    embedding_model: EmbeddingModelInfo = Field(default_factory=EmbeddingModelInfo)
 
 
 class VendorTarget(BaseModel):

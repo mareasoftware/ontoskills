@@ -409,7 +409,7 @@ def install_package_from_sources(
     """Install a package from configured registry sources."""
     source, package = resolve_package_from_sources(package_id, root=root)
     effective_trust = package.trust_tier or source.trust_tier
-    manifest_ref = urljoin(source.index_url, package.manifest_url)
+    manifest_ref = urljoin(source.index_url, package.manifest_path)
     return install_package_from_manifest_ref(
         manifest_ref,
         root=root,
@@ -438,7 +438,7 @@ def install_vendor(
     for package_entry in packages:
         source, _ = resolve_package_from_sources(package_entry.package_id, root=base)
         effective_trust = package_entry.trust_tier or source.trust_tier
-        manifest_ref = urljoin(source.index_url, package_entry.manifest_url)
+        manifest_ref = urljoin(source.index_url, package_entry.manifest_path)
         pkg_state = install_package_from_manifest_ref(
             manifest_ref,
             root=base,
@@ -470,7 +470,7 @@ def install_single_skill(
     base = ensure_registry_layout(root)
     source, _ = resolve_package_from_sources(package_entry.package_id, root=base)
     effective_trust = package_entry.trust_tier or source.trust_tier
-    manifest_ref = urljoin(source.index_url, package_entry.manifest_url)
+    manifest_ref = urljoin(source.index_url, package_entry.manifest_path)
 
     parsed = urlparse(manifest_ref)
     if parsed.scheme in ("http", "https", "file"):

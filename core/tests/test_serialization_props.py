@@ -34,29 +34,32 @@ class TestNewPropertySerialization:
         vals = list(g.objects(uri, OC.hasCategory))
         assert vals == [Literal("automation")]
 
-    def test_version_serialized(self):
+    def test_version_not_serialized_to_ttl(self):
+        """version belongs in package.json manifest, not ontology TTL."""
         skill = _make_skill(version="1.0.0")
         g = Graph()
         serialize_skill(g, skill)
         uri = skill_uri_for_skill(skill)
         vals = list(g.objects(uri, OC.hasVersion))
-        assert vals == [Literal("1.0.0")]
+        assert vals == []
 
-    def test_license_serialized(self):
+    def test_license_not_serialized_to_ttl(self):
+        """license belongs in package.json manifest, not ontology TTL."""
         skill = _make_skill(license="MIT")
         g = Graph()
         serialize_skill(g, skill)
         uri = skill_uri_for_skill(skill)
         vals = list(g.objects(uri, OC.hasLicense))
-        assert vals == [Literal("MIT")]
+        assert vals == []
 
-    def test_vendor_serialized(self):
+    def test_vendor_not_serialized_to_ttl(self):
+        """vendor belongs in package.json manifest, not ontology TTL."""
         skill = _make_skill(vendor="anthropics")
         g = Graph()
         serialize_skill(g, skill)
         uri = skill_uri_for_skill(skill)
         vals = list(g.objects(uri, OC.hasVendor))
-        assert vals == [Literal("anthropics")]
+        assert vals == []
 
     def test_package_name_serialized(self):
         skill = _make_skill(package_name="claude-plugins-official")

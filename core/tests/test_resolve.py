@@ -14,7 +14,6 @@ from compiler.registry.resolve import (
     is_standalone_skill,
     AmbiguousRefError,
     NotFoundError,
-    NotStandaloneError,
 )
 
 
@@ -25,7 +24,7 @@ def _make_index(*package_ids: str) -> RegistryIndex:
         packages=[
             RegistryPackageEntry(
                 package_id=pid,
-                manifest_url=f"./packages/{pid}/package.json",
+                manifest_path=f"packages/{pid}/package.json",
                 trust_tier="verified",
                 source_kind="ontology",
             )

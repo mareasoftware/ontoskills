@@ -543,6 +543,7 @@ def generate_package_manifest(
     import json
 
     modules = set()
+    embedding_files = []
     skills = []
     for entry in compiled_skills:
         rel_path = entry.get("path", f"{entry['skill_id']}/ontoskill.ttl")
@@ -560,6 +561,8 @@ def generate_package_manifest(
         modules.add(rel_path)
         for mod in entry.get("modules", []):
             modules.add(mod)
+        if "embedding_file" in entry and entry["embedding_file"]:
+            embedding_files.append(entry["embedding_file"])
 
     manifest = {
         "package_id": package_id,
@@ -567,6 +570,7 @@ def generate_package_manifest(
         "trust_tier": trust_tier,
         "source_kind": "ontology",
         "modules": sorted(modules),
+        "embedding_files": sorted(embedding_files),
         "skills": skills,
     }
 
@@ -591,7 +595,7 @@ def generate_registry_index(
 
     Args:
         packages: List of dicts with keys:
-            package_id, manifest_url, trust_tier, source_kind
+            package_id, manifest_path, trust_tier, source_kind
         index_path: Path to root index.json
     """
     import json
@@ -608,13 +612,22 @@ def generate_registry_index(
     for pkg_entry in packages:
         pkg_data = {
             "package_id": pkg_entry["package_id"],
-            "manifest_url": pkg_entry["manifest_url"],
+            "manifest_path": pkg_entry["manifest_path"],
             "trust_tier": pkg_entry.get("trust_tier", "community"),
             "source_kind": pkg_entry.get("source_kind", "ontology"),
         }
         existing[pkg_entry["package_id"]] = pkg_data
 
     registry["packages"] = list(existing.values())
+
+    # Always include embedding model declaration
+    if "embedding_model" not in registry:
+        registry["embedding_model"] = {
+            "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+            "dimension": 384,
+            "model_file": "model.onnx",
+            "tokenizer_file": "tokenizer.json",
+        }
 
     index_path.parent.mkdir(parents=True, exist_ok=True)
     index_path.write_text(
