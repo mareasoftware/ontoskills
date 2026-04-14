@@ -4,6 +4,28 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.0] - 2026-04-14
+
+### Added
+
+- **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings at compile time. Compilation fails if `sentence-transformers` is missing or a skill has zero declared intents.
+- **`oc:dependsOnSkill`** — Replaces `oc:dependsOn` for unambiguous skill-to-skill dependencies (ObjectProperty with domain/range `oc:Skill`)
+- **9 optional metadata properties** — `category`, `version`, `license`, `vendor`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in SHACL shapes, Pydantic models, and serialization
+- **Multi-level install resolution** — `ontoskills install` supports vendor-level, package-level, and skill-level references
+- **`sentence-transformers` as required dependency** — Moved from optional to core `pyproject.toml` dependencies
+
+### Changed
+
+- **`generatedBy` made optional** — No longer required by SHACL validation; auto-filled when present
+- **Registry models consolidated** — Streamlined `models.py`, `resolve.py`, `storage.py`
+- **Install single skill** — Remote module download via HTTP for single-skill installs
+
+### Fixed
+
+- **Compile error collector** — Cleared per invocation to prevent batch contamination
+- **Anti-hallucination rules** — Added to extraction prompts
+- **Serialization cleanup** — Stopped writing version/license/vendor to TTL (belongs in package.json)
+
 ## [0.10.0] - 2026-03-27
 
 ### Changed
