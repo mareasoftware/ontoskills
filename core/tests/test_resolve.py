@@ -85,8 +85,8 @@ def test_short_name_resolves_when_unique():
 
 def test_short_name_raises_when_ambiguous():
     index = _make_index(
-        "vendor-a/impeccable",
-        "vendor-b/impeccable",
+        "author-a/impeccable",
+        "author-b/impeccable",
     )
     with pytest.raises(AmbiguousRefError, match="Ambiguous"):
         resolve_install_ref("impeccable", index)

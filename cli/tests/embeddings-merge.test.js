@@ -45,7 +45,7 @@ test.after(async () => {
 
 test("mergeEmbeddings creates system/embeddings/intents.json from author intents.json files", async () => {
   // Create an author package with an intents.json
-  const pkgDir = path.join(ONTOLOGY_AUTHOR_DIR, "test-vendor", "test-pkg", "my-skill");
+  const pkgDir = path.join(ONTOLOGY_AUTHOR_DIR, "test-author", "test-pkg", "my-skill");
   await fs.mkdir(pkgDir, { recursive: true });
 
   const intentsData = makeIntentsJson([
@@ -70,14 +70,14 @@ test("mergeEmbeddings creates system/embeddings/intents.json from author intents
 
 test("mergeEmbeddings merges duplicate intents across packages", async () => {
   // Package 1
-  const pkg1Dir = path.join(ONTOLOGY_AUTHOR_DIR, "vendor-a", "pkg", "skill-a");
+  const pkg1Dir = path.join(ONTOLOGY_AUTHOR_DIR, "author-a", "pkg", "skill-a");
   await fs.mkdir(pkg1Dir, { recursive: true });
   await writeJson(path.join(pkg1Dir, "intents.json"), makeIntentsJson([
     { intent: "send_email", skills: ["gmail"] },
   ]));
 
   // Package 2 with same intent
-  const pkg2Dir = path.join(ONTOLOGY_AUTHOR_DIR, "vendor-b", "pkg", "skill-b");
+  const pkg2Dir = path.join(ONTOLOGY_AUTHOR_DIR, "author-b", "pkg", "skill-b");
   await fs.mkdir(pkg2Dir, { recursive: true });
   await writeJson(path.join(pkg2Dir, "intents.json"), makeIntentsJson([
     { intent: "send_email", skills: ["outlook"] },
@@ -120,7 +120,7 @@ test("mergeEmbeddings handles empty author dir — writes empty intents list", a
 });
 
 test("mergeEmbeddings skips non-intents.json files in author", async () => {
-  const pkgDir = path.join(ONTOLOGY_AUTHOR_DIR, "vendor-x", "pkg", "skill-x");
+  const pkgDir = path.join(ONTOLOGY_AUTHOR_DIR, "author-x", "pkg", "skill-x");
   await fs.mkdir(pkgDir, { recursive: true });
 
   // Only a TTL file, no intents.json

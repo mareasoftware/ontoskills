@@ -20,7 +20,7 @@ def test_normalize_package_id():
     assert normalize_package_id("My Company/My Package") == "my-company/my-package"
 
     # Multiple slashes (nested packages)
-    assert normalize_package_id("vendor/author/pkg") == "vendor/author/pkg"
+    assert normalize_package_id("owner/repo/pkg") == "owner/repo/pkg"
 
     # Mixed issues
     assert normalize_package_id("@MyScope/My.Package") == "myscope/my-package"
@@ -47,7 +47,7 @@ def test_compute_skill_hash(tmp_path):
 def test_generate_qualified_skill_id():
     assert generate_qualified_skill_id("obra/superpowers", "brainstorming") == "obra/superpowers/brainstorming"
     assert generate_qualified_skill_id("local", "my-skill") == "local/my-skill"
-    assert generate_qualified_skill_id("vendor/author/pkg", "skill") == "vendor/author/pkg/skill"
+    assert generate_qualified_skill_id("owner/repo/pkg", "skill") == "owner/repo/pkg/skill"
 
 
 def test_generate_sub_skill_id():
@@ -58,7 +58,7 @@ def test_generate_sub_skill_id():
     assert generate_sub_skill_id("obra/superpowers", "brainstorming", "my-planning.md") == "obra/superpowers/brainstorming/my-planning"
 
     # Nested package
-    assert generate_sub_skill_id("vendor/author", "skill", "sub.md") == "vendor/author/skill/sub"
+    assert generate_sub_skill_id("owner/repo", "skill", "sub.md") == "owner/repo/skill/sub"
 
 
 def test_resolve_package_id_with_manifest(tmp_path):
