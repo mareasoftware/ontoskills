@@ -97,7 +97,7 @@ async function installSkill(qualifiedId, options = {}) {
 
   // Download global embedding model files (once, cached)
   if (!noEmbeddings) {
-    await downloadEmbeddingModel(manifestRef);
+    await downloadEmbeddingModel();
   }
 
   const lock = await loadRegistryLock();
@@ -167,7 +167,7 @@ async function installPackage(packageId, options = {}) {
 
   // Download global embedding model files (once, cached)
   if (!noEmbeddings) {
-    await downloadEmbeddingModel(manifestRef);
+    await downloadEmbeddingModel();
   }
 
   const lock = await loadRegistryLock();
@@ -191,22 +191,26 @@ async function installPackage(packageId, options = {}) {
   log(`Installed ${manifest.package_id}: ${(manifest.skills || []).length} skill(s)`);
 }
 
-async function downloadEmbeddingModel(manifestRef) {
-  // Model files live in the embeddings/ directory at the registry root
-  const registryRoot = manifestRef.replace(/\/packages\/.*$/, "");
+async function downloadEmbeddingModel() {
+  // Download ONNX model + tokenizer from HuggingFace directly (~87MB, cached locally)
+  const MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2";
+  const HF_BASE = `https://huggingface.co/${MODEL_REPO}/resolve/main`;
   const modelFiles = [
-    { name: "embeddings/model.onnx", dest: path.join(EMBEDDINGS_DIR, "model.onnx") },
-    { name: "embeddings/tokenizer.json", dest: path.join(EMBEDDINGS_DIR, "tokenizer.json") },
+    { url: `${HF_BASE}/onnx/model.onnx`, dest: path.join(EMBEDDINGS_DIR, "model.onnx") },
+    { url: `${HF_BASE}/tokenizer.json`, dest: path.join(EMBEDDINGS_DIR, "tokenizer.json") },
   ];
-  for (const { name, dest } of modelFiles) {
+  for (const { url, dest } of modelFiles) {
     if (fs.existsSync(dest)) {
       continue; // Already cached
     }
     try {
-      const ref = resolveChildRefForInstall(registryRoot, name);
-      await copyRefToFile(ref, dest);
+      const response = await fetch(url, { redirect: "follow" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      await fsp.mkdir(path.dirname(dest), { recursive: true });
+      await fsp.writeFile(dest, buffer);
     } catch (_error) {
-      // Model files may not be available in all registries — non-fatal
+      // Model files not available — semantic search will be unavailable
     }
   }
 }
