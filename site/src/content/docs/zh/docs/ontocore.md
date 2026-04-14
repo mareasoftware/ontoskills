@@ -172,7 +172,7 @@ ontoskills/
 `core.ttl` 定义：
 
 - `oc:Skill`、`oc:ExecutableSkill`、`oc:DeclarativeSkill`
-- 属性：`dependsOn`、`extends`、`contradicts`、`resolvesIntent` 等
+- 属性：`dependsOnSkill`、`extends`、`contradicts`、`resolvesIntent` 等
 - 知识节点类：`oc:Heuristic`、`oc:AntiPattern` 等
 - 前置条件/后置条件的状态类
 

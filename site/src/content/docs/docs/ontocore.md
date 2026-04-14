@@ -172,7 +172,7 @@ Compiled skill modules reference the core via `owl:imports <https://ontoskills.s
 `core.ttl` defines:
 
 - `oc:Skill`, `oc:ExecutableSkill`, `oc:DeclarativeSkill`
-- Properties: `dependsOn`, `extends`, `contradicts`, `resolvesIntent`, etc.
+- Properties: `dependsOnSkill`, `extends`, `contradicts`, `resolvesIntent`, etc.
 - Knowledge node classes: `oc:Heuristic`, `oc:AntiPattern`, etc.
 - State classes for preconditions/postconditions
 
