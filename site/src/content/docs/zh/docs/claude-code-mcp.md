@@ -64,12 +64,10 @@ Status: ✓ Connected
 
 连接后，Claude Code 可以调用：
 
-- `search_skills`
+- `search` — 通过语义查询、别名或结构化过滤器搜索
 - `get_skill_context`
 - `evaluate_execution_plan`
 - `query_epistemic_rules`
-- `search_intents`
-- `resolve_alias`
 
 ## 故障排除
 

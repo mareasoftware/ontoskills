@@ -39,7 +39,7 @@ sidebar:
 - [x] 具有 stdio 传输的 Rust MCP 服务器
 - [x] Oxigraph 内存图存储
 - [x] SPARQL 1.1 查询接口
-- [x] 6 个语义工具（search_skills、get_skill_context、evaluate_execution_plan、query_epistemic_rules、search_intents、resolve_alias）
+- [x] 4 个工具（search、get_skill_context、evaluate_execution_plan、query_epistemic_rules）
 - [x] 每技能预计算的嵌入（编译时必需）
 - [x] 安装时的嵌入合并（JS CLI）
 - [x] 类别和 is_user_invocable 搜索过滤器

@@ -55,11 +55,17 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tool reference
 
-OntoMCP exposes **6 tools** for skill discovery and reasoning.
+OntoMCP exposes **4 tools** for skill discovery and reasoning.
 
-### `search_skills`
+### `search`
 
-Discover skills with optional filters.
+Search skills by semantic query, alias, or structured filters. The tool dispatches based on the parameters provided:
+
+- **`query`** provided → semantic intent search (requires embeddings)
+- **`alias`** provided → alias resolution
+- Otherwise → structured skill search with filters
+
+#### Structured skill search
 
 ```json
 {
@@ -101,11 +107,7 @@ Discover skills with optional filters.
 }
 ```
 
----
-
-### `search_intents`
-
-Search for intents semantically matching a natural language query. Requires embeddings to be exported first. Results use **hybrid scoring** (cosine similarity × trust-tier quality multiplier) so higher-trust skills rank above community contributions even with slightly lower raw similarity.
+#### Semantic intent search
 
 ```json
 {
@@ -139,7 +141,37 @@ Search for intents semantically matching a natural language query. Requires embe
 }
 ```
 
-**Note:** Requires running `ontoskills export-embeddings` first. If embeddings are not available, the tool returns an error.
+Results use **hybrid scoring** (cosine similarity x trust-tier quality multiplier) so higher-trust skills rank above community contributions even with slightly lower raw similarity.
+
+**Note:** Semantic search requires running `ontoskills export-embeddings` first. If embeddings are not available, the tool returns an error.
+
+#### Alias resolution
+
+```json
+{
+  "alias": "pdf"
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `alias` | string | **Required.** Alias to resolve (case-insensitive) |
+
+**Example response:**
+
+```json
+{
+  "alias": "pdf",
+  "skills": [
+    {
+      "id": "pdf",
+      "qualified_id": "mareasw/office/pdf",
+      "nature": "A skill that creates PDF documents",
+      "intents": ["create_pdf", "export_pdf"]
+    }
+  ]
+}
+```
 
 ---
 
@@ -300,38 +332,6 @@ Query normalized knowledge nodes with guided filters.
 
 ---
 
-### `resolve_alias`
-
-Resolve a skill alias to its canonical skill(s). Returns all skills that have the given alias.
-
-```json
-{
-  "alias": "pdf"
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `alias` | string | **Required.** Alias to resolve (case-insensitive) |
-
-**Example response:**
-
-```json
-{
-  "alias": "pdf",
-  "skills": [
-    {
-      "id": "pdf",
-      "qualified_id": "mareasw/office/pdf",
-      "nature": "A skill that creates PDF documents",
-      "intents": ["create_pdf", "export_pdf"]
-    }
-  ]
-}
-```
-
----
-
 ## Architecture
 
 ```
@@ -408,7 +408,7 @@ ontoskills compile
 
 ### "Embeddings not available"
 
-The `search_intents` tool requires pre-computed embeddings. Install skills that include embedding support:
+The semantic search mode requires pre-computed embeddings. Install skills that include embedding support:
 
 ```bash
 ontoskills install mareasw/office/xlsx

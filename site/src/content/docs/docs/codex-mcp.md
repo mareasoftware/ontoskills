@@ -45,7 +45,7 @@ Codex-based workflows use the same MCP contract as other local clients:
 
 - launch `ontomcp` as a local `stdio` subprocess
 - point it at the managed ontology home in `~/.ontoskills/ontologies`
-- let the client call the six public tools
+- let the client call the four public tools
 
 The stable executable to register is:
 
@@ -67,12 +67,10 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tools exposed
 
-- `search_skills`
+- `search` — search by semantic query, alias, or structured filters
 - `get_skill_context`
 - `evaluate_execution_plan`
 - `query_epistemic_rules`
-- `search_intents`
-- `resolve_alias`
 
 ## Notes
 

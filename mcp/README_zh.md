@@ -43,7 +43,7 @@ MCP 服务器专注于以下功能：
 
 ```mermaid
 flowchart LR
-    CLIENT["MCP 客户端<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio 传输"] -->|"tools/call"| TOOLS["MCP 工具<br/>━━━━━━━━━━<br/>6 个整合工具<br/>搜索、上下文、规划、规则、意图、别名"]
+    CLIENT["MCP 客户端<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio 传输"] -->|"tools/call"| TOOLS["MCP 工具<br/>━━━━━━━━━━<br/>4 个工具<br/>搜索、上下文、规划、规则"]
     TOOLS -->|"SPARQL"| SPARQL["oxigraph<br/>━━━━━━━━━━<br/>SPARQL 1.1 引擎<br/>内存存储"]
     SPARQL -->|"查询"| GRAPH["RDF 图<br/>━━━━━━━━━━<br/>已加载 .ttl 文件<br/>OntoSkills 目录"]
 
@@ -68,12 +68,10 @@ flowchart LR
 
 | 工具 | 用途 |
 |------|------|
-| `search_skills` | 发现技能，支持按意图、所需状态、产出状态、类型、category 和 is_user_invocable 过滤 |
-| `search_intents` | **（可选）** 通过嵌入进行语义意图搜索 — 返回匹配的意图及相似度分数 |
+| `search` | 通过语义查询、别名或结构化过滤器搜索技能。按参数分派：`query` → 语义意图搜索，`alias` → 别名解析，否则 → 结构化技能搜索 |
 | `get_skill_context` | 返回技能的完整执行上下文，包括负载和知识节点 |
 | `evaluate_execution_plan` | 评估适用性并为目标意图或技能生成执行计划 |
 | `query_epistemic_rules` | 通过引导过滤器查询本体中的规范化知识节点 |
-| `resolve_alias` | 将技能别名解析为规范技能 ID |
 
 ---
 
@@ -81,11 +79,11 @@ flowchart LR
 
 当通过 `ontocore export-embeddings` 导出嵌入时，MCP 服务器提供：
 
-### MCP 工具：`search_intents`
+### MCP 工具：`search`（语义模式）
 
 ```json
 {
-  "name": "search_intents",
+  "name": "search",
   "arguments": {
     "query": "创建 PDF 文档",
     "top_k": 5
@@ -124,7 +122,7 @@ flowchart LR
 ```
 1. 智能体读取 ontology://schema → 了解所有属性和约定
 2. 用户："我需要创建一个 PDF"
-3. 智能体调用：search_intents("创建 PDF", top_k: 3)
+3. 智能体调用：search(query: "创建 PDF", top_k: 3)
 4. 智能体查询：SELECT ?skill WHERE { ?skill oc:resolvesIntent "create_pdf" }
 5. 智能体调用：get_skill_context("pdf")
 ```
@@ -134,7 +132,7 @@ flowchart LR
 | 指标 | 目标 |
 |------|------|
 | 模式资源大小 | < 4KB |
-| search_intents 延迟 | < 50ms |
+| search 延迟（语义） | < 50ms |
 | ONNX 模型大小 | < 50MB |
 | 内存占用 | < 100MB |
 
@@ -229,12 +227,10 @@ claude mcp add ontomcp -- \
 
 ```mermaid
 flowchart LR
-    CLAUDE["Claude Code"] -->|"search_skills"| TOOLS["OntoMCP"]
+    CLAUDE["Claude Code"] -->|"search"| TOOLS["OntoMCP"]
     CLAUDE -->|"get_skill_context"| TOOLS
     CLAUDE -->|"evaluate_execution_plan"| TOOLS
     CLAUDE -->|"query_epistemic_rules"| TOOLS
-    CLAUDE -->|"search_intents"| TOOLS
-    CLAUDE -->|"resolve_alias"| TOOLS
 
     style CLAUDE fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
     style TOOLS fill:#92eff4,stroke:#2a2a3e,color:#0d0d14

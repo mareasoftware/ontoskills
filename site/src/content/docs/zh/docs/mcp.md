@@ -55,11 +55,17 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 工具参考
 
-OntoMCP 暴露 **6 个工具** 用于技能发现和推理。
+OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
 
-### `search_skills`
+### `search`
 
-使用可选过滤器发现技能。
+通过语义查询、别名或结构化过滤器搜索技能。工具根据提供的参数进行分派：
+
+- 提供了 **`query`** → 语义意图搜索（需要嵌入）
+- 提供了 **`alias`** → 别名解析
+- 否则 → 结构化技能搜索（带过滤器）
+
+#### 结构化技能搜索
 
 ```json
 {
@@ -101,11 +107,7 @@ OntoMCP 暴露 **6 个工具** 用于技能发现和推理。
 }
 ```
 
----
-
-### `search_intents`
-
-搜索与自然语言查询语义匹配的意图。需要先导出嵌入。结果使用**混合评分**（余弦相似度 × 信任层级质量乘数），使高信任技能在原始相似度略低的情况下也能排在社区贡献之上。
+#### 语义意图搜索
 
 ```json
 {
@@ -139,7 +141,37 @@ OntoMCP 暴露 **6 个工具** 用于技能发现和推理。
 }
 ```
 
-**注意：** 需要先运行 `ontoskills export-embeddings`。如果嵌入不可用，工具会返回错误。
+结果使用**混合评分**（余弦相似度 x 信任层级质量乘数），使高信任技能在原始相似度略低的情况下也能排在社区贡献之上。
+
+**注意：** 语义搜索需要先运行 `ontoskills export-embeddings`。如果嵌入不可用，工具会返回错误。
+
+#### 别名解析
+
+```json
+{
+  "alias": "pdf"
+}
+```
+
+| 参数 | 类型 | 描述 |
+|------|------|------|
+| `alias` | string | **必需。** 要解析的别名（不区分大小写）|
+
+**示例响应：**
+
+```json
+{
+  "alias": "pdf",
+  "skills": [
+    {
+      "id": "pdf",
+      "qualified_id": "mareasw/office/pdf",
+      "nature": "创建 PDF 文档的技能",
+      "intents": ["create_pdf", "export_pdf"]
+    }
+  ]
+}
+```
 
 ---
 
@@ -300,38 +332,6 @@ OntoMCP 暴露 **6 个工具** 用于技能发现和推理。
 
 ---
 
-### `resolve_alias`
-
-将技能别名解析为其规范技能。返回具有给定别名的所有技能。
-
-```json
-{
-  "alias": "pdf"
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `alias` | string | **必需。** 要解析的别名（不区分大小写）|
-
-**示例响应：**
-
-```json
-{
-  "alias": "pdf",
-  "skills": [
-    {
-      "id": "pdf",
-      "qualified_id": "mareasw/office/pdf",
-      "nature": "创建 PDF 文档的技能",
-      "intents": ["create_pdf", "export_pdf"]
-    }
-  ]
-}
-```
-
----
-
 ## 架构
 
 ```
@@ -408,7 +408,7 @@ ontoskills compile
 
 ### "Embeddings not available"
 
-`search_intents` 工具需要预计算的嵌入。安装包含嵌入支持的技能：
+语义搜索模式需要预计算的嵌入。安装包含嵌入支持的技能：
 
 ```bash
 ontoskills install mareasw/office/xlsx

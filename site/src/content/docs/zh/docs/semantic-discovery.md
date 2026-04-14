@@ -15,7 +15,7 @@ sidebar:
 |------|------|
 | **约定** | 可预测的命名（意图用 `verb_noun`，属性用 `camelCase`）|
 | **模式摘要** | MCP 资源 `ontology://schema` — 2KB 紧凑模式 |
-| **search_intents** | MCP 工具 — 通过预计算的嵌入进行语义匹配 |
+| **search**（语义模式） | MCP 工具 — 通过预计算的嵌入进行语义匹配 |
 
 ---
 
@@ -60,7 +60,7 @@ sidebar:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  工具:                                                           │
-│    search_intents(query: str, top_k: int) → Vec<IntentMatch>   │
+│    search(query: str, top_k: int) → Vec<IntentMatch>           │
 │       │                                                          │
 │       ├── 1. 加载 tokenizer.json + model.onnx                   │
 │       ├── 2. 安全截断查询（最多 512 字符）                      │
@@ -149,11 +149,11 @@ CLI 会：
 ontoskills install mareasw/office/xlsx --no-embeddings
 ```
 
-### MCP 工具：search_intents
+### MCP 工具：search（语义模式）
 
 ```json
 {
-  "name": "search_intents",
+  "name": "search",
   "arguments": {
     "query": "create a pdf document",
     "top_k": 5
@@ -210,7 +210,7 @@ ontoskills install mareasw/office/xlsx --no-embeddings
    → 知道所有属性和约定
 
 2. 用户："我需要创建一个 PDF"
-   → 智能体调用：search_intents("create a pdf", top_k: 3)
+   → 智能体调用：search(query: "create a pdf", top_k: 3)
    → 返回：[{intent: "create_pdf", score: 0.92, skills: ["pdf"]}]
 
 3. 智能体现在知道 intent = "create_pdf"
@@ -228,7 +228,7 @@ ontoskills install mareasw/office/xlsx --no-embeddings
 | 指标 | 目标 | 验证 |
 |------|------|------|
 | 模式资源大小 | < 4KB | `test_schema_size` |
-| search_intents 延迟 | < 50ms | 手动基准测试 |
+| search 延迟（语义） | < 50ms | 手动基准测试 |
 | ONNX 模型大小 | ~90MB | 检查文件大小 |
 | 内存占用 | < 200MB | 使用 `top` 监控 |
 

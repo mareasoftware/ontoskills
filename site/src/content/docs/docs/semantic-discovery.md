@@ -15,7 +15,7 @@ Semantic Intent Discovery enables LLM agents to find skills by natural language 
 |-----------|---------|
 | **Convention** | Predictable naming (`verb_noun` for intents, `camelCase` for properties) |
 | **Schema Summary** | MCP Resource `ontology://schema` — 2KB compact schema |
-| **search_intents** | MCP Tool — semantic matching via pre-computed embeddings |
+| **search** (semantic mode) | MCP Tool — semantic matching via pre-computed embeddings |
 
 ---
 
@@ -60,7 +60,7 @@ Embeddings are **pre-computed per-skill at compile time** and merged at install 
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Tools:                                                          │
-│    search_intents(query: str, top_k: int) → Vec<IntentMatch>    │
+│    search(query: str, top_k: int) → Vec<IntentMatch>    │
 │       │                                                          │
 │       ├── 1. Load tokenizer.json + model.onnx                   │
 │       ├── 2. Safety-truncate query (max 512 chars)              │
@@ -149,11 +149,11 @@ Opt out of embeddings with `--no-embeddings`:
 ontoskills install mareasw/office/xlsx --no-embeddings
 ```
 
-### MCP Tool: search_intents
+### MCP Tool: search (semantic mode)
 
 ```json
 {
-  "name": "search_intents",
+  "name": "search",
   "arguments": {
     "query": "create a pdf document",
     "top_k": 5
@@ -210,7 +210,7 @@ A compact JSON schema describing available classes and properties:
    → Knows all properties and conventions
 
 2. User: "I need to create a PDF"
-   → Agent calls: search_intents("create a pdf", top_k: 3)
+   → Agent calls: search(query: "create a pdf", top_k: 3)
    → Returns: [{intent: "create_pdf", score: 0.92, skills: ["pdf"]}]
 
 3. Agent now knows intent = "create_pdf"
@@ -228,7 +228,7 @@ A compact JSON schema describing available classes and properties:
 | Metric | Target | Verification |
 |--------|--------|--------------|
 | Schema resource size | < 4KB | `test_schema_size` |
-| search_intents latency | < 50ms | Manual benchmark |
+| search latency (semantic) | < 50ms | Manual benchmark |
 | ONNX model size | ~90MB | Check file size |
 | Memory footprint | < 200MB | Monitor with `top` |
 

@@ -43,7 +43,7 @@ The server does **not** execute skill payloads. Payload execution is delegated t
 
 ```mermaid
 flowchart LR
-    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>6 consolidated tools<br/>search, context, plan, rules, intents, alias"]
+    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>4 tools<br/>search, context, plan, rules"]
     TOOLS -->|"SPARQL"| SPARQL["oxigraph<br/>━━━━━━━━━━<br/>SPARQL 1.1 engine<br/>in-memory store"]
     SPARQL -->|"query"| GRAPH["RDF Graph<br/>━━━━━━━━━━<br/>Loaded .ttl files<br/>OntoSkills catalog"]
 
@@ -68,12 +68,10 @@ flowchart LR
 
 | Tool | Purpose |
 |------|---------|
-| `search_skills` | Discover skills with optional filters for intent, required state, yielded state, type, category, and is_user_invocable |
-| `search_intents` | **(Optional)** Semantic search for intents via embeddings — returns matching intents with similarity scores |
+| `search` | Search skills by semantic query, alias, or structured filters. Dispatches by parameter: `query` → semantic intent search, `alias` → alias resolution, otherwise → structured skill search |
 | `get_skill_context` | Return the complete execution context for a skill, including payload and knowledge nodes |
 | `evaluate_execution_plan` | Evaluate applicability and generate a plan for a target intent or skill |
 | `query_epistemic_rules` | Query normalized knowledge nodes across the ontology with guided filters |
-| `resolve_alias` | Resolve a skill alias to its canonical skill ID |
 
 ---
 
@@ -81,11 +79,11 @@ flowchart LR
 
 When embeddings are exported via `ontoskills export-embeddings`, the MCP server provides:
 
-### MCP Tool: `search_intents`
+### MCP Tool: `search` (semantic mode)
 
 ```json
 {
-  "name": "search_intents",
+  "name": "search",
   "arguments": {
     "query": "create a pdf document",
     "top_k": 5
@@ -124,7 +122,7 @@ A compact (~2KB) JSON schema describing available classes, properties, and examp
 ```
 1. Agent reads ontology://schema → Knows all properties and conventions
 2. User: "I need to create a PDF"
-3. Agent calls: search_intents("create a pdf", top_k: 3)
+3. Agent calls: search(query: "create a pdf", top_k: 3)
 4. Agent queries: SELECT ?skill WHERE { ?skill oc:resolvesIntent "create_pdf" }
 5. Agent calls: get_skill_context("pdf")
 ```
@@ -134,7 +132,7 @@ A compact (~2KB) JSON schema describing available classes, properties, and examp
 | Metric | Target |
 |--------|--------|
 | Schema resource size | < 4KB |
-| search_intents latency | < 50ms |
+| search latency (semantic) | < 50ms |
 | ONNX model size | < 50MB |
 | Memory footprint | < 100MB |
 
@@ -229,12 +227,10 @@ After registration, Claude Code can call:
 
 ```mermaid
 flowchart LR
-    CLAUDE["Claude Code"] -->|"search_skills"| TOOLS["OntoMCP"]
+    CLAUDE["Claude Code"] -->|"search"| TOOLS["OntoMCP"]
     CLAUDE -->|"get_skill_context"| TOOLS
     CLAUDE -->|"evaluate_execution_plan"| TOOLS
     CLAUDE -->|"query_epistemic_rules"| TOOLS
-    CLAUDE -->|"search_intents"| TOOLS
-    CLAUDE -->|"resolve_alias"| TOOLS
 
     style CLAUDE fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
     style TOOLS fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
