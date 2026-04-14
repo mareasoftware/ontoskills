@@ -449,7 +449,7 @@ ontoskills init-core
 ontoskills compile my-skill
 ```
 
-> **注意：** 嵌入生成需要 `sentence-transformers` 包。如果未安装，编译仍会成功但会跳过嵌入生成步骤。使用 `pip install sentence-transformers` 安装。
+> **注意：** 嵌入生成是编译的**必需**步骤，需要 `sentence-transformers` 包。如果未安装，编译将失败。使用 `pip install sentence-transformers` 安装。
 
 ### 编译期间发生什么
 

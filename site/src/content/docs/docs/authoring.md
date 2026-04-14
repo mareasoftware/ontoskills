@@ -475,7 +475,7 @@ The compiler validates skills against constitutional SHACL shapes defined in `co
 
 **Every skill must have:**
 - At least one `resolvesIntent` — what user intent this skill solves
-- Exactly one `generatedBy` — which LLM produced this skill (optional)
+- Optional `generatedBy` — which LLM produced this skill (0 or 1)
 
 **State fields must be valid IRIs:**
 - `requiresState` — preconditions (e.g., `oc:FileExists`)

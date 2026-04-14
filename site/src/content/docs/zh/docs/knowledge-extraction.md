@@ -182,13 +182,13 @@ ontoskills/
 
 ## 嵌入生成
 
-编译期间，OntoCore 可以为技能描述和意图生成向量嵌入，用于语义搜索（`search_intents` 工具）。嵌入生成需要安装 `sentence-transformers` 包：
+编译期间，OntoCore 会为技能描述和意图生成向量嵌入（**必需步骤**），用于语义搜索（`search_intents` 工具）。嵌入生成需要安装 `sentence-transformers` 包：
 
 ```bash
 pip install sentence-transformers
 ```
 
-如果未安装，编译仍会成功但会跳过嵌入生成步骤。
+如果未安装，编译将失败并提示缺少依赖。
 
 ---
 
