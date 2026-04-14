@@ -58,7 +58,7 @@ pub fn get_schema_resource() -> Value {
                 "type": "IRI",
                 "description": "State after failure"
             },
-            "dependsOn": {
+            "dependsOnSkill": {
                 "type": "IRI",
                 "description": "Skill prerequisite"
             },

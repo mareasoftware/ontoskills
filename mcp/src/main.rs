@@ -401,43 +401,53 @@ fn handle_tool_call(
         .unwrap_or_else(|| json!({}));
 
     let structured = match tool_name {
-        "search_skills" => {
-            let params = SearchSkillsParams {
-                intent: optional_string(&arguments, "intent"),
-                requires_state: optional_string(&arguments, "requires_state"),
-                yields_state: optional_string(&arguments, "yields_state"),
-                skill_type: optional_skill_type(&arguments, "skill_type")?,
-                category: optional_string(&arguments, "category"),
-                is_user_invocable: optional_bool(&arguments, "is_user_invocable"),
-                limit: optional_usize(&arguments, "limit").unwrap_or(25),
-            };
-            json!(catalog.search_skills(params).map_err(public_error)?)
-        }
-        "search_intents" => {
-            let engine = embedding_engine
-                .ok_or_else(|| "Embeddings not available. Install skills with embedding support to enable semantic search.".to_string())?;
+        "search" => {
+            // Dispatch based on which parameters are provided:
+            // - query → semantic intent search (requires embeddings)
+            // - alias → alias resolution
+            // - otherwise → structured skill search
+            let has_query = arguments.get("query").and_then(Value::as_str).is_some();
+            let has_alias = arguments.get("alias").and_then(Value::as_str).is_some();
 
-            let query = arguments
-                .get("query")
-                .and_then(Value::as_str)
-                .ok_or_else(|| "query required".to_string())?;
-            let top_k = arguments
-                .get("top_k")
-                .and_then(Value::as_u64)
-                .unwrap_or(5) as usize;
-
-            let matches = engine
-                .search(query, top_k)
-                .map_err(|e| format!("Search failed: {}", e))?;
-
-            json!({
-                "query": query,
-                "matches": matches.iter().map(|m| json!({
-                    "intent": m.intent,
-                    "score": m.score,
-                    "skills": m.skills
-                })).collect::<Vec<_>>()
-            })
+            if has_query {
+                let engine = embedding_engine
+                    .ok_or_else(|| "Semantic search requires embeddings. Install skills with embedding support.".to_string())?;
+                let query = arguments
+                    .get("query")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "query required".to_string())?;
+                let top_k = arguments
+                    .get("top_k")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(5) as usize;
+                let matches = engine
+                    .search(query, top_k)
+                    .map_err(|e| format!("Search failed: {}", e))?;
+                json!({
+                    "mode": "semantic",
+                    "query": query,
+                    "matches": matches.iter().map(|m| json!({
+                        "intent": m.intent,
+                        "score": m.score,
+                        "skills": m.skills
+                    })).collect::<Vec<_>>()
+                })
+            } else if has_alias {
+                let alias = required_string(&arguments, "alias")?;
+                let skills = catalog.resolve_alias(&alias).map_err(public_error)?;
+                json!({ "mode": "alias", "alias": alias, "skills": skills })
+            } else {
+                let params = SearchSkillsParams {
+                    intent: optional_string(&arguments, "intent"),
+                    requires_state: optional_string(&arguments, "requires_state"),
+                    yields_state: optional_string(&arguments, "yields_state"),
+                    skill_type: optional_skill_type(&arguments, "skill_type")?,
+                    category: optional_string(&arguments, "category"),
+                    is_user_invocable: optional_bool(&arguments, "is_user_invocable"),
+                    limit: optional_usize(&arguments, "limit").unwrap_or(25),
+                };
+                json!({ "mode": "structured", "skills": catalog.search_skills(params).map_err(public_error)? })
+            }
         }
         "get_skill_context" => {
             let skill_id = required_string(&arguments, "skill_id")?;
@@ -477,11 +487,6 @@ fn handle_tool_call(
                     .query_epistemic_rules(params)
                     .map_err(public_error)?
             )
-        }
-        "resolve_alias" => {
-            let alias = required_string(&arguments, "alias")?;
-            let skills = catalog.resolve_alias(&alias).map_err(public_error)?;
-            json!({ "alias": alias, "skills": skills })
         }
         _ => return Err(format!("Unknown tool: {tool_name}")),
     };
@@ -670,12 +675,15 @@ fn respond_error(
 fn tool_definitions() -> Vec<Value> {
     vec![
         tool(
-            "search_skills",
-            "Discover skills with optional filters for intent, required state, yielded state, skill type, category, and user-invocability.",
+            "search",
+            "Search skills by semantic query, alias, or structured filters. If 'query' is provided, performs semantic intent search (requires embeddings). If 'alias' is provided, resolves the alias to matching skills. Otherwise, filters skills by intent, state, type, category, and user-invocability.",
             json!({
                 "type": "object",
                 "properties": {
-                    "intent": { "type": "string" },
+                    "query": { "type": "string", "description": "Natural language query for semantic intent search (e.g., 'create a pdf document')" },
+                    "alias": { "type": "string", "description": "Alias to resolve (case-insensitive)" },
+                    "top_k": { "type": "integer", "description": "Number of semantic results (default 5)", "default": 5 },
+                    "intent": { "type": "string", "description": "Filter by resolved intent" },
                     "requires_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
                     "yields_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
                     "skill_type": { "type": "string", "enum": ["executable", "declarative"] },
@@ -683,25 +691,6 @@ fn tool_definitions() -> Vec<Value> {
                     "is_user_invocable": { "type": "boolean", "description": "Filter by whether the skill is directly invocable by users." },
                     "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
                 }
-            }),
-        ),
-        tool(
-            "search_intents",
-            "Search for intents semantically matching a natural language query. Returns top matches with similarity scores.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Natural language query (e.g., 'create a pdf document')"
-                    },
-                    "top_k": {
-                        "type": "integer",
-                        "description": "Number of results to return",
-                        "default": 5
-                    }
-                },
-                "required": ["query"]
             }),
         ),
         tool(
@@ -746,20 +735,6 @@ fn tool_definitions() -> Vec<Value> {
                     "include_inherited": { "type": "boolean", "default": true },
                     "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
                 }
-            }),
-        ),
-        tool(
-            "resolve_alias",
-            "Resolve a skill alias to its canonical skill(s). Returns all skills that have the given alias.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "alias": {
-                        "type": "string",
-                        "description": "Alias to resolve (case-insensitive)"
-                    }
-                },
-                "required": ["alias"]
             }),
         ),
     ]
