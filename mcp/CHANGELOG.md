@@ -8,17 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Sixth tool** — `resolve_alias` for case-insensitive alias resolution
+- **`resolve_alias` tool** — Case-insensitive alias resolution as 6th MCP tool
 - **Hybrid scoring** — `search_intents` results ranked by cosine similarity × trust-tier quality multiplier (local/trusted: 1.2, verified: 1.0, community: 0.8)
 - **Query safety truncation** — Defensive 512-char cap on search queries
-- **`category` and `is_user_invocable` filters** — Added to `search_skills` tool
-- **ONNX embedding engine** — Full `model.onnx` + `tokenizer.json` + `intents.json` pipeline with mean pooling, L2 normalization, and adaptive cutoff
+- **ONNX embedding engine** — Full pipeline: `model.onnx` + `tokenizer.json` + `intents.json` with mean pooling, L2 normalization, and adaptive cutoff
 - **E2E test** — `mcp/tests/e2e_search.sh` validates compile → merge → ONNX export → JSON-RPC search
 
 ### Changed
 
 - **Trust tiers from catalog** — `trust_tier_map()` wired into embedding engine at startup for hybrid scoring
 - **Version aligned** — OntoMCP 0.11.0 matches OntoCore 0.11.0
+- **`dependsOnSkill` in JS** — `extractSkillInfo()` regex updated to match `oc:dependsOnSkill` alongside `oc:dependsOn`
+- **JS install fix** — `installSkill()` now correctly parses `vendor/package/skill` refs (was splitting at first `/`)
 
 ## [0.9.1] - 2026-03-24
 

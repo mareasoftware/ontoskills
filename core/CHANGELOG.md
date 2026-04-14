@@ -8,23 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings at compile time. Compilation fails if `sentence-transformers` is missing or a skill has zero declared intents.
-- **`oc:dependsOnSkill`** — Replaces `oc:dependsOn` for unambiguous skill-to-skill dependencies (ObjectProperty with domain/range `oc:Skill`)
-- **9 optional metadata properties** — `category`, `version`, `license`, `vendor`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in SHACL shapes, Pydantic models, and serialization
-- **Multi-level install resolution** — `ontoskills install` supports vendor-level, package-level, and skill-level references
+- **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings alongside `ontoskill.ttl`. Compilation fails if `sentence-transformers` is missing or a skill has zero declared intents
+- **`oc:dependsOnSkill`** — New ObjectProperty replacing `oc:dependsOn` for unambiguous skill-to-skill dependencies (domain/range `oc:Skill`)
+- **9 optional metadata properties** — `category`, `version`, `license`, `vendor`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in ontology, SHACL shapes, Pydantic models, and serialization
+- **Multi-level install resolution** — `ontoskills install` supports vendor-level, package-level, and skill-level references via `resolve_install_ref()`
+- **Parallel compile workers** — Configurable retry mechanism and parallel LLM extraction workers
+- **Direct content injection** — Skip tool-use discovery phase, inject content directly to LLM
 - **`sentence-transformers` as required dependency** — Moved from optional to core `pyproject.toml` dependencies
+- **uv.lock** — Committed lockfile for reproducible builds
 
 ### Changed
 
 - **`generatedBy` made optional** — No longer required by SHACL validation; auto-filled when present
-- **Registry models consolidated** — Streamlined `models.py`, `resolve.py`, `storage.py`
-- **Install single skill** — Remote module download via HTTP for single-skill installs
+- **Serialization cleanup** — Stopped writing `version`/`license`/`vendor` to TTL (belongs in `package.json` manifest)
+- **CLI restructure** — Renamed `bin/` to `cli/`, consolidated JS tests into `cli/tests/`, removed root `tests/` directory
+- **Install single skill** — Remote module download via HTTP for single-skill installs from remote registries
 
 ### Fixed
 
-- **Compile error collector** — Cleared per invocation to prevent batch contamination
-- **Anti-hallucination rules** — Added to extraction prompts
-- **Serialization cleanup** — Stopped writing version/license/vendor to TTL (belongs in package.json)
+- **Compile error collector** — Cleared per invocation to prevent batch contamination across compilations
+- **Skill registry context** — Preserved during sub-skill extraction to maintain LLM context
+- **Anti-hallucination rules** — Added to extraction prompts for more reliable LLM output
+- **`ONTOSKILLS_TRUST_TIER` env var** — Missing `os` import for environment variable reading
 
 ## [0.10.0] - 2026-03-27
 
