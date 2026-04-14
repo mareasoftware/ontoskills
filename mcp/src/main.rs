@@ -59,6 +59,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             None
         };
 
+    // Wire trust tiers from catalog into embedding engine for hybrid scoring
+    if let Some(ref mut engine) = embedding_engine {
+        let tiers = catalog.trust_tier_map();
+        engine.set_trust_tiers(tiers);
+    }
+
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = BufReader::new(stdin.lock());

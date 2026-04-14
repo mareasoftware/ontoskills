@@ -900,6 +900,14 @@ impl Catalog {
         Ok(results)
     }
 
+    /// Build a map of skill ID → trust tier for hybrid scoring.
+    pub fn trust_tier_map(&self) -> HashMap<String, String> {
+        self.skill_index
+            .iter()
+            .map(|r| (r.id.clone(), r.trust_tier.clone()))
+            .collect()
+    }
+
     fn get_knowledge_nodes(
         &self,
         skill_id: &str,

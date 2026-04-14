@@ -8,6 +8,7 @@ use ndarray::{Array1, Array2};
 use ort::session::Session;
 use ort::value::TensorRef;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use tokenizers::Tokenizer;
 
@@ -33,10 +34,23 @@ struct IntentsFile {
 pub struct IntentMatch {
     /// The intent string (e.g., "create_pdf")
     pub intent: String,
-    /// Cosine similarity score
+    /// Hybrid score (cosine similarity * quality_multiplier)
     pub score: f32,
     /// Skills that resolve this intent
     pub skills: Vec<String>,
+}
+
+/// Quality multiplier based on trust tier.
+///
+/// Boosts higher-trust skills and dampens community contributions.
+fn quality_multiplier(trust_tier: &str) -> f32 {
+    match trust_tier {
+        "local" => 1.2,
+        "trusted" => 1.2,
+        "verified" => 1.0,
+        "community" => 0.8,
+        _ => 1.0,
+    }
 }
 
 /// Maximum query length in characters before safety truncation.
@@ -67,6 +81,7 @@ pub struct EmbeddingEngine {
     session: Session,
     tokenizer: Tokenizer,
     intents: Vec<(String, Array1<f32>, Vec<String>)>,
+    trust_tiers: HashMap<String, String>,
     dimension: usize,
     input_names: Vec<String>,
 }
@@ -164,9 +179,18 @@ impl EmbeddingEngine {
             session,
             tokenizer,
             intents,
+            trust_tiers: HashMap::new(),
             dimension,
             input_names,
         })
+    }
+
+    /// Set trust tier mapping for hybrid scoring.
+    ///
+    /// Maps skill IDs to their trust tier (e.g., "verified", "community").
+    /// Used by `search()` to apply quality multipliers to cosine similarity scores.
+    pub fn set_trust_tiers(&mut self, tiers: HashMap<String, String>) {
+        self.trust_tiers = tiers;
     }
 
     /// Tokenize a query string for ONNX inference.
@@ -355,12 +379,18 @@ impl EmbeddingEngine {
         // Get query embedding via ONNX inference
         let query_embedding = self.infer_embedding(&input_ids, &attention_mask)?;
 
-        // Compute cosine similarity with all intents
+        // Compute cosine similarity with all intents, applying hybrid scoring
         let mut scores: Vec<(f32, &str, &Vec<String>)> = self
             .intents
             .iter()
             .map(|(intent, emb, skills)| {
-                let score = Self::cosine_similarity(&query_embedding, emb);
+                let cosine = Self::cosine_similarity(&query_embedding, emb);
+                // Use the best multiplier among all skills for this intent
+                let multiplier = skills
+                    .iter()
+                    .map(|s| quality_multiplier(self.trust_tiers.get(s).map(|t| t.as_str()).unwrap_or("verified")))
+                    .fold(0.8f32, f32::max);
+                let score = cosine * multiplier;
                 (score, intent.as_str(), skills)
             })
             .collect();
@@ -742,5 +772,41 @@ mod tests {
     #[test]
     fn test_safety_truncate_empty_query() {
         assert_eq!(safety_truncate(""), "");
+    }
+
+    // Tests for quality_multiplier
+    #[test]
+    fn test_quality_multiplier_local() {
+        assert!((quality_multiplier("local") - 1.2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_multiplier_trusted() {
+        assert!((quality_multiplier("trusted") - 1.2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_multiplier_verified() {
+        assert!((quality_multiplier("verified") - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_multiplier_community() {
+        assert!((quality_multiplier("community") - 0.8).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_multiplier_unknown() {
+        assert!((quality_multiplier("unknown") - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_quality_multiplier_community_boosts_verified() {
+        // A verified skill with cosine 0.80 beats community with 0.90:
+        // verified:  0.80 * 1.0 = 0.80
+        // community: 0.90 * 0.8 = 0.72
+        let verified_score = 0.80 * quality_multiplier("verified");
+        let community_score = 0.90 * quality_multiplier("community");
+        assert!(verified_score > community_score);
     }
 }
