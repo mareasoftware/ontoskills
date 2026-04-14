@@ -851,6 +851,13 @@ impl Catalog {
     }
 
     pub fn resolve_alias(&self, alias: &str) -> Result<Vec<SkillSummary>, CatalogError> {
+        // Validate alias: only allow alphanumeric, dash, underscore, space
+        if !alias.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ' ') {
+            return Err(CatalogError::InvalidInput(
+                format!("Alias contains invalid characters: '{}'. Only alphanumeric, dash, underscore, and space are allowed.", alias)
+            ));
+        }
+
         let mut results = Vec::new();
         let escaped = alias
             .to_ascii_lowercase()

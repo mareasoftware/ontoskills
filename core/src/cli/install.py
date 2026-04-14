@@ -60,10 +60,10 @@ def import_source_repo_cmd(ctx, repo_ref, package_id, trust_tier, ontology_root_
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def install_cmd(ctx, package_ref, ontology_root_arg):
-    """Install packages or individual skills by reference.
+    """Install packages by reference.
 
     Supports vendor-level (anthropics), package-level (anthropics/financial-services-plugin),
-    skill-level (pbakaus/impeccable/harden), and short names (impeccable).
+    and short names (impeccable). Skill-level refs are not supported for remote registries.
     """
     from . import setup_logging
     setup_logging(ctx.obj.get('verbose', False), ctx.obj.get('quiet', False))
