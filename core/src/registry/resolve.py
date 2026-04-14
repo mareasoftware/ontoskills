@@ -103,12 +103,12 @@ def resolve_install_ref(
     if ref in package_map:
         return PackageTarget(package=package_map[ref])
 
-    # Step 2: Prefix match (vendor-level)
-    prefix = ref if ref.endswith("/") else ref + "/"
-    matching = [p for p in index.packages if p.package_id.startswith(prefix)]
-    if matching:
-        vendor = ref.split("/")[0]
-        return VendorTarget(vendor=vendor, packages=matching)
+    # Step 2: Prefix match (vendor-level, single-segment refs only)
+    if "/" not in ref:
+        prefix = ref + "/"
+        matching = [p for p in index.packages if p.package_id.startswith(prefix)]
+        if matching:
+            return VendorTarget(vendor=ref, packages=matching)
 
     # Step 3: Short name resolution
     candidates = [
