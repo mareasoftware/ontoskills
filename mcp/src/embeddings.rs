@@ -389,7 +389,7 @@ impl EmbeddingEngine {
                 let multiplier = skills
                     .iter()
                     .map(|s| quality_multiplier(self.trust_tiers.get(s).map(|t| t.as_str()).unwrap_or("verified")))
-                    .fold(0.8f32, f32::max);
+                    .fold(1.0f32, f32::max);
                 let score = cosine * multiplier;
                 (score, intent.as_str(), skills)
             })
