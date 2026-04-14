@@ -249,7 +249,7 @@ def _generate_manifests_from_disk(output_path: Path, ontology_root: Path) -> Non
                 "category": category,
                 "intents": intents,
                 "aliases": [],
-                "depends_on_skills": extends + depends,
+                "depends_on_skills": depends,
                 "default_enabled": True,
                 "modules": sorted(set(modules)),
                 "embedding_file": embedding_file,
