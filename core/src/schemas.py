@@ -161,9 +161,18 @@ class ExtractedSkill(BaseModel):
                 if default_author and parts[0] == default_author:
                     parts = parts[1:]
                 if len(parts) == 1:
+                    if not pattern.match(parts[0]):
+                        raise ValueError(
+                            f"Invalid skill relation '{value}'. Use canonical skill ids like 'office' or 'docx-review'."
+                        )
                     normalized.append(parts[0])
                 else:
-                    normalized.append(f"{parts[-2]}/{parts[-1]}")
+                    final = [parts[-2], parts[-1]]
+                    if not all(pattern.match(p) for p in final):
+                        raise ValueError(
+                            f"Invalid skill relation '{value}'. Use format 'author/skill-name'."
+                        )
+                    normalized.append(f"{final[0]}/{final[1]}")
         return normalized
 
     @field_validator('is_user_invocable', mode='before')
