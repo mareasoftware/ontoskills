@@ -288,7 +288,7 @@ const t = i18n[lang];
         // Use allSettled to handle partial failures gracefully
         const results = await Promise.allSettled(
           (indexData.packages || []).map(async (entry) => {
-            const manifestUrl = new URL(entry.manifest_path, storeIndexUrl).toString();
+            const manifestUrl = new URL(entry.manifest_path || entry.manifest_url, storeIndexUrl).toString();
             const response = await fetch(manifestUrl, {
               mode: 'cors',
               headers: { 'Accept': 'application/json' },

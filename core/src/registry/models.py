@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 TrustTier = Literal["verified", "trusted", "community", "local"]
 SourceKind = Literal["ontology", "source"]
@@ -79,6 +79,13 @@ class RegistryPackageEntry(BaseModel):
     manifest_path: str
     trust_tier: TrustTier | None = None
     source_kind: SourceKind = "ontology"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _alias_manifest_url(cls, data):
+        if isinstance(data, dict) and "manifest_path" not in data and "manifest_url" in data:
+            data["manifest_path"] = data.pop("manifest_url")
+        return data
 
 
 class EmbeddingModelInfo(BaseModel):

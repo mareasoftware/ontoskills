@@ -294,7 +294,7 @@ async function loadRegistryEntries() {
 }
 
 async function loadPackageManifest(entry) {
-  const manifestRef = resolveChildRef(entry.source.index_url, entry.package.manifest_path);
+  const manifestRef = resolveChildRef(entry.source.index_url, entry.package.manifest_path || entry.package.manifest_url);
   const manifest = JSON.parse(await readTextFromRef(manifestRef));
   return { manifestRef, manifest };
 }
