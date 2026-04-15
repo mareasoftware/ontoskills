@@ -135,7 +135,7 @@ This creates the global model artifacts (`model.onnx` + `tokenizer.json`) that t
 ### Install + merge (JS CLI)
 
 ```bash
-ontoskills install mareasw/office/xlsx
+ontoskills install obra/superpowers/test-driven-development
 ```
 
 The CLI:
@@ -146,7 +146,7 @@ The CLI:
 Opt out of embeddings with `--no-embeddings`:
 
 ```bash
-ontoskills install mareasw/office/xlsx --no-embeddings
+ontoskills install obra/superpowers/test-driven-development --no-embeddings
 ```
 
 ### MCP Tool: search (semantic mode)

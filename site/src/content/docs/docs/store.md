@@ -26,9 +26,9 @@ ontoskills install mareasw/greeting/hello
 
 Skills are automatically enabled on install.
 
-**Package ID format:** `owner/repo/skill`
+**Package ID format:** `author/package/skill`
 
-Example: `mareasw/office/xlsx`
+Example: `obra/superpowers/test-driven-development`
 
 ### Third-party stores
 
@@ -63,15 +63,15 @@ ontoskills import-source https://github.com/user/skill-repo
 ### Install
 
 ```bash
-ontoskills install mareasw/office/xlsx
+ontoskills install obra/superpowers/test-driven-development
 ```
 
 Downloads compiled `.ttl` from the store and places it in `~/.ontoskills/ontologies/`.
 
-To install without generating embeddings:
+To install without downloading embedding artifacts:
 
 ```bash
-ontoskills install mareasw/office/xlsx --no-embeddings
+ontoskills install obra/superpowers/test-driven-development --no-embeddings
 ```
 
 Install resolution supports three levels:
@@ -85,8 +85,8 @@ Install resolution supports three levels:
 ### Enable / Disable
 
 ```bash
-ontoskills disable mareasw/office/xlsx
-ontoskills enable mareasw/office/xlsx
+ontoskills disable obra/superpowers/test-driven-development
+ontoskills enable obra/superpowers/test-driven-development
 ```
 
 Skills are enabled by default on install. Use `disable` to hide a skill from OntoMCP without removing it. Use `enable` to re-enable.
@@ -94,7 +94,7 @@ Skills are enabled by default on install. Use `disable` to hide a skill from Ont
 ### Update
 
 ```bash
-ontoskills update mareasw/office/xlsx
+ontoskills update obra/superpowers/test-driven-development
 ```
 
 Fetches the latest version from the store.
@@ -102,7 +102,7 @@ Fetches the latest version from the store.
 ### Remove
 
 ```bash
-ontoskills remove mareasw/office/xlsx
+ontoskills remove obra/superpowers/test-driven-development
 ```
 
 Deletes the package from local storage.
@@ -166,9 +166,9 @@ Stores serve a static `index.json`:
 {
   "packages": [
     {
-      "package_id": "mareasw/office",
-      "manifest_url": "./packages/mareasw/office/package.json",
-      "trust_tier": "verified"
+      "package_id": "obra/superpowers",
+      "manifest_path": "packages/obra/superpowers/package.json",
+      "trust_tier": "official"
     }
   ]
 }
@@ -189,7 +189,7 @@ Stores serve a static `index.json`:
 If a skill was disabled, re-enable it:
 
 ```bash
-ontoskills enable mareasw/office/xlsx
+ontoskills enable obra/superpowers/test-driven-development
 ontoskills rebuild-index
 ```
 

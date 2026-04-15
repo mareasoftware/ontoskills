@@ -96,11 +96,11 @@ Search skills by semantic query, alias, or structured filters. The tool dispatch
   "skills": [
     {
       "id": "pdf",
-      "qualified_id": "mareasw/office/pdf",
-      "nature": "A skill that creates PDF documents",
-      "intents": ["create_pdf", "export_pdf"],
-      "requires_state": ["oc:ContentReady"],
-      "yields_state": ["oc:PdfGenerated"]
+      "qualified_id": "obra/superpowers/test-driven-development",
+      "nature": "A skill for test-driven development",
+      "intents": ["write tests first", "practice TDD"],
+      "requires_state": ["oc:CodeReady"],
+      "yields_state": ["oc:TestsPassing"]
     }
   ],
   "total": 1
@@ -130,12 +130,12 @@ Search skills by semantic query, alias, or structured filters. The tool dispatch
     {
       "intent": "create_pdf",
       "score": 0.92,
-      "skills": ["mareasw/office/pdf", "mareasw/documents/pdf-generator"]
+      "skills": ["obra/superpowers/test-driven-development", "obra/superpowers/systematic-debugging"]
     },
     {
       "intent": "export_to_pdf",
       "score": 0.85,
-      "skills": ["mareasw/office/export"]
+      "skills": ["obra/superpowers/dispatching-parallel-agents"]
     }
   ]
 }
@@ -164,10 +164,10 @@ Results use **hybrid scoring** (cosine similarity x trust-tier quality multiplie
   "alias": "pdf",
   "skills": [
     {
-      "id": "pdf",
-      "qualified_id": "mareasw/office/pdf",
-      "nature": "A skill that creates PDF documents",
-      "intents": ["create_pdf", "export_pdf"]
+      "id": "test-driven-development",
+      "qualified_id": "obra/superpowers/test-driven-development",
+      "nature": "A skill for test-driven development",
+      "intents": ["write tests first", "practice TDD"]
     }
   ]
 }
@@ -188,21 +188,21 @@ Fetch the full execution context for a skill, including requirements, transition
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `skill_id` | string | **Required.** Short id (`pdf`) or qualified (`mareasw/office/pdf`) |
+| `skill_id` | string | **Required.** Short id (`test-driven-development`) or qualified (`obra/superpowers/test-driven-development`) |
 | `include_inherited_knowledge` | boolean | Include knowledge from extended skills (default true) |
 
 **Example response:**
 
 ```json
 {
-  "id": "pdf",
-  "qualified_id": "mareasw/office/pdf",
-  "nature": "A skill that creates PDF documents from content",
-  "genus": "DocumentGenerator",
-  "differentia": "outputs PDF format",
-  "intents": ["create_pdf", "export_pdf"],
-  "requires_state": ["oc:ContentReady"],
-  "yields_state": ["oc:PdfGenerated"],
+  "id": "test-driven-development",
+  "qualified_id": "obra/superpowers/test-driven-development",
+  "nature": "A skill for test-driven development",
+  "genus": "Development",
+  "differentia": "writes tests first",
+  "intents": ["write tests first", "practice TDD"],
+  "requires_state": ["oc:CodeReady"],
+  "yields_state": ["oc:TestsPassing"],
   "handles_failure": ["oc:PdfGenerationFailed"],
   "requirements": [
     {"type": "Tool", "value": "wkhtmltopdf", "optional": false}
@@ -411,7 +411,7 @@ ontoskills compile
 The semantic search mode requires pre-computed embeddings. Install skills that include embedding support:
 
 ```bash
-ontoskills install mareasw/office/xlsx
+ontoskills install obra/superpowers/test-driven-development
 ```
 
 If embeddings are still not found after installing, rebuild:

@@ -33,16 +33,16 @@ OntoStore installs use qualified ids:
 Examples:
 
 - `mareasw/greeting/hello`
-- `mareasw/office/xlsx`
-- `mareasw/office/docx`
+- `obra/superpowers/test-driven-development`
+- `obra/superpowers/systematic-debugging`
 
 Install resolution supports three levels:
 
 | Level | Example | Behavior |
 |-------|---------|----------|
-| Full | `mareasw/greeting/hello` | Installs the exact skill |
-| Package | `mareasw/greeting` | Installs all skills in the package |
-| Skill name | `hello` | Resolves the best match across stores |
+| Full | `obra/superpowers/test-driven-development` | Installs the exact skill |
+| Package | `obra/superpowers` | Installs all skills in the package |
+| Skill name | `test-driven-development` | Resolves the best match across stores |
 
 ## Install flow
 

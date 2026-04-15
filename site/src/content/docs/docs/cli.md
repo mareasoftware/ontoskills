@@ -87,16 +87,16 @@ Install a skill from OntoStore.
 
 ```bash
 ontoskills install mareasw/greeting/hello
-ontoskills install mareasw/office/xlsx
+ontoskills install obra/superpowers/test-driven-development
 ```
 
 The package ID supports multi-level resolution:
 
 | Level | Example | Installs |
 |-------|---------|----------|
-| **Author** | `mareasw` | All packages from that author |
-| **Package** | `mareasw/office` | All skills in that package |
-| **Skill** | `mareasw/office/xlsx` | Single skill (with dependency check) |
+| **Author** | `anthropics` | All packages from that author |
+| **Package** | `obra/superpowers` | All skills in that package |
+| **Skill** | `obra/superpowers/test-driven-development` | Single skill (with dependency check) |
 
 | Flag | Meaning |
 |------|---------|
@@ -251,7 +251,7 @@ Update a component or skill.
 ```bash
 ontoskills update mcp
 ontoskills update core
-ontoskills update mareasw/office/xlsx
+ontoskills update obra/superpowers/test-driven-development
 ```
 
 ### `rebuild-index`
