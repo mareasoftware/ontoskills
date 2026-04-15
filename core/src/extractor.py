@@ -1,4 +1,5 @@
 import re
+import functools
 import hashlib
 import json
 import logging
@@ -102,9 +103,8 @@ def resolve_package_id(skill_dir: Path, input_path: Path | None = None) -> str:
     path_parts = segments[:-1]
 
     # Auto-detect: is input_path an author directory or a skills root?
-    # An author dir has direct child directories containing SKILL.md.
-    # A skills root has author subdirectories (no SKILL.md at depth 1).
-    if _is_author_dir(input_path):
+    # Cached per resolved path to avoid O(N * tree_size) filesystem scans.
+    if _is_author_dir_cached(str(input_path.resolve())):
         # input_path is an author dir (batch mode or explicit author path)
         # rel does NOT include the author — prepend it from input_path.name
         author = _normalize_package_id_segment(input_path.resolve().name)
@@ -117,6 +117,12 @@ def resolve_package_id(skill_dir: Path, input_path: Path | None = None) -> str:
             return "/".join(_normalize_package_id_segment(p) for p in path_parts)
         # Skill directly under root with no package structure — use fallback
         return os.environ.get('DEFAULT_SKILLS_AUTHOR', 'local')
+
+
+@functools.lru_cache(maxsize=32)
+def _is_author_dir_cached(resolved_path: str) -> bool:
+    """Cache wrapper for _is_author_dir keyed by resolved path string."""
+    return _is_author_dir(Path(resolved_path))
 
 
 def _is_author_dir(path: Path) -> bool:

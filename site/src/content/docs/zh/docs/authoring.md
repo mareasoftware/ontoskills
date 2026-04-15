@@ -449,14 +449,14 @@ ontoskills init-core
 ontoskills compile my-skill
 ```
 
-> **注意：** 嵌入生成是编译的**必需**步骤，需要 `sentence-transformers` 包。如果未安装，编译将失败。使用 `pip install sentence-transformers` 安装。
+> **注意：** 嵌入生成是可选的。安装 `pip install ontocore[embeddings]` 可在编译时生成语义搜索向量。未安装时编译正常完成，但跳过嵌入生成。
 
 ### 编译期间发生什么
 
 1. **解析**：从 markdown 提取结构
 2. **LLM 提取**：使用 Claude 识别知识节点
-3. **嵌入生成**：为语义搜索生成向量嵌入
-4. **SHACL 验证**：验证必需字段存在
+3. **SHACL 验证**：验证必需字段存在
+4. **嵌入生成**：为语义搜索生成向量嵌入（可选）
 5. **RDF 生成**：生成 `ontoskill.ttl`
 
 ### 常见验证错误
