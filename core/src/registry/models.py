@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-TrustTier = Literal["verified", "trusted", "community", "local"]
+TrustTier = Literal["verified", "official", "community", "local"]
 SourceKind = Literal["ontology", "source"]
 
 

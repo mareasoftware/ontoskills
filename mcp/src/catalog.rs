@@ -1805,9 +1805,9 @@ fn validate_skill_id(skill_id: &str) -> Result<(), CatalogError> {
 
 fn trust_rank(trust_tier: &str) -> usize {
     match trust_tier {
-        "local" => 0,
-        "verified" => 1,
-        "trusted" => 2,
+        "official" => 0,
+        "local" => 1,
+        "verified" => 2,
         "community" => 3,
         _ => 4,
     }

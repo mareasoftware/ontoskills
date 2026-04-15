@@ -45,8 +45,8 @@ pub struct IntentMatch {
 /// Boosts higher-trust skills and dampens community contributions.
 fn quality_multiplier(trust_tier: &str) -> f32 {
     match trust_tier {
-        "local" => 1.2,
-        "trusted" => 1.2,
+        "official" => 1.2,
+        "local" => 1.0,
         "verified" => 1.0,
         "community" => 0.8,
         _ => 1.0,
@@ -781,12 +781,12 @@ mod tests {
     // Tests for quality_multiplier
     #[test]
     fn test_quality_multiplier_local() {
-        assert!((quality_multiplier("local") - 1.2).abs() < 0.001);
+        assert!((quality_multiplier("local") - 1.0).abs() < 0.001);
     }
 
     #[test]
-    fn test_quality_multiplier_trusted() {
-        assert!((quality_multiplier("trusted") - 1.2).abs() < 0.001);
+    fn test_quality_multiplier_official() {
+        assert!((quality_multiplier("official") - 1.2).abs() < 0.001);
     }
 
     #[test]
@@ -805,7 +805,17 @@ mod tests {
     }
 
     #[test]
-    fn test_quality_multiplier_community_boosts_verified() {
+    fn test_quality_multiplier_official_beats_community() {
+        // An official skill with cosine 0.80 beats community with 0.90:
+        // official:  0.80 * 1.2 = 0.96
+        // community: 0.90 * 0.8 = 0.72
+        let official_score = 0.80 * quality_multiplier("official");
+        let community_score = 0.90 * quality_multiplier("community");
+        assert!(official_score > community_score);
+    }
+
+    #[test]
+    fn test_quality_multiplier_verified_beats_community() {
         // A verified skill with cosine 0.80 beats community with 0.90:
         // verified:  0.80 * 1.0 = 0.80
         // community: 0.90 * 0.8 = 0.72

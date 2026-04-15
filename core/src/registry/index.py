@@ -49,7 +49,7 @@ def _best_available_skill_id(
             if skill.skill_id == skill_id:
                 return preferred_package_id, skill
 
-    tier_rank = {"verified": 0, "trusted": 1, "community": 2, "local": 3}
+    tier_rank = {"official": 0, "local": 1, "verified": 2, "community": 3}
     candidates: list[tuple[int, str, InstalledSkillState]] = []
     for package_id, package in lock.packages.items():
         for skill in package.skills:

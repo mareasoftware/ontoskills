@@ -21,7 +21,7 @@ console = Console()
 
 @click.command('install-package')
 @click.argument('package_path', type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default=None)
+@click.option('--trust-tier', type=click.Choice(['official', 'verified', 'community']), default=None)
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def install_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
@@ -39,7 +39,7 @@ def install_package_cmd(ctx, package_path, trust_tier, ontology_root_arg):
 @click.command('import-source-repo')
 @click.argument('repo_ref')
 @click.option('--package-id', default=None, help='Override the inferred package id')
-@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
+@click.option('--trust-tier', type=click.Choice(['official', 'verified', 'community']), default='community')
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def import_source_repo_cmd(ctx, repo_ref, package_id, trust_tier, ontology_root_arg):

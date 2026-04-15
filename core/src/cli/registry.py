@@ -22,7 +22,7 @@ def registry_group():
 @registry_group.command('add-source')
 @click.argument('name')
 @click.argument('index_url')
-@click.option('--trust-tier', type=click.Choice(['verified', 'trusted', 'community']), default='community')
+@click.option('--trust-tier', type=click.Choice(['official', 'verified', 'community']), default='community')
 @click.option('-o', '--ontology-root', 'ontology_root_arg', default=None, type=click.Path(path_type=Path))
 @click.pass_context
 def registry_add_source_cmd(ctx, name, index_url, trust_tier, ontology_root_arg):
