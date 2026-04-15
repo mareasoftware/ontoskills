@@ -383,9 +383,11 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
 
-    # Reset per-invocation error collector (prevents cross-author contamination in batch)
-    with _errors_lock:
-        _compile_errors.clear()
+    # Reset error collector only for the outermost invocation.
+    # Per-author invocations in batch mode accumulate into the same list.
+    if batch:
+        with _errors_lock:
+            _compile_errors.clear()
 
     # Batch mode: discover author subdirectories and compile each one
     if batch:

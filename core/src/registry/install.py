@@ -489,7 +489,7 @@ def install_single_skill(
     root: Path | None = None,
     with_embeddings: bool = False,
 ) -> InstalledPackageState:
-    """Install a single skill (and its sub-skills) from a package.
+    """Install a single skill from a package.
 
     Copies the skill directory (ontoskill.ttl + sibling .ttl files + assets)
     and registers it as a partial package in the lock.
