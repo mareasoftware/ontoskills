@@ -93,6 +93,7 @@ pub struct SkillSummary {
     pub skill_type: SkillType,
     pub nature: String,
     pub intents: Vec<String>,
+    pub aliases: Vec<String>,
     pub requires_state: Vec<String>,
     pub yields_state: Vec<String>,
     pub category: Option<String>,
@@ -686,6 +687,7 @@ impl Catalog {
                 skill_type: details.skill_type,
                 nature: details.nature,
                 intents: details.intents,
+                aliases: details.aliases,
                 requires_state: details.requires_state,
                 yields_state: details.yields_state,
                 category,
@@ -720,6 +722,7 @@ impl Catalog {
                 skill_type: details.skill_type,
                 nature: details.nature,
                 intents: details.intents,
+                aliases: details.aliases,
                 requires_state: details.requires_state,
                 yields_state: details.yields_state,
                 category,
@@ -895,6 +898,7 @@ impl Catalog {
                         skill_type: skill.skill_type,
                         nature: skill.nature,
                         intents: skill.intents,
+                        aliases: skill.aliases,
                         requires_state: skill.requires_state,
                         yields_state: skill.yields_state,
                         category,
@@ -908,6 +912,7 @@ impl Catalog {
     }
 
     /// Build a map of skill ID → trust tier for hybrid scoring.
+    #[cfg(feature = "embeddings")]
     pub fn trust_tier_map(&self) -> HashMap<String, String> {
         self.skill_index
             .iter()
@@ -1140,6 +1145,7 @@ impl Catalog {
                 skill_type: details.skill_type,
                 nature: details.nature,
                 intents: details.intents,
+                aliases: details.aliases,
                 requires_state: details.requires_state,
                 yields_state: details.yields_state,
                 category,

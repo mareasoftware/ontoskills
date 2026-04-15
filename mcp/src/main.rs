@@ -1,4 +1,6 @@
 mod catalog;
+mod bm25_engine;
+#[cfg(feature = "embeddings")]
 mod embeddings;
 mod schema;
 
@@ -10,6 +12,8 @@ use catalog::{
     Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
     SkillType,
 };
+use bm25_engine::Bm25Engine;
+#[cfg(feature = "embeddings")]
 use embeddings::EmbeddingEngine;
 use schema::get_schema_resource;
 use serde::Deserialize;
@@ -39,10 +43,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ontology_root = parse_ontology_root();
     let catalog = Catalog::load(&ontology_root)?;
 
-    // Load embedding engine (optional - may not exist)
-    let embeddings_dir = ontology_root.join("system").join("embeddings");
+    // Build BM25 engine (always available — in-memory from Catalog data)
+    let bm25_engine = Bm25Engine::from_catalog(&catalog).unwrap_or_else(|e| {
+        eprintln!("[ontomcp] Warning: Failed to build BM25 engine: {}", e);
+        std::process::exit(1);
+    });
+    eprintln!("[ontomcp] BM25 search engine ready");
+
+    // Load embedding engine (optional - requires feature flag + embedding files)
+    #[cfg(feature = "embeddings")]
     let mut embedding_engine: Option<EmbeddingEngine> =
-        if embeddings_dir.exists() {
+        if ontology_root.join("system").join("embeddings").exists() {
+            let embeddings_dir = ontology_root.join("system").join("embeddings");
             match EmbeddingEngine::load(&embeddings_dir) {
                 Ok(engine) => {
                     eprintln!("[ontomcp] Loaded embedding engine with {} intents",
@@ -55,11 +67,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         } else {
-            eprintln!("[ontomcp] No embeddings found at {:?}", embeddings_dir);
+            eprintln!("[ontomcp] No embeddings found — using BM25 only");
             None
         };
 
+    #[cfg(not(feature = "embeddings"))]
+    let mut embedding_engine: Option<()> = None;
+
     // Wire trust tiers from catalog into embedding engine for hybrid scoring
+    #[cfg(feature = "embeddings")]
     if let Some(ref mut engine) = embedding_engine {
         let tiers = catalog.trust_tier_map();
         engine.set_trust_tiers(tiers);
@@ -231,7 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "tools/call" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let result = handle_tool_call(&catalog, embedding_engine.as_mut(), request.params.unwrap_or(Value::Null));
+                let result = handle_tool_call(&catalog, &bm25_engine, embedding_engine.as_mut(), request.params.unwrap_or(Value::Null));
                 match result {
                     Ok(result) => respond_ok(&mut writer, wire_mode, request.id, result)?,
                     Err(err) => respond_error(&mut writer, wire_mode, request.id, -32602, &err)?,
@@ -388,7 +404,9 @@ fn ensure_initialized(
 
 fn handle_tool_call(
     catalog: &Catalog,
-    embedding_engine: Option<&mut EmbeddingEngine>,
+    bm25_engine: &Bm25Engine,
+    #[cfg(feature = "embeddings")] embedding_engine: Option<&mut EmbeddingEngine>,
+    #[cfg(not(feature = "embeddings"))] _embedding_engine: Option<&mut ()>,
     params: Value,
 ) -> Result<Value, String> {
     let tool_name = params
@@ -403,7 +421,7 @@ fn handle_tool_call(
     let structured = match tool_name {
         "search" => {
             // Dispatch based on which parameters are provided:
-            // - query → semantic intent search (requires embeddings)
+            // - query → semantic search if embeddings available, otherwise BM25
             // - alias → alias resolution
             // - otherwise → structured skill search
             // query and alias are mutually exclusive.
@@ -415,8 +433,6 @@ fn handle_tool_call(
             }
 
             if has_query {
-                let engine = embedding_engine
-                    .ok_or_else(|| "Semantic search requires embeddings. Install skills with embedding support.".to_string())?;
                 let query = arguments
                     .get("query")
                     .and_then(Value::as_str)
@@ -425,16 +441,39 @@ fn handle_tool_call(
                     .get("top_k")
                     .and_then(Value::as_u64)
                     .unwrap_or(5) as usize;
-                let matches = engine
-                    .search(query, top_k)
-                    .map_err(|e| format!("Search failed: {}", e))?;
+
+                // Prefer semantic search when embeddings are available
+                #[cfg(feature = "embeddings")]
+                if let Some(engine) = embedding_engine {
+                    let matches = engine
+                        .search(query, top_k)
+                        .map_err(|e| format!("Search failed: {}", e))?;
+                    if !matches.is_empty() {
+                        return Ok(json!({
+                            "mode": "semantic",
+                            "query": query,
+                            "matches": matches.iter().map(|m| json!({
+                                "intent": m.intent,
+                                "score": m.score,
+                                "skills": m.skills
+                            })).collect::<Vec<_>>()
+                        }));
+                    }
+                }
+
+                // Fallback: BM25 keyword search (always available)
+                let bm25_results = bm25_engine.search(query, top_k);
                 json!({
-                    "mode": "semantic",
+                    "mode": "bm25",
                     "query": query,
-                    "matches": matches.iter().map(|m| json!({
-                        "intent": m.intent,
+                    "results": bm25_results.iter().map(|m| json!({
+                        "skill_id": m.skill_id,
+                        "qualified_id": m.qualified_id,
                         "score": m.score,
-                        "skills": m.skills
+                        "matched_by": m.matched_by,
+                        "intents": m.intents,
+                        "aliases": m.aliases,
+                        "trust_tier": m.trust_tier
                     })).collect::<Vec<_>>()
                 })
             } else if has_alias {
@@ -681,7 +720,7 @@ fn tool_definitions() -> Vec<Value> {
     vec![
         tool(
             "search",
-            "Search skills by semantic query, alias, or structured filters. If 'query' is provided, performs semantic intent search (requires embeddings). If 'alias' is provided, resolves the alias to matching skills. Otherwise, filters skills by intent, state, type, category, and user-invocability.",
+            "Search skills by keyword query, alias, or structured filters. If 'query' is provided, uses semantic search when embeddings are available, otherwise falls back to BM25 keyword search. If 'alias' is provided, resolves the alias to matching skills. Otherwise, filters skills by intent, state, type, category, and user-invocability.",
             json!({
                 "type": "object",
                 "properties": {
