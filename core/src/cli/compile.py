@@ -485,19 +485,19 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
 
     logger.info(f"Core skills: {len(skill_md_files)}, Auxiliary md: {len(auxiliary_md_files)}, Assets: {len(asset_files)}")
 
-    # MANDATORY: load embedding model for per-skill embedding generation
+    # OPTIONAL: load embedding model for per-skill embedding generation
+    # Requires ontocore[embeddings] — skipped gracefully if not installed
     embedding_model = None
     if skill_md_files:
         try:
             from sentence_transformers import SentenceTransformer
+            console.print("[blue]Loading embedding model for semantic search...[/blue]")
+            embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         except ImportError:
             console.print(
-                "[red]Embedding generation requires sentence_transformers.[/red]\n"
-                "[red]Install with:[/] [bold]pip install sentence-transformers[/bold]"
+                "[yellow]Skipping embedding generation[/yellow] "
+                "(install with [bold]pip install ontocore[embeddings][/bold] to enable)"
             )
-            raise SystemExit(1)
-        console.print("[blue]Loading embedding model for semantic search...[/blue]")
-        embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     # VALIDATION: Sub-skills require parent SKILL.md
     # Group files by directory and check each
@@ -645,7 +645,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         compiled, output_skill_path, output_path,
                         qualified_id=qualified_id
                     )
-                    # Generate per-skill embeddings (mandatory)
+                    # Generate per-skill embeddings (optional)
                     if embedding_model is not None:
                         from compiler.embeddings.exporter import export_skill_embeddings
                         emb_path = export_skill_embeddings(output_skill_path, embedding_model)
@@ -742,7 +742,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         extends_parent=parent_local_id,
                         extends_parent_qualified=parent_qualified_id,
                     )
-                    # Generate per-skill embeddings (mandatory)
+                    # Generate per-skill embeddings (optional)
                     if embedding_model is not None:
                         from compiler.embeddings.exporter import export_skill_embeddings
                         emb_path = export_skill_embeddings(output_ttl_path, embedding_model)

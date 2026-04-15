@@ -22,8 +22,6 @@ dependencies = [
     "owlrl>=1.0.0",
     "pyshacl>=0.25.0",
     "pyyaml>=6.0",
-    # Mandatory: per-skill embedding generation at compile time
-    "sentence-transformers>=2.2.0",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +33,8 @@ dev = [
     "mypy>=1.0.0",
 ]
 embeddings = [
-    # Required for ONNX model export (ontocore export-embeddings)
+    # Per-skill embedding generation at compile time + ONNX export
+    "sentence-transformers>=2.2.0",
     "optimum>=1.12.0",
     "onnx>=1.15.0",
     "onnxruntime>=1.16.0",
