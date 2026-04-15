@@ -122,16 +122,14 @@ class ExtractedSkill(BaseModel):
     def validate_skill_relation_ids(cls, values: list[str]) -> list[str]:
         """Validate and normalize relation targets.
 
-        Accepts: bare skill ids ("office"), qualified ("author/skill"),
-        over-qualified ("default/author/skill"), or URIs.
-        Strips default author prefix from over-qualified IDs only.
-        Does NOT add default author — that belongs in serialization/manifest layer.
+        Accepts: bare skill ids ("office"), qualified ("author/package/skill"),
+        or URIs. All non-URI references are normalized to the bare skill ID
+        (last segment), which is what the serialization layer expects for
+        building correct oc:skill_ URIs.
         """
         import re
-        import os
 
         pattern = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
-        default_author = os.environ.get('DEFAULT_SKILLS_AUTHOR', '')
         normalized = []
         for value in values:
             candidate = value.strip()
@@ -141,39 +139,14 @@ class ExtractedSkill(BaseModel):
                 normalized.append(candidate)
                 continue
             parts = candidate.split('/')
-            if len(parts) == 1:
-                # Bare skill name → validate and keep as-is
-                if not pattern.match(parts[0]):
+            # Validate all segments look like valid identifiers
+            for part in parts:
+                if not pattern.match(part):
                     raise ValueError(
                         f"Invalid skill relation '{value}'. Use canonical skill ids like 'office' or 'docx-review'."
                     )
-                normalized.append(parts[0])
-            elif len(parts) == 2:
-                # author/skill → validate both segments, keep as-is
-                if not all(pattern.match(p) for p in parts):
-                    raise ValueError(
-                        f"Invalid skill relation '{value}'. Use format 'author/skill-name'."
-                    )
-                normalized.append(f"{parts[0]}/{parts[1]}")
-            else:
-                # 3+ segments: normalize to package/skill format.
-                # If default author matches, strip it (obra/superpowers/tdd → superpowers/tdd).
-                # Otherwise take last two segments as package/skill.
-                if default_author and parts[0] == default_author:
-                    parts = parts[1:]
-                if len(parts) == 1:
-                    if not pattern.match(parts[0]):
-                        raise ValueError(
-                            f"Invalid skill relation '{value}'. Use canonical skill ids like 'office' or 'docx-review'."
-                        )
-                    normalized.append(parts[0])
-                else:
-                    final = [parts[-2], parts[-1]]
-                    if not all(pattern.match(p) for p in final):
-                        raise ValueError(
-                            f"Invalid skill relation '{value}'. Use format 'author/skill-name'."
-                        )
-                    normalized.append(f"{final[0]}/{final[1]}")
+            # Always normalize to bare skill ID (last segment)
+            normalized.append(parts[-1])
         return normalized
 
     @field_validator('is_user_invocable', mode='before')
