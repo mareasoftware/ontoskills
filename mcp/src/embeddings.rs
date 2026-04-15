@@ -31,6 +31,12 @@ struct IntentsFile {
     intents: Vec<IntentEntry>,
 }
 
+/// Parsed intents from a single file.
+struct LoadedIntents {
+    dimension: usize,
+    intents: Vec<(String, Array1<f32>, Vec<String>)>,
+}
+
 /// Search result for intent matching.
 #[derive(Debug, Serialize, Clone)]
 pub struct IntentMatch {
@@ -76,14 +82,16 @@ pub struct EmbeddingEngine {
 }
 
 impl EmbeddingEngine {
-    /// Load engine from embedding directory.
+    /// Load engine from embedding directory and scan ontology tree for per-skill intents.
     ///
     /// # Arguments
-    /// * `embeddings_dir` - Directory containing model.onnx, tokenizer.json, and intents.json
+    /// * `embeddings_dir` - Directory containing model.onnx and tokenizer.json
+    /// * `ontology_root` - Root of installed ontology tree to scan for per-skill intents.json
     ///
     /// # Errors
-    /// Returns error if any required file is missing or invalid.
-    pub fn load(embeddings_dir: &Path) -> Result<Self> {
+    /// Returns error if model or tokenizer is missing/invalid.
+    /// Missing intents files are not fatal — engine loads with zero intents.
+    pub fn load(embeddings_dir: &Path, ontology_root: &Path) -> Result<Self> {
         // Load ONNX model
         let model_path = embeddings_dir.join("model.onnx");
         if !model_path.exists() {
@@ -137,31 +145,30 @@ impl EmbeddingEngine {
         let tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
 
-        // Load pre-computed intents
-        let intents_path = embeddings_dir.join("intents.json");
-        if !intents_path.exists() {
-            anyhow::bail!("Intents file not found at {:?}", intents_path);
+        // Scan ontology tree for per-skill intents.json files
+        let mut intents: Vec<(String, Array1<f32>, Vec<String>)> = Vec::new();
+        let mut dimension: usize = 0;
+
+        // 1. Load centralized intents.json if present (backward compat)
+        let centralized = embeddings_dir.join("intents.json");
+        if centralized.exists() {
+            if let Ok(loaded) = Self::load_intents_file(&centralized) {
+                dimension = loaded.dimension;
+                intents.extend(loaded.intents);
+            }
         }
 
-        let intents_file: IntentsFile =
-            serde_json::from_str(&std::fs::read_to_string(&intents_path)?)?;
-
-        let dimension = intents_file.dimension;
-        let mut intents: Vec<(String, Array1<f32>, Vec<String>)> = Vec::new();
-
-        for entry in intents_file.intents {
-            // Validate embedding dimension matches expected
-            if entry.embedding.len() != dimension {
-                anyhow::bail!(
-                    "Intent '{}' has embedding dimension {} but expected {}",
-                    entry.intent,
-                    entry.embedding.len(),
-                    dimension
-                );
+        // 2. Scan per-skill intents.json across ontology tree
+        if let Ok(entries) = std::fs::read_dir(ontology_root) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    Self::scan_intents_recursive(&entry.path(), &mut intents, &mut dimension);
+                }
             }
-            // Normalize embedding for cosine similarity (in case intents.json wasn't normalized)
-            let emb = normalize_embedding(&Array1::from_vec(entry.embedding));
-            intents.push((entry.intent, emb, entry.skills));
+        }
+
+        if intents.is_empty() {
+            eprintln!("Warning: No intent embeddings found — semantic search will return no results");
         }
 
         Ok(Self {
@@ -169,9 +176,59 @@ impl EmbeddingEngine {
             tokenizer,
             intents,
             trust_tiers: HashMap::new(),
-            dimension,
+            dimension: if dimension == 0 { 384 } else { dimension },
             input_names,
         })
+    }
+
+    /// Recursively scan a directory tree for intents.json files.
+    fn scan_intents_recursive(
+        dir: &Path,
+        intents: &mut Vec<(String, Array1<f32>, Vec<String>)>,
+        dimension: &mut usize,
+    ) {
+        // Skip system/embeddings directory (already loaded above)
+        if dir.ends_with("system") || dir.ends_with("embeddings") {
+            return;
+        }
+
+        let intents_path = dir.join("intents.json");
+        if intents_path.exists() {
+            if let Ok(loaded) = Self::load_intents_file(&intents_path) {
+                if *dimension == 0 {
+                    *dimension = loaded.dimension;
+                }
+                intents.extend(loaded.intents);
+            }
+        }
+
+        // Recurse into subdirectories
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() && !path.ends_with("system") && !path.ends_with("embeddings") {
+                    Self::scan_intents_recursive(&path, intents, dimension);
+                }
+            }
+        }
+    }
+
+    /// Load an intents.json file and return parsed entries.
+    fn load_intents_file(path: &Path) -> Result<LoadedIntents> {
+        let content = std::fs::read_to_string(path)?;
+        let file: IntentsFile = serde_json::from_str(&content)?;
+        let dimension = file.dimension;
+        let mut entries = Vec::new();
+
+        for entry in file.intents {
+            if entry.embedding.len() != dimension {
+                continue; // Skip mismatched dimensions
+            }
+            let emb = normalize_embedding(&Array1::from_vec(entry.embedding));
+            entries.push((entry.intent, emb, entry.skills));
+        }
+
+        Ok(LoadedIntents { dimension, intents: entries })
     }
 
     /// Set trust tier mapping for hybrid scoring.

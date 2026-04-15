@@ -50,12 +50,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     eprintln!("[ontomcp] BM25 search engine ready");
 
-    // Load embedding engine (optional - requires feature flag + embedding files)
+    // Load embedding engine (optional - requires feature flag + model files)
     #[cfg(feature = "embeddings")]
-    let mut embedding_engine: Option<EmbeddingEngine> =
-        if ontology_root.join("system").join("embeddings").exists() {
-            let embeddings_dir = ontology_root.join("system").join("embeddings");
-            match EmbeddingEngine::load(&embeddings_dir) {
+    let mut embedding_engine: Option<EmbeddingEngine> = {
+        let embeddings_dir = ontology_root.join("system").join("embeddings");
+        if embeddings_dir.join("model.onnx").exists() {
+            match EmbeddingEngine::load(&embeddings_dir, ontology_root) {
                 Ok(engine) => {
                     eprintln!("[ontomcp] Loaded embedding engine with {} intents",
                         engine.intent_count());
@@ -67,9 +67,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         } else {
-            eprintln!("[ontomcp] No embeddings found — using BM25 only");
+            eprintln!("[ontomcp] No embedding model found — using BM25 only");
             None
-        };
+        }
+    };
 
     #[cfg(not(feature = "embeddings"))]
     let mut embedding_engine: Option<()> = None;
