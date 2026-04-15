@@ -133,6 +133,13 @@ oc:SkillShape
         sh:datatype xsd:string ;
         sh:message "hasAlias values must be strings" ;
     ] ;
+
+    # Skill-to-skill dependency (replaces ambiguous dependsOn)
+    sh:property [
+        sh:path oc:dependsOnSkill ;
+        sh:class oc:Skill ;
+        sh:message "dependsOnSkill must point to a Skill" ;
+    ] ;
     .
 
 # ============================================================================

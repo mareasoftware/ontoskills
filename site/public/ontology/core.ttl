@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-03-27T13:07:55.439739" ;
+    dcterms:created "2026-04-15T17:26:56.646830" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 
@@ -211,6 +211,12 @@ oc:dependsOn a owl:AsymmetricProperty,
     rdfs:range oc:Skill ;
     owl:inverseOf oc:enables .
 
+oc:dependsOnSkill a owl:ObjectProperty ;
+    rdfs:label "depends on skill" ;
+    rdfs:comment "Declares a dependency on another skill (skill-to-skill prerequisite)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range oc:Skill .
+
 oc:differentia a owl:DatatypeProperty ;
     rdfs:label "differentia" ;
     rdfs:comment "Specific characteristics that differentiate this skill" ;
@@ -276,6 +282,36 @@ oc:handlesFailure a owl:ObjectProperty ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:State .
 
+oc:hasAlias a owl:DatatypeProperty ;
+    rdfs:label "has alias" ;
+    rdfs:comment "Alias name (repeatable — one triple per alias)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
+oc:hasAllowedTool a owl:DatatypeProperty ;
+    rdfs:label "has allowed tool" ;
+    rdfs:comment "Allowed tool (repeatable — one triple per tool)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
+oc:hasArgumentHint a owl:DatatypeProperty ;
+    rdfs:label "has argument hint" ;
+    rdfs:comment "Argument hint string (e.g., repo-url, query)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
+oc:hasAuthor a owl:DatatypeProperty ;
+    rdfs:label "has author" ;
+    rdfs:comment "Author/source name (e.g., anthropics, claude-office-skills)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
+oc:hasCategory a owl:DatatypeProperty ;
+    rdfs:label "has category" ;
+    rdfs:comment "Skill category (e.g., automation, document, marketing)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
 oc:hasConstraint a owl:DatatypeProperty ;
     rdfs:label "has constraint" ;
     rdfs:comment "Constraints or limitations on skill execution" ;
@@ -298,68 +334,20 @@ oc:hasExecutableScript a owl:ObjectProperty ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:ExecutableScript .
 
-oc:hasName a owl:DatatypeProperty ;
-    rdfs:label "has name" ;
-    rdfs:comment "Name from frontmatter" ;
-    rdfs:domain oc:Skill .
-
-oc:dependsOnSkill a owl:ObjectProperty ;
-    rdfs:label "depends on skill" ;
-    rdfs:comment "Declares a dependency on another skill (skill-to-skill prerequisite)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range oc:Skill .
-
-oc:hasCategory a owl:DatatypeProperty ;
-    rdfs:label "has category" ;
-    rdfs:comment "Skill category (e.g., automation, document, marketing)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
-
-oc:hasVersion a owl:DatatypeProperty ;
-    rdfs:label "has version" ;
-    rdfs:comment "Skill version string" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
-
 oc:hasLicense a owl:DatatypeProperty ;
     rdfs:label "has license" ;
     rdfs:comment "License identifier (e.g., MIT, Apache-2.0)" ;
     rdfs:domain oc:Skill ;
     rdfs:range xsd:string .
 
-oc:hasAuthor a owl:DatatypeProperty ;
-    rdfs:label "has author" ;
-    rdfs:comment "Author/source name (e.g., anthropics, claude-office-skills)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
+oc:hasName a owl:DatatypeProperty ;
+    rdfs:label "has name" ;
+    rdfs:comment "Name from frontmatter" ;
+    rdfs:domain oc:Skill .
 
 oc:hasPackageName a owl:DatatypeProperty ;
     rdfs:label "has package name" ;
     rdfs:comment "Package ID this skill belongs to" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
-
-oc:isUserInvocable a owl:DatatypeProperty ;
-    rdfs:label "is user invocable" ;
-    rdfs:comment "Whether the skill is directly invocable by users" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:boolean .
-
-oc:hasArgumentHint a owl:DatatypeProperty ;
-    rdfs:label "has argument hint" ;
-    rdfs:comment "Argument hint string (e.g., repo-url, query)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
-
-oc:hasAllowedTool a owl:DatatypeProperty ;
-    rdfs:label "has allowed tool" ;
-    rdfs:comment "Allowed tool (repeatable — one triple per tool)" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range xsd:string .
-
-oc:hasAlias a owl:DatatypeProperty ;
-    rdfs:label "has alias" ;
-    rdfs:comment "Alias name (repeatable — one triple per alias)" ;
     rdfs:domain oc:Skill ;
     rdfs:range xsd:string .
 
@@ -402,6 +390,12 @@ oc:hasTag a owl:DatatypeProperty ;
     rdfs:comment "Tag for categorizing examples" ;
     rdfs:domain oc:Example .
 
+oc:hasVersion a owl:DatatypeProperty ;
+    rdfs:label "has version" ;
+    rdfs:comment "Skill version string" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:string .
+
 oc:hasWorkflow a owl:ObjectProperty ;
     rdfs:label "has workflow" ;
     rdfs:comment "Links a skill to a workflow" ;
@@ -416,6 +410,12 @@ oc:inputDescription a owl:DatatypeProperty ;
 oc:isOptional a owl:DatatypeProperty ;
     rdfs:label "is optional" ;
     rdfs:comment "Whether a requirement is optional or required" .
+
+oc:isUserInvocable a owl:DatatypeProperty ;
+    rdfs:label "is user invocable" ;
+    rdfs:comment "Whether the skill is directly invocable by users" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range xsd:boolean .
 
 oc:nature a owl:DatatypeProperty ;
     rdfs:label "nature" ;

@@ -367,6 +367,89 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
         "Constraints or limitations on skill execution"
     )))
 
+    # ========== Optional Metadata Properties ==========
+
+    # oc:hasCategory (DatatypeProperty)
+    g.add((oc.hasCategory, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasCategory, RDFS.domain, oc.Skill))
+    g.add((oc.hasCategory, RDFS.range, XSD.string))
+    g.add((oc.hasCategory, RDFS.label, Literal("has category")))
+    g.add((oc.hasCategory, RDFS.comment, Literal(
+        "Skill category (e.g., automation, document, marketing)"
+    )))
+
+    # oc:hasVersion (DatatypeProperty)
+    g.add((oc.hasVersion, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasVersion, RDFS.domain, oc.Skill))
+    g.add((oc.hasVersion, RDFS.range, XSD.string))
+    g.add((oc.hasVersion, RDFS.label, Literal("has version")))
+    g.add((oc.hasVersion, RDFS.comment, Literal(
+        "Skill version string"
+    )))
+
+    # oc:hasLicense (DatatypeProperty)
+    g.add((oc.hasLicense, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasLicense, RDFS.domain, oc.Skill))
+    g.add((oc.hasLicense, RDFS.range, XSD.string))
+    g.add((oc.hasLicense, RDFS.label, Literal("has license")))
+    g.add((oc.hasLicense, RDFS.comment, Literal(
+        "License identifier (e.g., MIT, Apache-2.0)"
+    )))
+
+    # oc:hasAuthor (DatatypeProperty)
+    g.add((oc.hasAuthor, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasAuthor, RDFS.domain, oc.Skill))
+    g.add((oc.hasAuthor, RDFS.range, XSD.string))
+    g.add((oc.hasAuthor, RDFS.label, Literal("has author")))
+    g.add((oc.hasAuthor, RDFS.comment, Literal(
+        "Author/source name (e.g., anthropics, claude-office-skills)"
+    )))
+
+    # oc:hasPackageName (DatatypeProperty)
+    g.add((oc.hasPackageName, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasPackageName, RDFS.domain, oc.Skill))
+    g.add((oc.hasPackageName, RDFS.range, XSD.string))
+    g.add((oc.hasPackageName, RDFS.label, Literal("has package name")))
+    g.add((oc.hasPackageName, RDFS.comment, Literal(
+        "Package ID this skill belongs to"
+    )))
+
+    # oc:isUserInvocable (DatatypeProperty)
+    g.add((oc.isUserInvocable, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.isUserInvocable, RDFS.domain, oc.Skill))
+    g.add((oc.isUserInvocable, RDFS.range, XSD.boolean))
+    g.add((oc.isUserInvocable, RDFS.label, Literal("is user invocable")))
+    g.add((oc.isUserInvocable, RDFS.comment, Literal(
+        "Whether the skill is directly invocable by users"
+    )))
+
+    # oc:hasArgumentHint (DatatypeProperty)
+    g.add((oc.hasArgumentHint, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasArgumentHint, RDFS.domain, oc.Skill))
+    g.add((oc.hasArgumentHint, RDFS.range, XSD.string))
+    g.add((oc.hasArgumentHint, RDFS.label, Literal("has argument hint")))
+    g.add((oc.hasArgumentHint, RDFS.comment, Literal(
+        "Argument hint string (e.g., repo-url, query)"
+    )))
+
+    # oc:hasAllowedTool (DatatypeProperty) — repeatable
+    g.add((oc.hasAllowedTool, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasAllowedTool, RDFS.domain, oc.Skill))
+    g.add((oc.hasAllowedTool, RDFS.range, XSD.string))
+    g.add((oc.hasAllowedTool, RDFS.label, Literal("has allowed tool")))
+    g.add((oc.hasAllowedTool, RDFS.comment, Literal(
+        "Allowed tool (repeatable — one triple per tool)"
+    )))
+
+    # oc:hasAlias (DatatypeProperty) — repeatable
+    g.add((oc.hasAlias, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.hasAlias, RDFS.domain, oc.Skill))
+    g.add((oc.hasAlias, RDFS.range, XSD.string))
+    g.add((oc.hasAlias, RDFS.label, Literal("has alias")))
+    g.add((oc.hasAlias, RDFS.comment, Literal(
+        "Alias name (repeatable — one triple per alias)"
+    )))
+
     # ========== Requirement Properties ==========
 
     # oc:hasRequirement (ObjectProperty)
@@ -403,6 +486,15 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
         "Skill depends on another skill (prerequisite)"
     )))
     g.add((oc.dependsOn, OWL.inverseOf, oc.enables))
+
+    # oc:dependsOnSkill (ObjectProperty) — unambiguous skill-to-skill dependency
+    g.add((oc.dependsOnSkill, RDF.type, OWL.ObjectProperty))
+    g.add((oc.dependsOnSkill, RDFS.domain, oc.Skill))
+    g.add((oc.dependsOnSkill, RDFS.range, oc.Skill))
+    g.add((oc.dependsOnSkill, RDFS.label, Literal("depends on skill")))
+    g.add((oc.dependsOnSkill, RDFS.comment, Literal(
+        "Declares a dependency on another skill (skill-to-skill prerequisite)"
+    )))
 
     # oc:enables (ObjectProperty) - inverse of dependsOn
     g.add((oc.enables, RDF.type, OWL.ObjectProperty))
