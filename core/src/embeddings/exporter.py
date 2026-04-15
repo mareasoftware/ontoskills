@@ -127,8 +127,9 @@ def export_embeddings(
             "intents": [],
         }
         intents_path = output_dir / "intents.json"
-        with open(intents_path, "w") as f:
-            json.dump(intents_data, f)
+        with open(intents_path, "w", encoding="utf-8") as f:
+            json.dump(intents_data, f, ensure_ascii=False)
+            f.write("\n")
         console.print(f"[green]Exported empty intent embeddings to[/] {intents_path}")
         return
 
@@ -153,8 +154,9 @@ def export_embeddings(
     }
 
     intents_path = output_dir / "intents.json"
-    with open(intents_path, "w") as f:
-        json.dump(intents_data, f)
+    with open(intents_path, "w", encoding="utf-8") as f:
+        json.dump(intents_data, f, ensure_ascii=False)
+        f.write("\n")
 
     console.print(f"[green]Exported[/] {len(unique_intents)} [green]intent embeddings to[/] {intents_path}")
 
@@ -226,7 +228,8 @@ def export_skill_embeddings(
 
     intents_path = output_dir / "intents.json"
     output_dir.mkdir(parents=True, exist_ok=True)
-    with open(intents_path, "w") as f:
-        json.dump(intents_data, f)
+    with open(intents_path, "w", encoding="utf-8") as f:
+        json.dump(intents_data, f, ensure_ascii=False)
+        f.write("\n")
 
     return intents_path
