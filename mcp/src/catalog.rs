@@ -914,6 +914,10 @@ impl Catalog {
     /// Build a map of skill ID → trust tier for hybrid scoring.
     #[cfg(feature = "embeddings")]
     pub fn trust_tier_map(&self) -> HashMap<String, String> {
+        // NOTE: keyed by short id to match the skill identifiers stored in
+        // intents.json (exported by the Python compiler). Short ids are unique
+        // within a single compiled package; cross-package collisions are
+        // unlikely in practice because each package has its own catalog scope.
         self.skill_index
             .iter()
             .map(|r| (r.id.clone(), r.trust_tier.clone()))

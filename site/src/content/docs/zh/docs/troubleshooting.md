@@ -163,10 +163,10 @@ ontoskills compile my-skill -v
 
 ### "Embedding generation requires sentence_transformers"
 
-编译器需要 `sentence-transformers` 进行每技能嵌入生成（必需）：
+嵌入生成是可选的。未安装 `sentence-transformers` 时编译器会跳过并显示警告。要启用语义搜索向量：
 
 ```bash
-pip install sentence-transformers
+pip install ontocore[embeddings]
 ```
 
 ### "Skill has no declared intents"

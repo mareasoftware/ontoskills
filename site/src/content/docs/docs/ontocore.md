@@ -48,7 +48,7 @@ SKILL.md → [Extract] → [Security] → [Serialize] → [SHACL] → [Embed] �
 | **Embed** | Generate per-skill intent embeddings (384-dim, L2-normalized) |
 | **Write** | Atomic write with backup |
 
-If any stage fails, the skill is **not written**. The SHACL gatekeeper enforces constitutional rules. The embedding stage requires `sentence-transformers` and at least one declared intent per skill.
+If any stage fails, the skill is **not written**. The SHACL gatekeeper enforces constitutional rules. The embedding stage is optional — install with `pip install ontocore[embeddings]` to generate per-skill semantic search vectors. When the extra is not installed, embedding generation is skipped with a warning.
 
 ---
 

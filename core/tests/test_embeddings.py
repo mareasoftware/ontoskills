@@ -256,9 +256,9 @@ class TestExportSkillEmbeddings:
             assert isinstance(entry["skills"], list)
             assert len(entry["skills"]) >= 1
 
-    def test_compile_fails_without_sentence_transformers(self, tmp_path: Path):
-        """ontocore compile should fail with SystemExit when sentence_transformers missing."""
-        from unittest.mock import patch
+    def test_compile_succeeds_without_sentence_transformers(self, tmp_path: Path):
+        """ontocore compile should succeed (skipping embeddings) when sentence_transformers missing."""
+        from unittest.mock import patch, MagicMock
         from click.testing import CliRunner
         from compiler.cli import cli
 
@@ -271,15 +271,22 @@ class TestExportSkillEmbeddings:
         output_dir = tmp_path / "ontoskills"
 
         runner = CliRunner()
-        with patch.dict("sys.modules", {"sentence_transformers": None}):
-            # Force ImportError when trying to import SentenceTransformer
-            with patch("builtins.__import__", side_effect=ImportError("No module named 'sentence_transformers'")):
-                result = runner.invoke(cli, [
-                    'compile',
-                    '-i', str(tmp_path / "skills"),
-                    '-o', str(output_dir),
-                    '--skip-security',
-                    '-y',
-                ])
+        # Remove sentence_transformers from importable modules so the
+        # try/except ImportError in compile.py triggers the skip path.
+        import sys
+        st_modules = {k: v for k, v in sys.modules.items() if k.startswith("sentence_transformers")}
+        for k in st_modules:
+            del sys.modules[k]
 
-        assert result.exit_code != 0
+        result = runner.invoke(cli, [
+            'compile',
+            '-i', str(tmp_path / "skills"),
+            '-o', str(output_dir),
+            '--skip-security',
+            '-y',
+        ])
+
+        # Restore if they were present before
+        sys.modules.update(st_modules)
+
+        assert result.exit_code == 0

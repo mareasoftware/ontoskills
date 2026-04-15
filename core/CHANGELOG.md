@@ -8,13 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings alongside `ontoskill.ttl`. Compilation fails if `sentence-transformers` is missing or a skill has zero declared intents
+- **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings alongside `ontoskill.ttl`. Requires `ontocore[embeddings]` extra; skipped with a warning when not installed
 - **`oc:dependsOnSkill`** — New ObjectProperty replacing `oc:dependsOn` for unambiguous skill-to-skill dependencies (domain/range `oc:Skill`)
 - **9 optional metadata properties** — `category`, `version`, `license`, `author`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in ontology, SHACL shapes, Pydantic models, and serialization
 - **Multi-level install resolution** — `ontoskills install` supports author-level, package-level, and skill-level references via `resolve_install_ref()`
 - **Parallel compile workers** — Configurable retry mechanism and parallel LLM extraction workers
 - **Direct content injection** — Skip tool-use discovery phase, inject content directly to LLM
-- **`sentence-transformers` as required dependency** — Moved from optional to core `pyproject.toml` dependencies
+- **`sentence-transformers` as optional dependency** — Available via `ontocore[embeddings]` extra in `pyproject.toml`; compilation succeeds without it
 - **uv.lock** — Committed lockfile for reproducible builds
 
 ### Changed

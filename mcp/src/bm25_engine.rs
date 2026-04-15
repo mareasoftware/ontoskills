@@ -46,7 +46,6 @@ pub struct Bm25Engine {
     engine: bm25::SearchEngine<String>,
     /// Skill metadata indexed by qualified_id for result enrichment.
     skills: HashMap<String, SkillSummary>,
-    trust_tiers: HashMap<String, String>,
 }
 
 impl Bm25Engine {
@@ -58,7 +57,6 @@ impl Bm25Engine {
         let skills = catalog.list_skills()?;
         let mut documents = Vec::with_capacity(skills.len());
         let mut skill_map = HashMap::new();
-        let mut trust_tiers = HashMap::new();
 
         for skill in &skills {
             // Build searchable contents: intents + aliases + nature
@@ -75,7 +73,6 @@ impl Bm25Engine {
             });
 
             skill_map.insert(skill.qualified_id.clone(), skill.clone());
-            trust_tiers.insert(skill.id.clone(), skill.trust_tier.clone());
         }
 
         let engine = if documents.is_empty() {
@@ -88,7 +85,6 @@ impl Bm25Engine {
         Ok(Self {
             engine,
             skills: skill_map,
-            trust_tiers,
         })
     }
 
@@ -103,12 +99,7 @@ impl Bm25Engine {
             .into_iter()
             .filter_map(|result| {
                 let skill = self.skills.get(&result.document.id)?;
-                let tier = self
-                    .trust_tiers
-                    .get(&skill.id)
-                    .map(|t| t.as_str())
-                    .unwrap_or("verified");
-                let multiplier = quality_multiplier(tier);
+                let multiplier = quality_multiplier(&skill.trust_tier);
                 let score = result.score * multiplier;
 
                 Some(Bm25Match {

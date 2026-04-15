@@ -163,10 +163,10 @@ Use this skill when the user wants to extract text from PDF files.
 
 ### "Embedding generation requires sentence_transformers"
 
-The compiler requires `sentence-transformers` for per-skill embedding generation (mandatory):
+Embedding generation is optional. The compiler skips it with a warning when `sentence-transformers` is not installed. To enable semantic search vectors:
 
 ```bash
-pip install sentence-transformers
+pip install ontocore[embeddings]
 ```
 
 ### "Skill has no declared intents"

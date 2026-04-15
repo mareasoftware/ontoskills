@@ -60,7 +60,7 @@ benchmark/
 
 | Task | OntoSkills | Traditional |
 |------|-----------|-------------|
-| Find skill by intent | SPARQL `search_skills` | LLM reads all files, answers |
+| Find skill by intent | SPARQL `search` | LLM reads all files, answers |
 | Get skill context | SPARQL `get_skill_context` | LLM reads all files, answers |
 | Plan execution | SPARQL `evaluate_execution_plan` | LLM reads all files, plans |
 | Check dependencies | SPARQL full scan | LLM reads all files, answers |

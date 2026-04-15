@@ -80,7 +80,7 @@ TASKS = [
     {
         "name": "skill_discovery",
         "question": "Which skills can create a PDF document? List only the skill names.",
-        "ontomcp_query": "search_skills (by intent)",
+        "ontomcp_query": "search (by intent)",
     },
     {
         "name": "context_retrieval",
@@ -95,6 +95,6 @@ TASKS = [
     {
         "name": "dependency_check",
         "question": "Does any skill depend on the output of another skill? List all dependencies you find.",
-        "ontomcp_query": "search_skills (all — scan)",
+        "ontomcp_query": "search (all — scan)",
     },
 ]
