@@ -74,7 +74,7 @@ ontoskills install mareasw/greeting/hello
 ✓ 已安装 mareasw/greeting/hello
 ```
 
-> **注意：** 安装支持多层级限定 ID：`author/package/skill`。例如 `obra/superpowers/test-driven-development` 表示 `mareasw` 作者、`office` 包、`xlsx` 技能。你可以使用 `ontoskills search <query>` 发现可用技能。
+> **注意：** 安装支持多层级限定 ID：`author/package/skill`。例如 `obra/superpowers/test-driven-development` 表示 `obra` 作者、`superpowers` 包、`test-driven-development` 技能。你可以使用 `ontoskills search <query>` 发现可用技能。
 
 ---
 

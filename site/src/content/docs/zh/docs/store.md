@@ -37,7 +37,7 @@ ontoskills install obra/superpowers/test-driven-development
 # 安装整个包中的所有技能
 ontoskills install obra/superpowers
 
-# 安装某供应商的所有包
+# 安装某作者的所有包
 ontoskills install mareasw
 ```
 

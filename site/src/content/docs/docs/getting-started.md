@@ -68,7 +68,7 @@ Install it (auto-enabled on install):
 ontoskills install mareasw/greeting/hello
 ```
 
-> **Note:** Install IDs are resolved at three levels: `owner/repo/skill`, `owner/repo`, or just `skill`. The CLI finds the best match automatically.
+> **Note:** Install IDs are resolved at three levels: `author/package/skill`, `author/package`, or just `skill`. The CLI finds the best match automatically.
 
 **Expected output:**
 ```
