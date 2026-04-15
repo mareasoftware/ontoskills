@@ -621,7 +621,7 @@ def generate_registry_index(
         }
         existing[pkg_entry["package_id"]] = pkg_data
 
-    registry["packages"] = list(existing.values())
+    registry["packages"] = sorted(existing.values(), key=lambda p: p["package_id"])
 
     # Always include embedding model declaration
     if "embedding_model" not in registry:
