@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Per-skill `intents.json` scanning** — Embedding engine scans the entire ontology tree for per-skill `intents.json` files instead of requiring a centralized file
+- **Backward-compatible centralized loading** — Still loads `system/embeddings/intents.json` if present, then merges per-skill files on top
 - **BM25 keyword search engine** — In-memory BM25 index built from Catalog data (intents, aliases, nature) at startup. Always available, no additional files on disk
 - **Hybrid search dispatch** — Semantic search is preferred when embeddings are available (ONNX). BM25 is used as fallback when embeddings are not installed or return no results
 - **Search response `mode` field** — Responses include `"mode": "bm25"` or `"mode": "semantic"` to indicate which engine produced the results
@@ -15,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Per-skill embedding architecture** — `EmbeddingEngine::load()` now takes `ontology_root` as second argument for tree-wide scanning
+- **Embedding initialization guard** — Checks for `model.onnx` instead of directory existence to avoid loading without model files
 - **BM25 is the default search** — The `search` tool with `query` parameter now uses BM25 by default instead of requiring ONNX embeddings
 - **Embeddings are optional** — `ort`, `tokenizers`, `ndarray` are behind `embeddings` feature flag in Cargo.toml. Default build has zero ML dependencies
 - **`sentence-transformers` is optional** — Moved from mandatory to `[project.optional-dependencies] embeddings` in OntoCore's pyproject.toml

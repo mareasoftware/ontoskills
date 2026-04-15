@@ -4,10 +4,36 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.11.0] - 2026-04-14
+## [0.11.0] - 2026-04-15
 
 ### Added
 
+- **`--with-embeddings` install flag** — `ontoskills install <ref> --with-embeddings` optionally downloads per-skill embedding files from remote registries for semantic search
+- **Per-skill embedding copy on local install** — `install_package_from_directory()` copies embedding files when `with_embeddings=True`
+- **Remote embedding download** — `install_package_from_manifest_ref()` downloads embedding files from registry URLs (non-fatal on failure)
+- **Structural author/root detection** — `_is_author_dir()` uses multi-child heuristic (2+ children with skills = root) instead of hardcoded names
+- **`lru_cache` on author detection** — `_is_author_dir_cached()` prevents O(N×tree_size) filesystem scans during batch compilation
+- **`ontostore/index.json` embedding_model section** — Registry index includes model name, dimension, and file references for embedding discovery
+
+### Changed
+
+- **Embeddings fully optional end-to-end** — Compile time (`ontocore[embeddings]`), install time (`--with-embeddings`), and MCP runtime (BM25 fallback) all treat embeddings as optional
+- **`ontostore/index.json` format** — Added `embedding_model` block with `model_name`, `dimension`, `model_file`, `tokenizer_file`
+
+### Fixed
+
+- **`effective_trier` typo** — Corrected variable name in `install_package_from_directory()`
+
+## [0.11.0] - 2026-04-15
+
+### Added
+
+- **`--with-embeddings` install flag** — `ontoskills install <ref> --with-embeddings` optionally downloads per-skill embedding files from remote registries for semantic search
+- **Per-skill embedding copy on local install** — `install_package_from_directory()` copies embedding files when `with_embeddings=True`
+- **Remote embedding download** — `install_package_from_manifest_ref()` downloads embedding files from registry URLs (non-fatal on failure)
+- **Structural author/root detection** — `_is_author_dir()` uses multi-child heuristic (2+ children with skills = root) instead of hardcoded names
+- **`lru_cache` on author detection** — `_is_author_dir_cached()` prevents O(N×tree_size) filesystem scans during batch compilation
+- **`ontostore/index.json` embedding_model section** — Registry index includes model name, dimension, and file references for embedding discovery
 - **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings alongside `ontoskill.ttl`. Requires `ontocore[embeddings]` extra; skipped with a warning when not installed
 - **`oc:dependsOnSkill`** — New ObjectProperty replacing `oc:dependsOn` for unambiguous skill-to-skill dependencies (domain/range `oc:Skill`)
 - **9 optional metadata properties** — `category`, `version`, `license`, `author`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in ontology, SHACL shapes, Pydantic models, and serialization
@@ -19,6 +45,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Embeddings fully optional end-to-end** — Compile time (`ontocore[embeddings]`), install time (`--with-embeddings`), and MCP runtime (BM25 fallback) all treat embeddings as optional
+- **`ontostore/index.json` format** — Added `embedding_model` block with `model_name`, `dimension`, `model_file`, `tokenizer_file`
 - **`generatedBy` made optional** — No longer required by SHACL validation; auto-filled when present
 - **Serialization cleanup** — Stopped writing `version`/`license`/`author` to TTL (belongs in `package.json` manifest)
 - **CLI restructure** — Renamed `bin/` to `cli/`, consolidated JS tests into `cli/tests/`, removed root `tests/` directory
@@ -28,6 +56,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`effective_trier` typo** — Corrected variable name in `install_package_from_directory()`
 - **Compile error collector** — Cleared per invocation to prevent batch contamination across compilations
 - **Skill registry context** — Preserved during sub-skill extraction to maintain LLM context
 - **Anti-hallucination rules** — Added to extraction prompts for more reliable LLM output
