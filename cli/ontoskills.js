@@ -94,19 +94,19 @@ async function main() {
   await ensureLayout();
 
   if (command === "install") {
-    const noEmbeddings = args.includes("--no-embeddings");
-    const filteredArgs = args.filter((a) => a !== "--no-embeddings");
+    const withEmbeddings = args.includes("--with-embeddings");
+    const filteredArgs = args.filter((a) => a !== "--with-embeddings");
     const target = filteredArgs[0];
     if (!target) fail("Missing install target");
     if (target === "mcp" || target === "ontomcp") return installMcpBootstrap(filteredArgs.slice(1));
     if (target === "core" || target === "ontocore") return installCore();
     if (target.includes("/")) {
       const segments = target.split("/").filter(Boolean);
-      if (segments.length === 2) return installPackage(target, { noEmbeddings });
-      return installSkill(target, { noEmbeddings });
+      if (segments.length === 2) return installPackage(target, { withEmbeddings });
+      return installSkill(target, { withEmbeddings });
     }
     // Single-segment target → smart resolution (author, short name, or ask)
-    return installSingleTarget(target, { noEmbeddings });
+    return installSingleTarget(target, { withEmbeddings });
   }
 
   if (command === "update") {

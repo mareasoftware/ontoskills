@@ -44,7 +44,7 @@ async function installSkill(qualifiedId, options = {}) {
   if (!qualifiedId.includes("/")) {
     fail("Install expects a qualified skill id like marea/office/xlsx");
   }
-  const noEmbeddings = options.noEmbeddings || false;
+  const withEmbeddings = options.withEmbeddings || false;
   const segments = qualifiedId.split("/");
   if (segments.length < 3) {
     fail(`Skill-level install requires a qualified id like author/package/skill, got: ${qualifiedId}`);
@@ -86,7 +86,7 @@ async function installSkill(qualifiedId, options = {}) {
     await copyRefToFile(sourceRef, path.join(installRoot, skill.path));
 
     // Download per-skill intents.json (embedding file)
-    if (!noEmbeddings && manifest.embedding_files) {
+    if (withEmbeddings && manifest.embedding_files) {
       const embeddingFile = manifest.embedding_files.find((f) => f.startsWith(skill.path.replace(/\/ontoskill\.ttl$/, "") + "/intents.json") || f === skill.path.replace(/\/ontoskill\.ttl$/, "/intents.json"));
       if (embeddingFile) {
         const embRef = resolveChildRefForInstall(manifestRef, embeddingFile);
@@ -97,7 +97,7 @@ async function installSkill(qualifiedId, options = {}) {
   await fsp.writeFile(path.join(installRoot, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
 
   // Download global embedding model files (once, cached)
-  if (!noEmbeddings) {
+  if (withEmbeddings) {
     await downloadEmbeddingModel(manifestRef);
   }
 
@@ -130,7 +130,7 @@ async function installSkill(qualifiedId, options = {}) {
   await rebuildIndexes();
 
   // Merge per-skill intents into global system/embeddings/intents.json
-  if (!noEmbeddings) {
+  if (withEmbeddings) {
     await mergeEmbeddings();
   }
 
@@ -142,7 +142,7 @@ async function installSingleTarget(target, options = {}) {
   // 1. Matches an author (prefix match) → install all author packages
   // 2. Matches a package by short name (unique) → install that package
   // 3. Ambiguous → ask user to disambiguate
-  const noEmbeddings = options.noEmbeddings || false;
+  const withEmbeddings = options.withEmbeddings || false;
   const entries = await loadRegistryEntries();
 
   const authorMatches = entries.filter((e) => e.package.package_id.startsWith(target + "/"));
@@ -162,7 +162,7 @@ async function installSingleTarget(target, options = {}) {
   if (authorMatches.length > 0 && shortNameMatches.length === 0) {
     for (const entry of authorMatches) {
       try {
-        await installPackage(entry.package.package_id, { noEmbeddings });
+        await installPackage(entry.package.package_id, { withEmbeddings });
       } catch (e) {
         warn(`Failed to install ${entry.package.package_id}: ${e.message || e}`);
       }
@@ -174,7 +174,7 @@ async function installSingleTarget(target, options = {}) {
   // If it matches as short name only (unique) → install that package
   if (shortNameMatches.length === 1 && authorMatches.length === 0) {
     const pkg = shortNameMatches[0].package.package_id;
-    await installPackage(pkg, { noEmbeddings });
+    await installPackage(pkg, { withEmbeddings });
     return;
   }
 
@@ -203,7 +203,7 @@ async function installSingleTarget(target, options = {}) {
 }
 
 async function installPackage(packageId, options = {}) {
-  const noEmbeddings = options.noEmbeddings || false;
+  const withEmbeddings = options.withEmbeddings || false;
   const entries = await loadRegistryEntries();
   const match = entries.find((e) => e.package.package_id === packageId);
   if (!match) {
@@ -222,7 +222,7 @@ async function installPackage(packageId, options = {}) {
   }
 
   // Download per-skill intents.json files
-  if (!noEmbeddings && manifest.embedding_files) {
+  if (withEmbeddings && manifest.embedding_files) {
     for (const ef of manifest.embedding_files) {
       const embRef = resolveChildRefForInstall(manifestRef, ef);
       await copyRefToFile(embRef, path.join(installRoot, ef));
@@ -232,7 +232,7 @@ async function installPackage(packageId, options = {}) {
   await fsp.writeFile(path.join(installRoot, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
 
   // Download global embedding model files (once, cached)
-  if (!noEmbeddings) {
+  if (withEmbeddings) {
     await downloadEmbeddingModel(manifestRef);
   }
 
