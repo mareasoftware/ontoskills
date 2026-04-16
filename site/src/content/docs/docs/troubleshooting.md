@@ -163,7 +163,7 @@ Use this skill when the user wants to extract text from PDF files.
 
 ### "Skipping embedding generation"
 
-Embedding generation is optional. The compiler skips it with a warning when `sentence-transformers` is not installed. To enable semantic search vectors:
+Embedding generation is optional. The compiler skips it with a warning when `ontocore[embeddings]` is not installed. To enable semantic search vectors:
 
 ```bash
 pip install ontocore[embeddings]

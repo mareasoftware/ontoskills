@@ -200,7 +200,7 @@ ontoskills rebuild-index
 
 ### "嵌入生成失败"
 
-如果 `sentence-transformers` 使用 ONNX Runtime 时出错，设置动态库路径：
+如果 `ontocore[embeddings]` 使用 ONNX Runtime 时出错，设置动态库路径：
 
 ```bash
 export ORT_DYLIB_PATH=/path/to/onnxruntime/libonnxruntime.so
