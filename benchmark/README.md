@@ -25,8 +25,6 @@ benchmark/
 ├── run.py                   # Main runner — orchestrates both benchmarks
 ├── config.py                # Model pricing, context limits, task definitions
 ├── compare.py               # Generate Markdown comparison report
-├── skills/
-│   └── generate.py          # Legacy synthetic generator (for testing infra)
 ├── ontomcp-bench/           # Rust SPARQL benchmark
 │   ├── Cargo.toml
 │   └── src/main.rs

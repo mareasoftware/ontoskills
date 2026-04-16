@@ -104,7 +104,7 @@ fn main() -> Result<()> {
     // oc:directiveContent, oc:resolvesIntent, etc.
     let queries: Vec<(&str, String)> = vec![
         (
-            "search_skills (by intent)",
+            "search (by intent)",
             format!(
                 r#"SELECT ?skill ?desc WHERE {{
                     ?skill a <{oc}Skill> .
@@ -114,7 +114,7 @@ fn main() -> Result<()> {
             ),
         ),
         (
-            "search_skills (by type)",
+            "search (by type)",
             format!(
                 r#"SELECT ?skill WHERE {{
                     ?skill a <{oc}Skill> .
@@ -153,7 +153,7 @@ fn main() -> Result<()> {
             ),
         ),
         (
-            "search_skills (all — scan)",
+            "search (all — scan)",
             format!(
                 r#"SELECT ?skill ?intent ?desc WHERE {{
                     ?skill a <{oc}Skill> .
