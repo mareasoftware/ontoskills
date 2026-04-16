@@ -1,0 +1,21 @@
+---
+import LandingLayout from '../../../layouts/LandingLayout.astro';
+import Header from '../../../components/landing/Header.astro';
+import Footer from '../../../components/landing/Footer.astro';
+import OntoStoreApp from '../../../components/store/OntoStoreApp.astro';
+
+export function getStaticPaths() {
+  return [{ params: { slug: '' } }];
+}
+---
+
+<LandingLayout
+  title="OntoStore — 浏览本体技能"
+  description="浏览已验证的本体技能。按意图搜索，复制安装命令，一行搞定。"
+>
+  <Header lang="zh" />
+  <main class="pt-8 pb-20">
+    <OntoStoreApp lang="zh" />
+  </main>
+  <Footer lang="zh" />
+</LandingLayout>

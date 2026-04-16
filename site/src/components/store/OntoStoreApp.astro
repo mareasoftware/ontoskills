@@ -1,0 +1,755 @@
+---
+import { OFFICIAL_STORE_INDEX_URL, OFFICIAL_STORE_REPO_URL } from '../../data/store';
+import { type Lang, defaultLang } from '../../i18n/translations';
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = defaultLang } = Astro.props;
+const rootId = `ontoskills-app-${lang}`;
+
+// Full i18n
+const i18n = {
+  en: {
+    searchPlaceholder: 'Search skills, intents, or descriptions...',
+    storeLabel: 'OntoStore',
+    loading: 'Loading store…',
+    viewRepo: 'View Repo',
+    connecting: 'Connecting to the official store…',
+    noDescription: 'No description available.',
+    official: 'official',
+    verified: 'verified',
+    community: 'community',
+    install: 'Install',
+    copyToClipboard: 'Copy to clipboard',
+    copied: 'Copied!',
+    unableToLoad: 'Unable to load store data.',
+    openStore: 'Open the official store',
+    showingResults: 'Showing results for',
+    allSkills: 'All published skills from the official registry.',
+    noMatch: 'No matching skills found',
+    trySearch: 'Try searching for: hello, xlsx, docx, or office',
+    skill_one: 'skill',
+    skill_other: 'skills',
+    retry: 'Retry',
+    allAuthors: 'All authors',
+    allCategories: 'All categories',
+    allTiers: 'All tiers',
+    author: 'Author',
+    category: 'Category',
+    trustTier: 'Trust',
+    sort: 'Sort',
+    sortAZ: 'A → Z',
+    sortZA: 'Z → A',
+    clearFilters: 'Clear all',
+    backToStore: 'Back to Store',
+    backToAuthor: 'Back to author',
+    backToPackage: 'Back to package',
+    packages: 'Packages',
+    skills: 'Skills',
+    intents: 'Intents',
+    dependencies: 'Dependencies',
+    fileTree: 'Files',
+    knowledgeGraph: 'Knowledge Graph',
+    comingSoon: 'Coming soon — 3D visualization of the skill knowledge graph',
+    noIntents: 'No intents declared.',
+    noDeps: 'No dependencies.',
+    files_one: 'file',
+    files_other: 'files',
+    authorPage: 'Author',
+    packagePage: 'Package',
+    skillPage: 'Skill Detail',
+    explore: 'Explore',
+    totalSkills: 'total skills',
+  },
+  zh: {
+    searchPlaceholder: '按技能、意图或描述搜索...',
+    storeLabel: 'OntoStore',
+    loading: '加载商店中…',
+    viewRepo: '查看仓库',
+    connecting: '正在连接官方商店…',
+    noDescription: '暂无描述。',
+    official: '官方',
+    verified: '已验证',
+    community: '社区',
+    install: '安装',
+    copyToClipboard: '复制到剪贴板',
+    copied: '已复制！',
+    unableToLoad: '无法加载商店数据。',
+    openStore: '打开官方商店',
+    showingResults: '显示搜索结果',
+    allSkills: '来自官方注册表的所有已发布技能。',
+    noMatch: '未找到匹配的技能',
+    trySearch: '尝试搜索: hello, xlsx, docx, 或 office',
+    skill_one: '个技能',
+    skill_other: '个技能',
+    retry: '重试',
+    allAuthors: '所有作者',
+    allCategories: '所有类别',
+    allTiers: '所有层级',
+    author: '作者',
+    category: '类别',
+    trustTier: '信任',
+    sort: '排序',
+    sortAZ: 'A → Z',
+    sortZA: 'Z → A',
+    clearFilters: '清除全部',
+    backToStore: '返回商店',
+    backToAuthor: '返回作者',
+    backToPackage: '返回包',
+    packages: '包',
+    skills: '技能',
+    intents: '意图',
+    dependencies: '依赖',
+    fileTree: '文件',
+    knowledgeGraph: '知识图谱',
+    comingSoon: '即将推出 — 技能知识图谱的 3D 可视化',
+    noIntents: '未声明意图。',
+    noDeps: '无依赖。',
+    files_one: '个文件',
+    files_other: '个文件',
+    authorPage: '作者',
+    packagePage: '包',
+    skillPage: '技能详情',
+    explore: '探索',
+    totalSkills: '个技能',
+  },
+};
+
+const t = i18n[lang];
+const prefix = lang === 'zh' ? '/zh/ontostore' : '/ontostore';
+---
+
+<div id={rootId} class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  <div data-role="view" class="min-h-[60vh]"></div>
+</div>
+
+<style>
+  .store-filter-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8ba3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #d4d4d4);
+    background-color: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .store-filter-select:hover { border-color: rgba(255,255,255,0.2); }
+  .store-filter-select:focus { border-color: rgba(82,199,232,0.5); box-shadow: 0 0 0 1px rgba(82,199,232,0.2); }
+  .store-filter-select option { background: #111; color: #f0f0f5; }
+
+  .skill-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .skill-card {
+    transition: border-color 0.2s, background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .skill-card:hover {
+    border-color: rgba(82,199,232,0.3);
+    background-color: rgba(82,199,232,0.03);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    background: rgba(82,199,232,0.1);
+    color: #52c7e8;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .filter-chip:hover { background: rgba(82,199,232,0.2); }
+
+  .tree-toggle { cursor: pointer; user-select: none; }
+  .tree-toggle:hover { color: #52c7e8; }
+  .tree-children { padding-left: 1.25rem; }
+
+  .section-panel {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+  }
+  .section-panel h3 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted, #8a8a8a);
+    margin-bottom: 0.75rem;
+  }
+
+  .breadcrumb a {
+    color: var(--text-muted, #8a8a8a);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: #52c7e8; }
+</style>
+
+<script define:vars={{ rootId, storeIndexUrl: OFFICIAL_STORE_INDEX_URL, storeRepoUrl: OFFICIAL_STORE_REPO_URL, i18n: t, prefix }} is:inline>
+const skillsKey = `ontoskills-skills-${rootId}`;
+const abortKey = `ontoskills-abort-${rootId}`;
+const pkgsKey = `ontoskills-pkgs-${rootId}`;
+if (!window[skillsKey]) window[skillsKey] = [];
+if (!window[pkgsKey]) window[pkgsKey] = [];
+
+const esc = (v) => v?.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;') || '';
+
+const trustBadge = (tier) => {
+  if (tier === 'official') return `<span class="px-2 py-0.5 rounded-full bg-[#52c7e8]/10 text-xs text-[#52c7e8] font-medium uppercase tracking-wide">${esc(i18n.official)}</span>`;
+  if (tier === 'verified') return `<span class="px-2 py-0.5 rounded-full bg-green-500/10 text-xs text-green-400 font-medium uppercase tracking-wide">${esc(i18n.verified)}</span>`;
+  if (tier === 'community') return `<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-xs text-amber-400 font-medium uppercase tracking-wide">${esc(i18n.community)}</span>`;
+  return `<span class="px-2 py-0.5 rounded-full bg-white/5 text-xs text-text-muted uppercase tracking-wide">${esc(tier)}</span>`;
+};
+
+const normSkill = (pkg, skill) => {
+  const qid = `${pkg.package_id}/${skill.id}`;
+  const parts = qid.split('/');
+  return {
+    packageId: pkg.package_id,
+    skillId: skill.id,
+    qualifiedId: qid,
+    description: skill.description || pkg.description || i18n.noDescription,
+    aliases: Array.isArray(skill.aliases) ? skill.aliases : [],
+    trustTier: pkg.trust_tier || 'verified',
+    installCommand: `npx ontoskills install ${qid}`,
+    author: parts[0] || '',
+    category: skill.category || '',
+    intents: Array.isArray(skill.intents) ? skill.intents : [],
+    dependsOn: Array.isArray(skill.depends_on_skills) ? skill.depends_on_skills : [],
+    version: pkg.version || '',
+    modules: Array.isArray(pkg.modules) ? pkg.modules : [],
+    embeddingFiles: Array.isArray(pkg.embedding_files) ? pkg.embedding_files : [],
+  };
+};
+
+// Build file tree from modules array
+const buildTree = (modules) => {
+  const root = {};
+  for (const m of modules) {
+    const parts = m.split('/');
+    let node = root;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (i === parts.length - 1) {
+        node[p] = node[p] || { __file: true };
+      } else {
+        node[p] = node[p] || {};
+        node = node[p];
+      }
+    }
+  }
+  return root;
+};
+
+const renderTreeHTML = (node, depth = 0) => {
+  let html = '';
+  const entries = Object.entries(node).sort(([,a],[,b]) => {
+    const aDir = !a.__file;
+    const bDir = !b.__file;
+    if (aDir !== bDir) return aDir ? -1 : 1;
+    return 0;
+  });
+  for (const [name, val] of entries) {
+    if (val.__file) {
+      const isOnto = name === 'ontoskill.ttl';
+      html += `<div class="flex items-center gap-2 py-0.5 text-sm ${isOnto ? 'text-[#52c7e8]' : 'text-text-muted'}">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        <span class="font-mono text-xs">${esc(name)}</span>
+      </div>`;
+    } else {
+      const hasChildren = Object.keys(val).length > 0;
+      html += `<div>
+        <div class="tree-toggle flex items-center gap-1.5 py-0.5 text-sm text-text-secondary hover:text-[#52c7e8]" data-tree-toggle>
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+          <span class="font-mono text-xs">${esc(name)}/</span>
+        </div>
+        <div class="tree-children hidden">${renderTreeHTML(val, depth + 1)}</div>
+      </div>`;
+    }
+  }
+  return html;
+};
+
+// ─── VIEWS ────────────────────────────────────────────────
+
+const renderStoreGrid = (skills, meta, filters, container) => {
+  // Build grid HTML
+  let html = `
+    <div class="rounded-2xl border border-white/10 bg-[var(--bg-elevated)] overflow-hidden relative">
+      <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#52c7e8]/30 to-transparent"></div>
+
+      <!-- Search -->
+      <div class="border-b border-white/10 p-5 sm:p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="relative flex-1 lg:max-w-lg">
+            <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input class="w-full bg-bg-secondary border border-white/10 rounded-xl pl-12 pr-4 py-3 text-base text-text-primary outline-none placeholder:text-text-muted focus:border-[#52c7e8]/50 focus:ring-1 focus:ring-[#52c7e8]/20 transition-colors" type="search" placeholder="${esc(i18n.searchPlaceholder)}" data-role="search" />
+          </div>
+          <div class="flex items-center justify-between lg:justify-end gap-4">
+            <span class="text-sm text-text-secondary" data-role="count">${skills.length} ${skills.length === 1 ? i18n.skill_one : i18n.skill_other}</span>
+            <a href="${storeRepoUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm text-[#52c7e8] hover:text-[#85f496] transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              ${i18n.viewRepo}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div data-role="filters" class="border-b border-white/10 px-5 sm:px-6 py-3 flex flex-wrap items-center gap-3 bg-black/20">
+        <select data-filter="author" class="store-filter-select" aria-label="${esc(i18n.author)}">
+          <option value="">${esc(i18n.allAuthors)}</option>
+          ${meta.authors.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')}
+        </select>
+        <select data-filter="category" class="store-filter-select" aria-label="${esc(i18n.category)}">
+          <option value="">${esc(i18n.allCategories)}</option>
+          ${meta.categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+        </select>
+        <select data-filter="trustTier" class="store-filter-select" aria-label="${esc(i18n.trustTier)}">
+          <option value="">${esc(i18n.allTiers)}</option>
+          ${meta.trustTiers.map(t => `<option value="${esc(t)}">${t === 'official' ? i18n.official : t === 'verified' ? i18n.verified : t === 'community' ? i18n.community : t}</option>`).join('')}
+        </select>
+        <div class="ml-auto">
+          <select data-filter="sort" class="store-filter-select" aria-label="${esc(i18n.sort)}">
+            <option value="az">${i18n.sortAZ}</option>
+            <option value="za">${i18n.sortZA}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div data-role="status" class="px-5 sm:px-6 py-3 text-sm text-text-secondary border-b border-white/5 bg-black/20">
+        ${i18n.allSkills}
+      </div>
+
+      <!-- Grid -->
+      <div data-role="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-5 sm:p-6"></div>
+    </div>
+  `;
+  container.innerHTML = html;
+};
+
+const renderCard = (skill) => {
+  const catBadge = skill.category ? `<span class="px-2.5 py-0.5 rounded-full bg-white/5 text-xs text-text-muted">${esc(skill.category)}</span>` : '';
+  const aliasBadges = skill.aliases.slice(0, 3).map(a => `<span class="px-2 py-0.5 rounded-full bg-white/5 text-xs text-text-muted">${esc(a)}</span>`).join('');
+  return `
+    <article class="skill-card rounded-xl border border-white/[0.07] bg-black/20 p-5 flex flex-col gap-3" data-nav="${esc(prefix)}/${esc(skill.qualifiedId)}">
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="text-lg font-semibold text-text-primary leading-tight">${esc(skill.skillId)}</h3>
+        ${trustBadge(skill.trustTier)}
+      </div>
+      <code class="text-xs text-text-muted font-mono leading-none">${esc(skill.qualifiedId)}</code>
+      <p class="skill-desc text-sm text-text-secondary leading-relaxed flex-1">${esc(skill.description)}</p>
+      <div class="flex flex-wrap gap-1.5">
+        ${catBadge}${aliasBadges}
+      </div>
+      <div class="mt-1 px-3 py-2.5 rounded-lg bg-black/40 border border-white/5">
+        <code class="text-xs text-text-primary font-mono break-all">${esc(skill.installCommand)}</code>
+      </div>
+    </article>
+  `;
+};
+
+const renderAuthorView = (skills, author, container) => {
+  const authorSkills = skills.filter(s => s.author === author);
+  const pkgMap = {};
+  authorSkills.forEach(s => { pkgMap[s.packageId] = pkgMap[s.packageId] || []; pkgMap[s.packageId].push(s); });
+
+  let html = `
+    <div class="breadcrumb flex items-center gap-2 text-sm mb-6">
+      <a href="${esc(prefix)}">${i18n.storeLabel}</a>
+      <span class="text-text-muted">/</span>
+      <span class="text-text-primary font-medium">${esc(author)}</span>
+    </div>
+
+    <div class="mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-text-primary mb-2">${esc(author)}</h1>
+      <div class="flex items-center gap-3 text-sm text-text-muted">
+        <span>${authorSkills.length} ${i18n.totalSkills}</span>
+        <span class="text-text-muted">·</span>
+        <span>${Object.keys(pkgMap).length} ${i18n.packages.toLowerCase()}</span>
+      </div>
+    </div>
+  `;
+
+  for (const [pkgId, pkgSkills] of Object.entries(pkgMap)) {
+    const tier = pkgSkills[0]?.trustTier || 'verified';
+    const ver = pkgSkills[0]?.version || '';
+    const cats = [...new Set(pkgSkills.map(s => s.category).filter(Boolean))];
+    html += `
+      <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <h2 class="text-xl font-semibold text-text-primary cursor-pointer hover:text-[#52c7e8] transition-colors" data-nav="${esc(prefix)}/${esc(pkgId)}">${esc(pkgId.split('/').slice(1).join('/'))}</h2>
+          ${trustBadge(tier)}
+          ${ver ? `<span class="text-xs text-text-muted">v${esc(ver)}</span>` : ''}
+        </div>
+        <div class="text-sm text-text-muted mb-4">${pkgSkills.length} ${i18n.skills.toLowerCase()} · ${cats.join(', ') || '—'}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          ${pkgSkills.map(renderCard).join('')}
+        </div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+};
+
+const renderPackageView = (skills, pkgId, pkgs, container) => {
+  const pkgSkills = skills.filter(s => s.packageId === pkgId);
+  const author = pkgId.split('/')[0];
+  const pkgName = pkgId.split('/').slice(1).join('/');
+  const tier = pkgSkills[0]?.trustTier || 'verified';
+  const ver = pkgSkills[0]?.version || '';
+  const rawPkg = pkgs.find(p => p.package_id === pkgId);
+  const modules = rawPkg?.modules || [];
+  const tree = buildTree(modules);
+
+  let html = `
+    <div class="breadcrumb flex items-center gap-2 text-sm mb-6">
+      <a href="${esc(prefix)}">${i18n.storeLabel}</a>
+      <span class="text-text-muted">/</span>
+      <a href="${esc(prefix)}/${esc(author)}">${esc(author)}</a>
+      <span class="text-text-muted">/</span>
+      <span class="text-text-primary font-medium">${esc(pkgName)}</span>
+    </div>
+
+    <div class="mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-text-primary mb-2">${esc(pkgName)}</h1>
+      <div class="flex items-center gap-3 text-sm text-text-muted">
+        <code class="font-mono">${esc(pkgId)}</code>
+        ${trustBadge(tier)}
+        ${ver ? `<span>v${esc(ver)}</span>` : ''}
+        <span class="text-text-muted">·</span>
+        <span>${pkgSkills.length} ${i18n.skills.toLowerCase()}</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          ${pkgSkills.map(renderCard).join('')}
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="section-panel">
+          <h3>${i18n.fileTree} (${modules.length})</h3>
+          <div class="max-h-80 overflow-y-auto text-sm">${renderTreeHTML(tree)}</div>
+        </div>
+        <div class="section-panel">
+          <h3>${i18n.install}</h3>
+          <div class="px-3 py-2.5 rounded-lg bg-black/40 border border-white/5">
+            <code class="text-sm text-text-primary font-mono break-all">npx ontoskills install ${esc(pkgId)}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+};
+
+const renderSkillView = (skills, pkgId, skillId, pkgs, container) => {
+  const skill = skills.find(s => s.packageId === pkgId && s.skillId === skillId);
+  if (!skill) {
+    container.innerHTML = `<div class="text-center py-20"><p class="text-text-secondary text-lg">${i18n.noMatch}</p></div>`;
+    return;
+  }
+  const author = pkgId.split('/')[0];
+  const pkgName = pkgId.split('/').slice(1).join('/');
+  const rawPkg = pkgs.find(p => p.package_id === pkgId);
+  const modules = rawPkg?.modules || [];
+  const skillModules = modules.filter(m => m.startsWith(skillId + '/') || m === `${skillId}/ontoskill.ttl`);
+  const tree = buildTree(skillModules.length ? skillModules : modules.filter(m => m.startsWith(skillId)));
+
+  let html = `
+    <div class="breadcrumb flex items-center gap-2 text-sm mb-6">
+      <a href="${esc(prefix)}">${i18n.storeLabel}</a>
+      <span class="text-text-muted">/</span>
+      <a href="${esc(prefix)}/${esc(author)}">${esc(author)}</a>
+      <span class="text-text-muted">/</span>
+      <a href="${esc(prefix)}/${esc(pkgId)}">${esc(pkgName)}</a>
+      <span class="text-text-muted">/</span>
+      <span class="text-text-primary font-medium">${esc(skillId)}</span>
+    </div>
+
+    <div class="mb-8">
+      <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-3xl sm:text-4xl font-bold text-text-primary">${esc(skillId)}</h1>
+        ${trustBadge(skill.trustTier)}
+        ${skill.version ? `<span class="text-sm text-text-muted">v${esc(skill.version)}</span>` : ''}
+        ${skill.category ? `<span class="px-2.5 py-0.5 rounded-full bg-white/5 text-xs text-text-muted">${esc(skill.category)}</span>` : ''}
+      </div>
+      <code class="text-sm text-text-muted font-mono">${esc(skill.qualifiedId)}</code>
+      <p class="mt-4 text-base text-text-secondary leading-relaxed max-w-3xl">${esc(skill.description)}</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-6">
+        ${skill.intents.length ? `
+        <div class="section-panel">
+          <h3>${i18n.intents}</h3>
+          <ul class="space-y-2">
+            ${skill.intents.map(i => `<li class="flex items-start gap-2 text-sm text-text-secondary">
+              <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#52c7e8] shrink-0"></span>
+              ${esc(i)}
+            </li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+        ${skill.dependsOn.length ? `
+        <div class="section-panel">
+          <h3>${i18n.dependencies}</h3>
+          <div class="flex flex-wrap gap-2">
+            ${skill.dependsOn.map(d => {
+              const depSkill = skills.find(s => s.skillId === d);
+              const href = depSkill ? `${prefix}/${depSkill.qualifiedId}` : '#';
+              return `<a href="${esc(href)}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-sm text-text-secondary hover:text-[#52c7e8] hover:bg-white/10 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" /></svg>
+                ${esc(d)}
+              </a>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        ${Object.keys(tree).length ? `
+        <div class="section-panel">
+          <h3>${i18n.fileTree} (${skillModules.length || Object.keys(tree).length} ${i18n.files_other})</h3>
+          <div class="max-h-60 overflow-y-auto text-sm">${renderTreeHTML(tree)}</div>
+        </div>` : ''}
+      </div>
+
+      <div class="space-y-4">
+        <div class="section-panel">
+          <h3>${i18n.install}</h3>
+          <div class="px-3 py-2.5 rounded-lg bg-black/40 border border-white/5">
+            <code class="text-sm text-text-primary font-mono break-all">npx ontoskills install ${esc(skill.qualifiedId)}</code>
+          </div>
+        </div>
+
+        ${skill.aliases.length ? `
+        <div class="section-panel">
+          <h3>Aliases</h3>
+          <div class="flex flex-wrap gap-2">
+            ${skill.aliases.map(a => `<span class="px-2.5 py-1 rounded-full bg-white/5 text-sm text-text-muted">${esc(a)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div class="section-panel opacity-50">
+          <h3>${i18n.knowledgeGraph}</h3>
+          <div class="flex flex-col items-center justify-center py-8 text-center">
+            <svg class="w-10 h-10 mb-3 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <p class="text-sm text-text-muted">${i18n.comingSoon}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  container.innerHTML = html;
+};
+
+// ─── ROUTER ────────────────────────────────────────────────
+
+const init = () => {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+
+  if (window[abortKey]) window[abortKey].abort();
+  const ac = new AbortController();
+  window[abortKey] = ac;
+  const { signal } = ac;
+
+  const skills = window[skillsKey];
+  const pkgs = window[pkgsKey];
+  const view = root.querySelector('[data-role="view"]');
+  let filters = { author: '', category: '', trustTier: '', sort: 'az' };
+  let meta = { authors: [], categories: [], trustTiers: [] };
+
+  const computeMeta = () => {
+    meta = {
+      authors: [...new Set(skills.map(s => s.author))].sort(),
+      categories: [...new Set(skills.map(s => s.category).filter(Boolean))].sort(),
+      trustTiers: [...new Set(skills.map(s => s.trustTier))].sort(),
+    };
+  };
+
+  const route = () => {
+    const path = window.location.pathname.replace(/\/$/, '');
+    const storePath = path.replace(prefix, '').replace(/^\//, '');
+    const segments = storePath ? storePath.split('/') : [];
+
+    if (segments.length === 0) {
+      renderStoreGrid(skills, meta, filters, view);
+      wireGrid();
+    } else if (segments.length === 1) {
+      renderAuthorView(skills, segments[0], view);
+    } else if (segments.length === 2) {
+      renderPackageView(skills, segments.join('/'), pkgs, view);
+    } else {
+      const pkgId = segments.slice(0, 2).join('/');
+      const skillId = segments.slice(2).join('/');
+      renderSkillView(skills, pkgId, skillId, pkgs, view);
+    }
+    wireNavigation();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigate = (href) => {
+    if (!href || href === '#') return;
+    history.pushState(null, '', href);
+    route();
+  };
+
+  const wireNavigation = () => {
+    root.querySelectorAll('[data-nav]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigate(el.dataset.nav);
+      }, { signal });
+    });
+    // Breadcrumb links
+    root.querySelectorAll('.breadcrumb a').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigate(el.getAttribute('href'));
+      }, { signal });
+    });
+    // Dependency links
+    root.querySelectorAll('a[href]').forEach(el => {
+      if (el.hasAttribute('data-nav') || el.closest('.breadcrumb')) return;
+      const href = el.getAttribute('href');
+      if (href && href.startsWith(prefix)) {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          navigate(href);
+        }, { signal });
+      }
+    });
+    // Tree toggles
+    root.querySelectorAll('[data-tree-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const children = el.nextElementSibling;
+        if (children) children.classList.toggle('hidden');
+        const arrow = el.querySelector('svg');
+        if (arrow) arrow.style.transform = children?.classList.contains('hidden') ? '' : 'rotate(90deg)';
+      }, { signal });
+    });
+  };
+
+  const wireGrid = () => {
+    const search = root.querySelector('[data-role="search"]');
+    const grid = root.querySelector('[data-role="grid"]');
+    const status = root.querySelector('[data-role="status"]');
+    const count = root.querySelector('[data-role="count"]');
+
+    const applyFilters = () => {
+      const query = (search?.value || '').trim().toLowerCase();
+      const filtered = skills.filter(s => {
+        if (query) {
+          const h = [s.packageId, s.skillId, s.qualifiedId, s.description, s.aliases.join(' '), s.category, s.intents.join(' ')].join(' ').toLowerCase();
+          if (!h.includes(query)) return false;
+        }
+        if (filters.author && s.author !== filters.author) return false;
+        if (filters.category && s.category !== filters.category) return false;
+        if (filters.trustTier && s.trustTier !== filters.trustTier) return false;
+        return true;
+      }).sort((a, b) => filters.sort === 'za' ? b.qualifiedId.localeCompare(a.qualifiedId) : a.qualifiedId.localeCompare(b.qualifiedId));
+
+      if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? i18n.skill_one : i18n.skill_other}`;
+      const parts = [];
+      if (query) parts.push(`${i18n.showingResults} "${search.value.trim()}"`);
+      if (filters.author) parts.push(`${i18n.author}: ${filters.author}`);
+      if (filters.category) parts.push(`${i18n.category}: ${filters.category}`);
+      if (filters.trustTier) parts.push(`${i18n.trustTier}: ${filters.trustTier}`);
+      if (status) status.textContent = parts.length ? parts.join(' · ') : i18n.allSkills;
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center"><p class="text-text-secondary mb-2">${esc(i18n.noMatch)}</p><p class="text-sm text-text-muted">${esc(i18n.trySearch)}</p></div>`;
+        return;
+      }
+      grid.innerHTML = filtered.map(renderCard).join('');
+      wireNavigation();
+    };
+
+    search?.addEventListener('input', applyFilters, { signal });
+    root.addEventListener('change', (e) => {
+      const sel = e.target.closest('[data-filter]');
+      if (!sel) return;
+      const key = sel.dataset.filter;
+      if (key === 'sort') filters.sort = sel.value;
+      else filters[key] = sel.value;
+      applyFilters();
+    }, { signal });
+  };
+
+  const loadStore = async () => {
+    view.innerHTML = `<div class="text-center py-20 text-text-secondary">${i18n.connecting}</div>`;
+    try {
+      const res = await fetch(storeIndexUrl, { mode: 'cors', headers: { 'Accept': 'application/json' }, signal });
+      if (!res.ok) throw new Error(`Index failed: ${res.status}`);
+      const data = await res.json();
+
+      const results = await Promise.allSettled(
+        (data.packages || []).map(async (entry) => {
+          const url = new URL(entry.manifest_path, storeIndexUrl).toString();
+          const r = await fetch(url, { mode: 'cors', headers: { 'Accept': 'application/json' }, signal });
+          if (!r.ok) throw new Error(`Manifest failed: ${r.status}`);
+          return r.json();
+        })
+      );
+
+      const manifests = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      pkgs.length = 0;
+      pkgs.push(...manifests);
+
+      skills.length = 0;
+      const newSkills = manifests.flatMap(pkg => (pkg.skills || []).map(s => normSkill(pkg, s)));
+      newSkills.sort((a, b) => a.qualifiedId.localeCompare(b.qualifiedId));
+      skills.push(...newSkills);
+
+      computeMeta();
+      route();
+    } catch (err) {
+      console.error('Store load failed:', err);
+      skills.length = 0;
+      view.innerHTML = `<div class="text-center py-20"><p class="text-text-secondary mb-4">${i18n.unableToLoad}</p><button data-action="retry" class="px-4 py-2 rounded-lg bg-[#52c7e8]/10 text-[#52c7e8] hover:bg-[#52c7e8]/20 transition-colors">${i18n.retry}</button></div>`;
+      root.querySelector('[data-action="retry"]')?.addEventListener('click', loadStore, { signal });
+    }
+  };
+
+  // Back/forward navigation
+  window.addEventListener('popstate', route, { signal });
+
+  if (skills.length > 0) {
+    computeMeta();
+    route();
+  } else {
+    loadStore();
+  }
+};
+
+let didInit = false;
+document.addEventListener('astro:page-load', () => { if (!didInit) { didInit = true; init(); } });
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { if (!didInit) { didInit = true; init(); } });
+} else { didInit = true; init(); }
+</script>

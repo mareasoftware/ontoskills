@@ -1,0 +1,21 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+import Header from '../../components/landing/Header.astro';
+import Footer from '../../components/landing/Footer.astro';
+import OntoStoreApp from '../../components/store/OntoStoreApp.astro';
+
+export function getStaticPaths() {
+  return [{ params: { slug: '' } }];
+}
+---
+
+<LandingLayout
+  title="OntoStore — Browse Ontological Skills"
+  description="Browse verified ontological skills. Search by intent, copy install commands, one-line setup."
+>
+  <Header lang="en" />
+  <main class="pt-8 pb-20">
+    <OntoStoreApp lang="en" />
+  </main>
+  <Footer lang="en" />
+</LandingLayout>
