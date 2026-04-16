@@ -3,6 +3,7 @@ import tailwind from '@astrojs/tailwind';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
 import mermaid from 'astro-mermaid';
+import react from '@astrojs/react';
 
 export default defineConfig({
   prefetch: {
@@ -10,6 +11,7 @@ export default defineConfig({
     defaultStrategy: 'hover'
   },
   integrations: [
+    react(),
     sitemap(),
     mermaid({
       theme: 'dark'
