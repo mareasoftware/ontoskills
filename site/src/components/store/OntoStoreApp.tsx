@@ -27,6 +27,7 @@ interface GraphNode {
   category: string;
   qualifiedId: string;
   isHighlighted: boolean;
+  description?: string;
 }
 
 interface GraphEdge {
@@ -263,16 +264,25 @@ function parseTtlKnowledgeMap(ttlContent: string, skillId: string) {
     const typeMatch = ttlContent.match(new RegExp(`oc:${knId}\\s+a\\s+oc:KnowledgeNode(?:,\\s*oc:(\\w+))?`));
     if (!typeMatch) continue; // Skip if not a KnowledgeNode declaration
     const knType = typeMatch[1] || 'KnowledgeNode';
-    const ctxMatch = ttlContent.match(new RegExp(`oc:${knId}[\\s\\S]*?oc:appliesToContext\\s+"([^"]{0,50})"`));
-    const label = ctxMatch ? (ctxMatch[1].length > 30 ? ctxMatch[1].slice(0, 30) + '…' : ctxMatch[1]) : knType.replace(/([A-Z])/g, ' $1').trim();
+    // Extract full context for label and description
+    const ctxMatch = ttlContent.match(new RegExp(`oc:${knId}[\\s\\S]*?oc:appliesToContext\\s+"([^"]+)"`));
+    const fullContext = ctxMatch ? ctxMatch[1] : '';
+    const label = fullContext.length > 40 ? fullContext.slice(0, 40) + '…' : fullContext || knType.replace(/([A-Z])/g, ' $1').trim();
+    // Extract appliesToCondition if present
+    const condMatch = ttlContent.match(new RegExp(`oc:${knId}[\\s\\S]*?oc:appliesToCondition\\s+"([^"]+)"`));
+    const description = [fullContext, condMatch?.[1]].filter(Boolean).join(' — ') || undefined;
     addNode(knId, label, knType);
+    // Store description on the last added node
+    nodes[nodes.length - 1].description = description;
     edges.push({ source: rootId, target: knId });
   }
 
   // States — multi-line support
   for (const m of ttlContent.matchAll(/oc:(yieldsState|requiresState)\s+oc:(\w+)/g)) {
     const stateId = `state:${m[2]}`;
-    addNode(stateId, m[2].replace(/([A-Z])/g, ' $1').trim(), m[1] === 'yieldsState' ? 'yield' : 'require');
+    const stateLabel = m[2].replace(/([A-Z])/g, ' $1').trim();
+    addNode(stateId, stateLabel, m[1] === 'yieldsState' ? 'yield' : 'require');
+    nodes[nodes.length - 1].description = m[1] === 'yieldsState' ? `Produced after ${stateLabel.toLowerCase()}` : `Required before execution`;
     edges.push({ source: rootId, target: stateId });
   }
   // Also capture states on continuation lines
@@ -669,34 +679,34 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
       {cats.length > 1 && (
         <div className="absolute bottom-3 left-3 z-10">
           <div className="rounded-lg border border-white/[0.08] bg-[#090909]/90 backdrop-blur-md overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2">
-              <span className="text-[10px] uppercase tracking-wider text-[#8a8a8a]">Legend</span>
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <span className="text-xs uppercase tracking-wider text-[#8a8a8a]">Legend</span>
               {cats.map(c => {
                 const entry = CATEGORY_LABELS[c] || [c, '#9763e1'];
                 return (
                   <button
                     key={c}
                     onClick={() => onHighlightCategory?.(highlightCategory === c ? null : c)}
-                    className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${highlightCategory === c ? 'scale-125 border-white/40' : 'border-transparent hover:scale-110'}`}
+                    className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${highlightCategory === c ? 'scale-125 border-white/40' : 'border-transparent hover:scale-110'}`}
                     style={{ background: entry[1] }}
                     title={entry[0]}
                   />
                 );
               })}
               <button onClick={() => setLegendExpanded(!legendExpanded)} className="ml-1 text-[#8a8a8a] hover:text-[#d4d4d4] transition-colors">
-                <svg className={`w-3.5 h-3.5 transition-transform ${legendExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
             </div>
             {legendExpanded && (
-              <div className="border-t border-white/[0.06] px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto">
+              <div className="border-t border-white/[0.06] px-4 py-3 space-y-2 max-h-56 overflow-y-auto">
                 {cats.map(c => {
                   const entry = CATEGORY_LABELS[c] || [c, '#9763e1'];
                   return (
-                    <div key={c} className="flex items-start gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" style={{ background: entry[1] }} />
+                    <div key={c} className="flex items-start gap-2.5">
+                      <span className="w-3 h-3 rounded-full mt-0.5 shrink-0" style={{ background: entry[1] }} />
                       <div>
-                        <span className="text-[11px] font-medium text-[#d4d4d4]">{entry[0]}</span>
-                        <p className="text-[10px] text-[#8a8a8a] leading-tight">{CATEGORY_DESCRIPTIONS[c] || ''}</p>
+                        <span className="text-sm font-medium text-[#d4d4d4]">{entry[0]}</span>
+                        <p className="text-xs text-[#8a8a8a] leading-relaxed">{CATEGORY_DESCRIPTIONS[c] || ''}</p>
                       </div>
                     </div>
                   );
@@ -707,7 +717,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
         </div>
       )}
       {/* Stats */}
-      <div className="absolute top-3 right-3 text-[10px] text-[#8a8a8a] z-10">
+      <div className="absolute top-4 right-4 text-sm text-[#8a8a8a] z-10">
         {nodes.length} nodes · {edges.length} edges
       </div>
       {/* Keyboard shortcuts */}
@@ -1265,7 +1275,7 @@ function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, navigate
     <>
       {/* Fullscreen 3D graph overlay */}
       {showGraph && activeGraphData && (
-        <div className="fixed inset-0 z-50 bg-[#0d0d14]/95 backdrop-blur-sm flex flex-col">
+        <div className="fixed inset-0 z-50 bg-[#090909] flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
             <div className="flex flex-col gap-1">
               {/* Breadcrumb */}
@@ -1335,14 +1345,19 @@ function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, navigate
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
-                  <h2 className="text-lg font-bold text-[#f5f5f5]">{selectedNode.label}</h2>
+                  <h2 className="text-lg font-bold text-[#f5f5f5] break-words">{selectedNode.label}</h2>
                   <code className="text-xs text-[#8a8a8a] font-mono mt-1 block break-all">{selectedNode.id}</code>
                 </div>
 
-                {/* Category description */}
-                {CATEGORY_DESCRIPTIONS[selectedNode.category] && (
-                  <div className="px-5 py-3 border-b border-white/[0.05]">
-                    <p className="text-sm text-[#d4d4d4]">{CATEGORY_DESCRIPTIONS[selectedNode.category]}</p>
+                {/* Description */}
+                {(selectedNode.description || CATEGORY_DESCRIPTIONS[selectedNode.category]) && (
+                  <div className="px-5 py-4 border-b border-white/[0.05]">
+                    {selectedNode.description && (
+                      <p className="text-sm text-[#d4d4d4] leading-relaxed mb-2">{selectedNode.description}</p>
+                    )}
+                    {CATEGORY_DESCRIPTIONS[selectedNode.category] && (
+                      <p className="text-xs text-[#8a8a8a]">{CATEGORY_DESCRIPTIONS[selectedNode.category]}</p>
+                    )}
                   </div>
                 )}
 
