@@ -28,7 +28,9 @@ export function BackgroundParticles() {
   const count = 150;
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
-    for (let i = 0; i < count * 3; i++) arr[i] = (Math.random() - 0.5) * 120;
+    let seed = 42;
+    const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    for (let i = 0; i < count * 3; i++) arr[i] = (rand() - 0.5) * 120;
     return arr;
   }, []);
   return (
