@@ -380,23 +380,26 @@ function layoutForce3D(nodes: GraphNode[], edges: GraphEdge[]) {
 
 // ─── 3D Graph Components ──────────────────────────────────
 
+const CATEGORY_COLORS: Record<string, string> = {
+  skill: '#52c7e8',          // cyan
+  main: '#38bdf8',           // sky blue
+  prompt: '#85f496',         // green
+  test: '#fbbf24',           // amber
+  module: '#6ed8c4',         // teal
+  dependency: '#92eff4',     // light aqua
+  AntiPattern: '#f472b6',    // pink
+  RecoveryTactic: '#fb923c', // orange
+  failure: '#ef4444',        // red
+  yield: '#34d399',          // emerald
+  require: '#a78bfa',        // violet
+  tool: '#facc15',           // yellow
+  productivity: '#2dd4bf',   // cyan-teal
+  development: '#60a5fa',    // blue
+};
+
 function getNodeColor(category: string, isHighlighted: boolean): string {
   if (isHighlighted) return '#52c7e8';
-  if (category === 'main') return '#52c7e8';
-  if (category === 'prompt') return '#85f496';
-  if (category === 'test') return '#fbbf24';
-  if (category === 'module') return '#6ed8c4';
-  if (category === 'skill') return '#52c7e8';
-  if (category === 'dependency') return '#92eff4';
-  if (category === 'AntiPattern') return '#f9a8d4';
-  if (category === 'RecoveryTactic') return '#85f496';
-  if (category === 'failure') return '#fbbf24';
-  if (category === 'yield') return '#6ed8c4';
-  if (category === 'require') return '#9763e1';
-  if (category === 'tool') return '#f9a8d4';
-  if (category === 'productivity') return '#85f496';
-  if (category === 'development') return '#52c7e8';
-  return '#9763e1';
+  return CATEGORY_COLORS[category] || '#9763e1';
 }
 
 function getConnectedNodes(node: GraphNode, edges: GraphEdge[], allNodes: GraphNode[]): GraphNode[] {
@@ -626,11 +629,20 @@ function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightCategory
 }
 
 const CATEGORY_LABELS: Record<string, [string, string]> = {
-  skill: ['Skill', '#52c7e8'], main: ['ontoskill.ttl', '#52c7e8'], prompt: ['Prompt', '#85f496'],
-  test: ['Test', '#fbbf24'], module: ['Module', '#6ed8c4'], dependency: ['Depends on', '#92eff4'],
-  AntiPattern: ['Anti-pattern', '#f9a8d4'], RecoveryTactic: ['Recovery', '#85f496'],
-  failure: ['Failure', '#fbbf24'], yield: ['Yields', '#6ed8c4'], require: ['Requires', '#9763e1'],
-  tool: ['Tool', '#f9a8d4'],
+  skill: ['Skill', CATEGORY_COLORS.skill],
+  main: ['ontoskill.ttl', CATEGORY_COLORS.main],
+  prompt: ['Prompt', CATEGORY_COLORS.prompt],
+  test: ['Test', CATEGORY_COLORS.test],
+  module: ['Module', CATEGORY_COLORS.module],
+  dependency: ['Depends on', CATEGORY_COLORS.dependency],
+  AntiPattern: ['Anti-pattern', CATEGORY_COLORS.AntiPattern],
+  RecoveryTactic: ['Recovery', CATEGORY_COLORS.RecoveryTactic],
+  failure: ['Failure', CATEGORY_COLORS.failure],
+  yield: ['Yields', CATEGORY_COLORS.yield],
+  require: ['Requires', CATEGORY_COLORS.require],
+  tool: ['Tool', CATEGORY_COLORS.tool],
+  productivity: ['Productivity', CATEGORY_COLORS.productivity],
+  development: ['Development', CATEGORY_COLORS.development],
 };
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
