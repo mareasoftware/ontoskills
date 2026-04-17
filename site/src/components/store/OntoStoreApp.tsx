@@ -1129,7 +1129,7 @@ function AuthorView({ loading, skills, authorId, t, prefix, navigate }: { loadin
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {pkgSkills.slice(0, 6).map(s => (
+              {pkgSkills.slice(0, 5).map(s => (
                 <a
                   key={s.qualifiedId}
                   href={`${prefix}/${s.qualifiedId}`}
@@ -1139,9 +1139,9 @@ function AuthorView({ loading, skills, authorId, t, prefix, navigate }: { loadin
                   {s.skillId}
                 </a>
               ))}
-              {pkgSkills.length > 6 && (
+              {pkgSkills.length > 5 && (
                 <a href={`${prefix}/${pid}`} onClick={navClick(`${prefix}/${pid}`, navigate)} className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] text-sm text-[#8a8a8a] hover:text-[#52c7e8] transition-colors">
-                  +{pkgSkills.length - 6} more
+                  +{pkgSkills.length - 5} more
                 </a>
               )}
             </div>
