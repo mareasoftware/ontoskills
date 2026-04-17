@@ -25,5 +25,15 @@ import Footer from '../components/landing/Footer.astro';
 </LandingLayout>
 
 <script is:inline>
-  (function(){var p=window.location.pathname+window.location.search+window.location.hash;if(/^\/(zh\/)?ontostore\//.test(window.location.pathname)&&window.location.pathname!=='/ontostore/'&&window.location.pathname!=='/zh/ontostore/'){var prefix=window.location.pathname.startsWith('/zh/')?'/zh':'';try{window.sessionStorage.setItem('ontostore:redirect',p);}catch(e){}window.location.replace(prefix+'/ontostore/');}})();
+  (function(){
+    var p=window.location.pathname;
+    if(/^\/(zh\/)?ontostore\//.test(p)&&p!=='/ontostore/'&&p!=='/zh/ontostore/'){
+      var prefix=p.startsWith('/zh/')?'/zh':'';
+      var target=prefix+'/ontostore/';
+      try{
+        sessionStorage.setItem('ontostore:redirect',p+window.location.search+window.location.hash);
+      }catch(e){}
+      window.location.replace(target);
+    }
+  })();
 </script>
