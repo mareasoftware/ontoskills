@@ -7,13 +7,14 @@ import { GraphNodeSphere } from './GraphNodeSphere';
 import { GraphEdgeLine } from './GraphEdgeLine';
 import { AutoRotate, CameraFocus, BackgroundParticles } from './CameraAuto';
 
-export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightCategory, focusNodeId }: {
+export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightCategory, focusNodeId, hideLabels }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
   onNodeClick: (node: GraphNode) => void;
   autoRotate?: boolean;
   highlightCategory?: string | null;
   focusNodeId?: string | null;
+  hideLabels?: boolean;
 }) {
   const positions = useMemo(() => layoutForce3D(nodes, edges), [nodes, edges]);
   const focusNode = focusNodeId ? nodes.find(n => n.id === focusNodeId) : null;
@@ -45,6 +46,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
             position={[p.x, p.y, p.z]}
             onClick={onNodeClick}
             dimmed={dimmed}
+            hideLabel={hideLabels}
           />
         );
       })}

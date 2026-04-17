@@ -4,15 +4,17 @@ import type { GraphNode, GraphEdge, Translations } from '../types';
 import { getNodeColor, CATEGORY_LABELS, CATEGORY_DESCRIPTIONS } from './colors';
 import { Scene } from './Scene';
 
-export function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNode, highlightCategory, onHighlightCategory, t }: {
+export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick, height = 350, selectedNode, highlightCategory, onHighlightCategory, t, hideLabels }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
   onNodeClick: (node: GraphNode) => void;
+  onBackgroundClick?: () => void;
   height?: number;
   selectedNode?: GraphNode | null;
   highlightCategory?: string | null;
   onHighlightCategory?: (cat: string | null) => void;
   t: Translations;
+  hideLabels?: boolean;
 }) {
   const [legendExpanded, setLegendExpanded] = useState(false);
   const [shortcutsVisible, setShortcutsVisible] = useState(false);
@@ -23,20 +25,21 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, sele
 
   return (
     <div className="relative" style={{ width: '100%', height, borderRadius: '0.5rem', overflow: 'hidden', background: 'rgba(0,0,0,0.3)', cursor: 'grab' }}>
-      <Canvas camera={{ position: [0, 0, camDist], fov: 55 }} gl={{ alpha: true, antialias: true }}>
+      <Canvas camera={{ position: [0, 0, camDist], fov: 55 }} gl={{ alpha: true, antialias: true }} onPointerMissed={onBackgroundClick}>
         <Scene
           nodes={nodes}
           edges={edges}
           onNodeClick={onNodeClick}
           highlightCategory={highlightCategory}
           focusNodeId={undefined}
+          hideLabels={hideLabels}
         />
       </Canvas>
       {cats.length > 1 && (
-        <div className="absolute bottom-3 left-3 z-10">
+        <div className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-3rem)]">
           <div className="rounded-lg border border-white/[0.08] bg-[#090909]/90 backdrop-blur-md overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-2.5">
-              <span className="text-xs uppercase tracking-wider text-[#8a8a8a]">{t.legend}</span>
+            <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto scrollbar-none">
+              <span className="text-xs uppercase tracking-wider text-[#8a8a8a] shrink-0">{t.legend}</span>
               {cats.map(c => {
                 const color = getNodeColor(c, false);
                 const label = CATEGORY_LABELS[c]?.[0] || c;
@@ -44,27 +47,27 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, sele
                   <button
                     key={c}
                     onClick={() => onHighlightCategory?.(highlightCategory === c ? null : c)}
-                    className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${highlightCategory === c ? 'scale-125 border-white/40' : 'border-transparent hover:scale-110'}`}
+                    className={`w-5 h-5 rounded-full border-2 transition-all duration-150 shrink-0 ${highlightCategory === c ? 'scale-125 border-white/40' : 'border-transparent hover:scale-110'}`}
                     style={{ background: color }}
                     title={label}
                   />
                 );
               })}
-              <button onClick={() => setLegendExpanded(!legendExpanded)} className="ml-1 text-[#8a8a8a] hover:text-[#d4d4d4] transition-colors">
+              <button onClick={() => setLegendExpanded(!legendExpanded)} className="shrink-0 ml-0.5 text-[#8a8a8a] hover:text-[#d4d4d4] transition-colors">
                 <svg className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
             </div>
             {legendExpanded && (
-              <div className="border-t border-white/[0.06] px-4 py-3 space-y-2.5 max-h-[70vh] overflow-y-auto">
+              <div className="border-t border-white/[0.06] px-3 py-3 space-y-2 max-h-[50vh] overflow-y-auto">
                 {cats.map(c => {
                   const color = getNodeColor(c, false);
                   const label = CATEGORY_LABELS[c]?.[0] || c;
                   return (
-                    <div key={c} className="flex items-start gap-2.5">
-                      <span className="w-3.5 h-3.5 rounded-full mt-0.5 shrink-0" style={{ background: color }} />
+                    <div key={c} className="flex items-start gap-2">
+                      <span className="w-3 h-3 rounded-full mt-0.5 shrink-0" style={{ background: color }} />
                       <div>
-                        <span className="text-sm font-medium text-[#d4d4d4]">{label}</span>
-                        <p className="text-xs text-[#8a8a8a] leading-relaxed">{CATEGORY_DESCRIPTIONS[c] || ''}</p>
+                        <span className="text-xs font-medium text-[#d4d4d4]">{label}</span>
+                        <p className="text-[11px] text-[#8a8a8a] leading-relaxed">{CATEGORY_DESCRIPTIONS[c] || ''}</p>
                       </div>
                     </div>
                   );

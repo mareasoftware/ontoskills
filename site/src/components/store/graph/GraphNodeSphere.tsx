@@ -5,11 +5,12 @@ import type { GraphNode } from '../types';
 import { getNodeColor } from './colors';
 import { CATEGORY_LABELS } from './colors';
 
-export function GraphNodeSphere({ node, position, onClick, dimmed = false }: {
+export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideLabel = false }: {
   node: GraphNode;
   position: [number, number, number];
   onClick: (node: GraphNode) => void;
   dimmed?: boolean;
+  hideLabel?: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -75,14 +76,20 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false }: {
           opacity={dimmed ? 0.12 : 0.9}
         />
       </mesh>
-      <Html
-        position={[0, -(radius + 0.5), 0]}
-        center
-        style={{ pointerEvents: 'none' }}
-        zIndexRange={[50, 0]}
-      >
-        <div style={labelStyle}>{node.label}</div>
-      </Html>
+      {!hideLabel && (
+        <Html
+          position={[0, -(radius + 0.5), 0]}
+          center
+          zIndexRange={[50, 0]}
+        >
+          <div
+            style={{ ...labelStyle, pointerEvents: 'auto', cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); onClick(node); }}
+          >
+            {node.label}
+          </div>
+        </Html>
+      )}
       {hovered && !dimmed && (
         <Html position={[0, radius + 1.2, 0]} center zIndexRange={[100, 0]}>
           <div
