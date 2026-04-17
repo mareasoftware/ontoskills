@@ -1323,7 +1323,7 @@ function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, navigate
                       onClick={() => {
                         if (i < graphBreadcrumb.length - 1) {
                           setGraphBreadcrumb(prev => prev.slice(0, i + 1));
-                          if (i === 0) setGraphMode('files');
+                          if (i === 0) { setGraphMode('files'); setKnowledgeData(null); }
                         }
                       }}
                       className={`transition-colors ${i === graphBreadcrumb.length - 1 ? 'text-[#f5f5f5] font-medium' : 'text-[#8a8a8a] hover:text-[#52c7e8]'}`}
