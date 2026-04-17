@@ -74,10 +74,9 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
 
   const openGraph = useCallback((mode?: 'files' | 'knowledge') => {
     const m = mode || graphMode;
+    setShowGraph(true);
     if (m === 'knowledge' && !knowledgeData) {
-      loadKnowledgeGraph().then(() => setShowGraph(true));
-    } else {
-      setShowGraph(true);
+      loadKnowledgeGraph();
     }
   }, [graphMode, knowledgeData, loadKnowledgeGraph]);
 
@@ -100,8 +99,6 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
     finally { setLoadingKnowledge(false); }
   }, [pkgId]);
 
-  const activeGraphData = graphMode === 'files' ? fileGraphData : knowledgeData;
-
   const clusteredKnowledgeData = useMemo(() => {
     if (!knowledgeData) return null;
     return clusterGraphData(knowledgeData.nodes, knowledgeData.edges);
@@ -119,7 +116,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
   return (
     <>
       {/* Fullscreen 3D graph overlay */}
-      {showGraph && displayGraphData && (
+      {showGraph && (graphMode === 'files' ? !!fileGraphData : true) && (
         <div className="fixed inset-0 z-50 bg-[#090909] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 gap-3">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
