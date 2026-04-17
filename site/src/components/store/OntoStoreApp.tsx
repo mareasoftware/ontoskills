@@ -672,7 +672,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
           edges={edges}
           onNodeClick={onNodeClick}
           highlightCategory={highlightCategory}
-          focusNodeId={selectedNode?.id}
+          focusNodeId={undefined}
         />
       </Canvas>
       {/* Expandable legend */}
