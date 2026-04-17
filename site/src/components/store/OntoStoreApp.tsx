@@ -98,6 +98,10 @@ const translations = {
     openGraph: 'Open 3D Graph',
     loadingGraph: 'Parsing TTL files…',
     graphError: 'Failed to load graph data.',
+    legend: 'Legend',
+    nodes: 'nodes',
+    edges: 'edges',
+    controls: 'Controls',
   },
   zh: {
     searchPlaceholder: '按本体技能、意图或描述搜索...',
@@ -157,6 +161,10 @@ const translations = {
     openGraph: '打开 3D 图谱',
     loadingGraph: '正在解析 TTL 文件…',
     graphError: '加载图谱数据失败。',
+    legend: '图例',
+    nodes: '节点',
+    edges: '边',
+    controls: '快捷键',
   },
 };
 
@@ -427,10 +435,6 @@ function GraphNodeSphere({ node, position, onClick, dimmed = false }: {
   const isExplorable = ['main', 'prompt', 'test', 'module'].includes(node.category) && node.qualifiedId.endsWith('.ttl');
   const categoryLabel = CATEGORY_LABELS[node.category]?.[0] || node.category;
 
-  useFrame(() => {
-    if (meshRef.current) meshRef.current.scale.setScalar(1);
-  });
-
   const labelStyle: React.CSSProperties = {
     fontSize: '12px',
     fontWeight: 600,
@@ -666,7 +670,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   tool: 'Allowed tool integrations',
 };
 
-function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNode, highlightCategory, onHighlightCategory }: {
+function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNode, highlightCategory, onHighlightCategory, t }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
   onNodeClick: (node: GraphNode) => void;
@@ -674,6 +678,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
   selectedNode?: GraphNode | null;
   highlightCategory?: string | null;
   onHighlightCategory?: (cat: string | null) => void;
+  t: typeof translations.en;
 }) {
   const [legendExpanded, setLegendExpanded] = useState(false);
   const [shortcutsVisible, setShortcutsVisible] = useState(false);
@@ -698,7 +703,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
         <div className="absolute bottom-3 left-3 z-10">
           <div className="rounded-lg border border-white/[0.08] bg-[#090909]/90 backdrop-blur-md overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-2.5">
-              <span className="text-xs uppercase tracking-wider text-[#8a8a8a]">Legend</span>
+              <span className="text-xs uppercase tracking-wider text-[#8a8a8a]">{t.legend}</span>
               {cats.map(c => {
                 const color = getNodeColor(c, false);
                 const label = CATEGORY_LABELS[c]?.[0] || c;
@@ -738,7 +743,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
       )}
       {/* Stats */}
       <div className="absolute top-4 right-4 text-sm text-[#8a8a8a] z-10">
-        {nodes.length} nodes · {edges.length} edges
+        {nodes.length} {t.nodes} · {edges.length} {t.edges}
       </div>
       {/* Keyboard shortcuts */}
       <div className="absolute bottom-3 right-3 z-10">
@@ -751,7 +756,7 @@ function KnowledgeGraph3D({ nodes, edges, onNodeClick, height = 350, selectedNod
           </button>
           {shortcutsVisible && (
             <div className="absolute bottom-9 right-0 w-44 rounded-lg bg-[#090909]/95 backdrop-blur-md border border-white/[0.08] p-3 text-[11px] text-[#8a8a8a] space-y-1.5">
-              <p className="text-[#d4d4d4] font-medium mb-1">Controls</p>
+              <p className="text-[#d4d4d4] font-medium mb-1">{t.controls}</p>
               <p>Scroll = Zoom</p>
               <p>Drag = Orbit</p>
               <p>Right-drag = Pan</p>
@@ -1192,7 +1197,7 @@ function PackageView({ loading, skills, packages, pkgId, t, prefix, navigate }: 
       {hasDeps && graphData && (
         <div className="section-panel mb-6">
           <h3>{t.knowledgeGraph}</h3>
-          <KnowledgeGraph3D nodes={graphData.nodes} edges={graphData.edges} onNodeClick={handleGraphNodeClick} height={350} />
+          <KnowledgeGraph3D nodes={graphData.nodes} edges={graphData.edges} onNodeClick={handleGraphNodeClick} height={350} t={t} />
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1357,6 +1362,7 @@ function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, navigate
                 highlightCategory={highlightCategory}
                 onHighlightCategory={setHighlightCategory}
                 height={window.innerHeight - 64}
+                t={t}
               />
             )}
             {/* Node detail panel */}
@@ -1570,7 +1576,7 @@ function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, navigate
               {graphMode === 'files'
                 ? `${treeModules.length} file${treeModules.length !== 1 ? 's' : ''} in this skill`
                 : knowledgeData
-                  ? `${knowledgeData.nodes.length} nodes · ${knowledgeData.edges.length} edges`
+                  ? `${knowledgeData.nodes.length} ${t.nodes} · ${knowledgeData.edges.length} ${t.edges}`
                   : 'Parsed from TTL ontology data'}
             </p>
             <button onClick={openGraph} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-lg bg-[#52c7e8]/[0.06] border border-[#52c7e8]/20 hover:bg-[#52c7e8]/[0.12] hover:border-[#52c7e8]/30 transition-all group cursor-pointer">

@@ -21,6 +21,12 @@ export function getStaticPaths() {
 >
   <Header lang="zh" />
   <main class="pt-8 pb-20">
+    <div id="ontostore-loader" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-center py-20 gap-3">
+        <div class="w-5 h-5 border-2 border-[#52c7e8]/30 border-t-[#52c7e8] rounded-full animate-spin"></div>
+        <p class="text-[#8a8a8a] text-sm">正在连接官方商店…</p>
+      </div>
+    </div>
     <OntoStoreApp lang="zh" />
   </main>
   <Footer lang="zh" />
