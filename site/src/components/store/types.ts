@@ -28,6 +28,14 @@ export interface GraphEdge {
   target: string;
 }
 
+export interface PackageManifest {
+  package_id: string;
+  description?: string;
+  version?: string;
+  modules?: string[];
+  skills?: any[];
+}
+
 export type ViewMode = 'store' | 'author' | 'package' | 'skill';
 
 export type Translations = {
@@ -83,6 +91,7 @@ export type Translations = {
   loadMore: string;
   remaining: string;
   aliases: string;
+  more: string;
   fileGraph: string;
   knowledgeMap: string;
   openGraph: string;
@@ -92,4 +101,15 @@ export type Translations = {
   nodes: string;
   edges: string;
   controls: string;
+  value: string;
+  properties: string;
+  type: string;
+  id: string;
+  state: string;
+  connectedTo: string;
+  noConnections: string;
+  openKnowledgeMap: string;
+  viewSkill: string;
+  clickToExplore: string;
+  more: string;
 };

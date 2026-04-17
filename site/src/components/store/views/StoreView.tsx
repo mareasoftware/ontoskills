@@ -1,9 +1,14 @@
-import { useState } from 'react';
-import type { Skill, Translations } from '../types';
 import { navClick } from '../helpers';
 import { getCategoryColor } from '../uiColors';
 import { TrustBadge } from '../components/TrustBadge';
 import { InstallBar } from '../components/InstallBar';
+import type { Skill, Translations } from '../types';
+
+interface StoreMeta {
+  authors: string[];
+  categories: string[];
+  trustTiers: string[];
+}
 
 export function SkillCard({ skill, t, prefix, navigate }: { skill: Skill; t: Translations; prefix: string; navigate: (href: string) => void }) {
   const catColor = skill.category ? getCategoryColor(skill.category) : null;
@@ -28,7 +33,28 @@ export function SkillCard({ skill, t, prefix, navigate }: { skill: Skill; t: Tra
   );
 }
 
-export function StoreView({ loading, skills, filteredSkills, meta, t, prefix, navigate, searchQuery, setSearchQuery, filterAuthor, setFilterAuthor, filterCategory, setFilterCategory, filterTier, setFilterTier, filterSort, setFilterSort, visibleCount, setVisibleCount, lang }: any) {
+export function StoreView({ loading, skills, filteredSkills, meta, t, prefix, navigate, searchQuery, setSearchQuery, filterAuthor, setFilterAuthor, filterCategory, setFilterCategory, filterTier, setFilterTier, filterSort, setFilterSort, visibleCount, setVisibleCount, lang }: {
+  loading: boolean;
+  skills: Skill[];
+  filteredSkills: Skill[];
+  meta: StoreMeta;
+  t: Translations;
+  prefix: string;
+  navigate: (href: string) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  filterAuthor: string;
+  setFilterAuthor: (a: string) => void;
+  filterCategory: string;
+  setFilterCategory: (c: string) => void;
+  filterTier: string;
+  setFilterTier: (t: string) => void;
+  filterSort: string;
+  setFilterSort: (s: string) => void;
+  visibleCount: number;
+  setVisibleCount: (n: number) => void;
+  lang: string;
+}) {
   const docsLink = lang === 'zh' ? '/zh/docs/getting-started/' : '/docs/getting-started/';
   const visible = filteredSkills.slice(0, visibleCount);
   const remaining = filteredSkills.length - visibleCount;

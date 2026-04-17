@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Skill, ViewMode } from './types';
+import type { Skill, PackageManifest, ViewMode } from './types';
 import { translations } from './i18n';
 import { STORE_INDEX_URL, normSkill } from './helpers';
 import { StoreView } from './views/StoreView';
@@ -17,7 +17,7 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
   }, []);
 
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [packages, setPackages] = useState<any[]>([]);
+  const [packages, setPackages] = useState<PackageManifest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -89,7 +89,7 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
       try {
         const params = new URLSearchParams(window.location.search);
         const r = params.get('r');
-        if (r) {
+        if (r && /^[a-zA-Z0-9/_-]+$/.test(r)) {
           const full = prefix + '/' + r.replace(/^\//, '');
           history.replaceState(null, '', full);
           path = full;
@@ -121,6 +121,14 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
     setFilterTier('');
     setFilterSort('az');
   }, [viewMode]);
+
+  useEffect(() => {
+    const base = lang === 'zh' ? 'OntoStore — 浏览本体技能' : 'OntoStore — Browse Ontological Skills';
+    if (viewMode === 'store') document.title = base;
+    else if (viewMode === 'author') document.title = `${authorId} — ${base}`;
+    else if (viewMode === 'package') document.title = `${pkgId} — ${base}`;
+    else if (viewMode === 'skill') document.title = `${skillId} — ${base}`;
+  }, [viewMode, authorId, pkgId, skillId, lang]);
 
   if (error) {
     return (
