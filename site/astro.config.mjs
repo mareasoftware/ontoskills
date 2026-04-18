@@ -7,7 +7,7 @@ import react from '@astrojs/react';
 
 export default defineConfig({
   prefetch: {
-    prefetchAll: true,
+    prefetchAll: false,
     defaultStrategy: 'hover'
   },
   integrations: [
