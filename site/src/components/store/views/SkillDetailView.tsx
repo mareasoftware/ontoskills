@@ -429,40 +429,35 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       {/* File tree */}
       {treeModules.length > 0 && (
         <div className="section-panel mt-5">
-          <h3 className="text-base font-semibold text-[#f5f5f5] mb-3">{t.fileTree}</h3>
-          <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.fileTree}</h3>
+          <div className="flex flex-wrap gap-1.5">
             {treeModules.map(filePath => {
               const fileName = filePath.split('/').pop() || filePath;
               const isTtl = filePath.endsWith('.ttl');
               const isMain = filePath === `${skillId}/ontoskill.ttl`;
-              const category = isMain ? 'main' : fileName.includes('test') ? 'test' : fileName.includes('prompt') ? 'prompt' : 'module';
-              const color = getNodeColor(category, isMain);
+              const color = getNodeColor(isMain ? 'main' : 'module', isMain);
+              if (isTtl) return (
+                <button
+                  key={filePath}
+                  onClick={() => openFileKnowledgeMap(filePath)}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-sm text-[#d4d4d4] hover:border-[#52c7e8]/30 hover:text-[#52c7e8] hover:bg-[#52c7e8]/[0.04] transition-all cursor-pointer group"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="font-mono text-xs">{fileName}</span>
+                  <svg className="w-3 h-3 text-[#666] group-hover:text-[#52c7e8] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                </button>
+              );
               return (
-                <div key={filePath} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.03] transition-colors group">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-[#d4d4d4] font-medium truncate block">{fileName}</span>
-                    <span className="text-[11px] text-[#666] truncate block">{filePath}</span>
-                  </div>
-                  {isTtl ? (
-                    <button
-                      onClick={() => openFileKnowledgeMap(filePath)}
-                      className="shrink-0 px-2.5 py-1 rounded-md bg-[#52c7e8]/[0.06] border border-[#52c7e8]/20 text-[11px] font-medium text-[#52c7e8] hover:bg-[#52c7e8]/[0.12] transition-all opacity-60 group-hover:opacity-100"
-                    >
-                      {t.knowledgeMap}
-                    </button>
-                  ) : (
-                    <a
-                      href={`${TTL_BASE}${pkgId}/${filePath}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/[0.06] text-[11px] text-[#8a8a8a] hover:text-[#52c7e8] hover:border-[#52c7e8]/20 transition-colors opacity-60 group-hover:opacity-100"
-                    >
-                      {t.viewRaw}
-                    </a>
-                  )}
-                </div>
+                <a
+                  key={filePath}
+                  href={`${TTL_BASE}${pkgId}/${filePath}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.04] text-sm text-[#666] hover:text-[#8a8a8a] hover:border-white/[0.08] transition-all"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-white/20" />
+                  <span className="font-mono text-xs">{fileName}</span>
+                </a>
               );
             })}
           </div>
@@ -473,20 +468,20 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {skill.intents.length > 0 && (
           <div className="section-panel">
-            <h3 className="text-base font-semibold text-[#f5f5f5] mb-3">{t.intents}</h3>
-            <ul className="space-y-2">
+            <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.intents}</h3>
+            <div className="flex flex-wrap gap-1.5">
               {skill.intents.map(intent => (
-                <li key={intent} className="flex items-start gap-2.5 text-sm text-[#d4d4d4]">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#dba32c] shrink-0" />
-                  <span>{intent}</span>
-                </li>
+                <span key={intent} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#dba32c]/[0.06] border border-[#dba32c]/20 text-sm text-[#d4d4d4]">
+                  <svg className="w-3 h-3 text-[#dba32c] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  {intent}
+                </span>
               ))}
-            </ul>
+            </div>
           </div>
         )}
         {skill.dependsOn.length > 0 && (
           <div className="section-panel">
-            <h3 className="text-base font-semibold text-[#f5f5f5] mb-3">{t.dependencies}</h3>
+            <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.dependencies}</h3>
             <div className="flex flex-wrap gap-2">
               {skill.dependsOn.map(d => {
                 const dep = skills.find(s => s.packageId === pkgId && s.skillId === d);
@@ -508,7 +503,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
         )}
         {skill.aliases.length > 0 && (
           <div className="section-panel">
-            <h3 className="text-base font-semibold text-[#f5f5f5] mb-3">{t.aliases}</h3>
+            <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.aliases}</h3>
             <div className="flex flex-wrap gap-2">
               {skill.aliases.map(a => (
                 <span key={a} className="px-3 py-1.5 rounded-lg bg-white/5 text-sm text-[#8a8a8a] border border-white/[0.06]">
