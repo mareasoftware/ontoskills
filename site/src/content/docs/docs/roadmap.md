@@ -53,7 +53,8 @@ The marketplace. OntoStore is a centralized repository where teams can publish, 
 
 - [x] Per-package manifests with embedding file references
 - [x] Registry index with global embedding model declaration
-- [ ] Ontology store with search
+- [x] Ontology store with live marketplace
+- [x] 3D knowledge graph visualization
 - [ ] Version management
 - [ ] Team collaboration features
 - [ ] Community contributions
