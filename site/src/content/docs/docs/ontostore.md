@@ -3,7 +3,6 @@ title: OntoStore
 description: Search and install skills from the official OntoStore
 sidebar:
   order: 13
-slug: ontostore-guide
 ---
 
 The OntoSkills marketplace is the install surface for published, compiled skills.
