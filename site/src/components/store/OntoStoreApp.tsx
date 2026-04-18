@@ -62,14 +62,18 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
         const data = await res.json();
         const results = await Promise.allSettled(
           (data.packages || []).map(async (entry: any) => {
-            const url = new URL(entry.manifest_path, STORE_INDEX_URL).toString();
-            const r = await fetch(url, { mode: 'cors', headers: { Accept: 'application/json' }, signal });
+            const url = new URL(entry.manifest_path, STORE_INDEX_URL);
+            if (url.origin !== new URL(STORE_INDEX_URL).origin) throw new Error('Cross-origin manifest');
+            const r = await fetch(url.toString(), { mode: 'cors', headers: { Accept: 'application/json' }, signal });
             if (!r.ok) throw new Error(`Manifest failed: ${r.status}`);
             return r.json();
           })
         );
         if (signal.aborted) return;
         const manifests = results.filter(r => r.status === 'fulfilled').map(r => (r as any).value);
+        if (manifests.length === 0 && results.some(r => r.status === 'rejected')) {
+          setError(true); setLoading(false); return;
+        }
         setPackages(manifests);
         const newSkills = manifests.flatMap(pkg => (pkg.skills || []).map((s: any) => normSkill(pkg, s)));
         newSkills.sort((a, b) => a.qualifiedId.localeCompare(b.qualifiedId));
