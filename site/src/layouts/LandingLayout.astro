@@ -67,6 +67,7 @@ const jsonLd = {
     <meta name="twitter:image" content="https://ontoskills.sh/og-image.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={Astro.url.origin + Astro.url.pathname} />
+    <link rel="canonical" href={Astro.url.origin + Astro.url.pathname} />
     <meta name="twitter:card" content="summary_large_image" />
     <title>{title}</title>
     {!noTransitions && <ViewTransitions />}
