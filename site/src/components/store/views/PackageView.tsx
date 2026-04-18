@@ -61,11 +61,11 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${STAT_COLORS.skills.bg} border ${STAT_COLORS.skills.border}`}>
             <svg className={`w-3.5 h-3.5 ${STAT_COLORS.skills.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            <span className="text-xs text-[#d4d4d4]">{pkgSkills.length} {t.skills.toLowerCase()}</span>
+            <span className="text-xs text-[#d4d4d4]">{pkgSkills.length} {pkgSkills.length === 1 ? t.skill_one : t.skill_other}</span>
           </div>
           <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${STAT_COLORS.modules.bg} border ${STAT_COLORS.modules.border}`}>
             <svg className={`w-3.5 h-3.5 ${STAT_COLORS.modules.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-            <span className="text-xs text-[#d4d4d4]">{modules.length} {t.files_other}</span>
+            <span className="text-xs text-[#d4d4d4]">{modules.length} {modules.length === 1 ? t.file_one : t.file_other}</span>
           </div>
 
           <span className="text-white/10 mx-0.5">|</span>
@@ -103,7 +103,7 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
             <div>
               <h3 className="text-lg font-semibold text-[#f5f5f5]">{t.knowledgeGraph} — {pkgName}</h3>
               <p className="text-xs text-[#8a8a8a] mt-0.5">
-                {graphData.nodes.length} {t.nodes} · {graphData.edges.length} {t.edges}
+                {graphData.nodes.length} {graphData.nodes.length === 1 ? t.node_one : t.node_other} · {graphData.edges.length} {graphData.edges.length === 1 ? t.edge_one : t.edge_other}
               </p>
             </div>
             <button onClick={() => setShowPkgGraph(false)} className="p-2 rounded-lg hover:bg-white/10 text-[#8a8a8a] hover:text-[#f5f5f5] transition-colors" aria-label="Close">

@@ -82,7 +82,7 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
         </div>
       )}
       <div className="absolute top-4 right-4 text-sm text-[#8a8a8a] z-10">
-        {nodes.length} {t.nodes} · {edges.length} {t.edges}
+        {nodes.length} {nodes.length === 1 ? t.node_one : t.node_other} · {edges.length} {edges.length === 1 ? t.edge_one : t.edge_other}
       </div>
       <div className="absolute bottom-3 right-3 z-10">
         <div className="relative">
