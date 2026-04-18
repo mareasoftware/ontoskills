@@ -161,7 +161,11 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
               <div className="flex items-center justify-center h-full"><p className="text-[#f9a8d4]">{t.graphError}</p></div>
             ) : (
               <Suspense fallback={<GraphLoader t={t} />}>
-                <KnowledgeGraph3D nodes={displayGraphData.nodes} edges={displayGraphData.edges} onNodeClick={setSelectedNode} onBackgroundClick={() => setSelectedNode(null)} highlightCategory={highlightCategory} onHighlightCategory={setHighlightCategory} height="100%" t={t} hideLabels={!!selectedNode} />
+                {displayGraphData ? (
+                  <KnowledgeGraph3D nodes={displayGraphData.nodes} edges={displayGraphData.edges} onNodeClick={setSelectedNode} onBackgroundClick={() => setSelectedNode(null)} highlightCategory={highlightCategory} onHighlightCategory={setHighlightCategory} height="100%" t={t} hideLabels={!!selectedNode} />
+                ) : (
+                  <div className="flex items-center justify-center h-full"><p className="text-[#8a8a8a] text-sm">{t.graphError}</p></div>
+                )}
               </Suspense>
             )}
             {selectedNode && displayGraphData && (
