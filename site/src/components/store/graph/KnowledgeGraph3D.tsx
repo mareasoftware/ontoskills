@@ -57,7 +57,7 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
                   />
                 );
               })}
-              <button onClick={() => setLegendExpanded(!legendExpanded)} className="shrink-0 ml-0.5 text-[#8a8a8a] hover:text-[#d4d4d4] transition-colors">
+              <button onClick={() => setLegendExpanded(!legendExpanded)} aria-label={legendExpanded ? t.controls : t.legend} aria-expanded={legendExpanded} className="shrink-0 ml-0.5 text-[#8a8a8a] hover:text-[#d4d4d4] transition-colors">
                 <svg className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
             </div>
