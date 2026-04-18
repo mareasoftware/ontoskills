@@ -206,9 +206,10 @@ oc:contradicts a owl:ObjectProperty,
 oc:dependsOn a owl:AsymmetricProperty,
         owl:ObjectProperty ;
     rdfs:label "depends on" ;
-    rdfs:comment "Skill depends on another skill (prerequisite)" ;
+    rdfs:comment "DEPRECATED: use oc:dependsOnSkill instead. Legacy skill-to-skill dependency." ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill ;
+    owl:deprecated true ;
     owl:inverseOf oc:enables .
 
 oc:dependsOnSkill a owl:AsymmetricProperty,
@@ -216,7 +217,8 @@ oc:dependsOnSkill a owl:AsymmetricProperty,
     rdfs:label "depends on skill" ;
     rdfs:comment "Declares a dependency on another skill (skill-to-skill prerequisite)" ;
     rdfs:domain oc:Skill ;
-    rdfs:range oc:Skill .
+    rdfs:range oc:Skill ;
+    owl:inverseOf oc:enablesSkill .
 
 oc:differentia a owl:DatatypeProperty ;
     rdfs:label "differentia" ;
@@ -535,6 +537,12 @@ oc:FileResourceUnion rdf:first oc:ReferenceFile ;
 oc:enables a owl:ObjectProperty ;
     rdfs:label "enables" ;
     rdfs:comment "Skill enables another skill (inverse of dependsOn)" ;
+    rdfs:domain oc:Skill ;
+    rdfs:range oc:Skill .
+
+oc:enablesSkill a owl:ObjectProperty ;
+    rdfs:label "enables skill" ;
+    rdfs:comment "Skill enables another skill (inverse of dependsOnSkill)" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill .
 

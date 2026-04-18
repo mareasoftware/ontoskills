@@ -476,15 +476,16 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # ========== Skill Relationship Properties ==========
 
-    # oc:dependsOn (ObjectProperty) - asymmetric
+    # oc:dependsOn (ObjectProperty) — DEPRECATED, use oc:dependsOnSkill
     g.add((oc.dependsOn, RDF.type, OWL.ObjectProperty))
     g.add((oc.dependsOn, RDF.type, OWL.AsymmetricProperty))
     g.add((oc.dependsOn, RDFS.domain, oc.Skill))
     g.add((oc.dependsOn, RDFS.range, oc.Skill))
     g.add((oc.dependsOn, RDFS.label, Literal("depends on")))
     g.add((oc.dependsOn, RDFS.comment, Literal(
-        "Skill depends on another skill (prerequisite)"
+        "DEPRECATED: use oc:dependsOnSkill instead. Legacy skill-to-skill dependency."
     )))
+    g.add((oc.dependsOn, OWL.deprecated, Literal(True)))
     g.add((oc.dependsOn, OWL.inverseOf, oc.enables))
 
     # oc:dependsOnSkill (ObjectProperty) — unambiguous skill-to-skill dependency
@@ -496,14 +497,24 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     g.add((oc.dependsOnSkill, RDFS.comment, Literal(
         "Declares a dependency on another skill (skill-to-skill prerequisite)"
     )))
+    g.add((oc.dependsOnSkill, OWL.inverseOf, oc.enablesSkill))
 
-    # oc:enables (ObjectProperty) - inverse of dependsOn
+    # oc:enables (ObjectProperty) - inverse of dependsOn (legacy)
     g.add((oc.enables, RDF.type, OWL.ObjectProperty))
     g.add((oc.enables, RDFS.domain, oc.Skill))
     g.add((oc.enables, RDFS.range, oc.Skill))
     g.add((oc.enables, RDFS.label, Literal("enables")))
     g.add((oc.enables, RDFS.comment, Literal(
         "Skill enables another skill (inverse of dependsOn)"
+    )))
+
+    # oc:enablesSkill (ObjectProperty) - inverse of dependsOnSkill
+    g.add((oc.enablesSkill, RDF.type, OWL.ObjectProperty))
+    g.add((oc.enablesSkill, RDFS.domain, oc.Skill))
+    g.add((oc.enablesSkill, RDFS.range, oc.Skill))
+    g.add((oc.enablesSkill, RDFS.label, Literal("enables skill")))
+    g.add((oc.enablesSkill, RDFS.comment, Literal(
+        "Skill enables another skill (inverse of dependsOnSkill)"
     )))
 
     # oc:extends (ObjectProperty) - transitive

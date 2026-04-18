@@ -131,7 +131,10 @@ def serialize_skill(
 
     # Relations - serialize as object properties to stable skill URIs
     # Use oc:dependsOnSkill for skill-to-skill dependencies (OntoCore refactoring)
+    # Skip self-references to prevent circular deps
     for dep in skill.depends_on:
+        if dep == skill.id:
+            continue
         graph.add((skill_uri, oc.dependsOnSkill, relation_uri_for_value(dep)))
 
     # Inject deterministic extends if provided (sub-skills)
