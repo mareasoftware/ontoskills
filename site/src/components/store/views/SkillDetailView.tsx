@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Skill, PackageManifest, GraphNode, GraphEdge, Translations } from '../types';
 import { navClick, TTL_BASE, buildFileGraphData, parseTtlKnowledgeMap } from '../helpers';
 import { OFFICIAL_STORE_REPO_URL } from '../../../data/store';
@@ -26,6 +26,15 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       return () => { document.body.style.overflow = ''; };
     }
   }, [showGraph]);
+
+  // AbortController for TTL fetches — aborts on skill change
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    return () => { ac.abort(); };
+  }, [pkgId, skillId]);
 
   // Reset all graph state when navigating to a different skill
   useEffect(() => {
@@ -62,13 +71,13 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       const contents: string[] = [];
       await Promise.all(ttlFiles.map(async (f) => {
         try {
-          const res = await fetch(ttlBase + f);
+          const res = await fetch(ttlBase + f, { signal: abortRef.current?.signal });
           if (res.ok) contents.push(await res.text());
-        } catch { /* skip failed files */ }
+        } catch (e: any) { if (e.name === 'AbortError') throw e; }
       }));
       if (!contents.length) { setGraphError(true); return; }
       setKnowledgeData(parseTtlKnowledgeMap(contents.join('\n'), skillId));
-    } catch { setGraphError(true); }
+    } catch (e: any) { if (e.name !== 'AbortError') setGraphError(true); }
     finally { setLoadingKnowledge(false); }
   }, [pkgId, treeModules, skillId, knowledgeData]);
 
@@ -87,7 +96,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
     setGraphError(false);
     setSelectedNode(null);
     try {
-      const res = await fetch(`${TTL_BASE}${pkgId}/${filePath}`);
+      const res = await fetch(`${TTL_BASE}${pkgId}/${filePath}`, { signal: abortRef.current?.signal });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const content = await res.text();
       const fileName = filePath.split('/').pop()!.replace('.ttl', '');
@@ -95,7 +104,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       setGraphMode('knowledge');
       setGraphBreadcrumb([{ label: skillId, fileId: null }, { label: fileName, fileId: filePath }]);
       setShowGraph(true);
-    } catch { setGraphError(true); }
+    } catch (e: any) { if (e.name !== 'AbortError') setGraphError(true); }
     finally { setLoadingKnowledge(false); }
   }, [pkgId, skillId]);
 
@@ -106,7 +115,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
     setLoadingKnowledge(true);
     setGraphError(false);
     try {
-      const res = await fetch(`${TTL_BASE}${pkgId}/${fileId}`);
+      const res = await fetch(`${TTL_BASE}${pkgId}/${fileId}`, { signal: abortRef.current?.signal });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const content = await res.text();
       const parsed = parseTtlKnowledgeMap(content, fileId.split('/').pop()!.replace('.ttl', ''));
@@ -114,7 +123,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
       setGraphMode('knowledge');
       setGraphBreadcrumb(prev => [...prev, { label: node.label, fileId }]);
       setSelectedNode(null);
-    } catch { setGraphError(true); }
+    } catch (e: any) { if (e.name !== 'AbortError') setGraphError(true); }
     finally { setLoadingKnowledge(false); }
   }, [pkgId]);
 
