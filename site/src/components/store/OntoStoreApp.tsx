@@ -21,6 +21,8 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
     const toggles = document.querySelectorAll<HTMLElement>('.lang-toggle');
     if (toggles.length === 0) return;
     const handler = (e: Event) => {
+      const me = e as MouseEvent;
+      if (me.button !== 0 || me.metaKey || me.ctrlKey || me.shiftKey) return;
       e.preventDefault();
       const currentPath = window.location.pathname;
       const r = new URLSearchParams(window.location.search).get('r');
