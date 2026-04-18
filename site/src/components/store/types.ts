@@ -79,8 +79,6 @@ export type Translations = {
   fileTree: string;
   knowledgeGraph: string;
   skills: string;
-  skill_one: string;
-  skill_other: string;
   packages: string;
   package_one: string;
   package_other: string;
