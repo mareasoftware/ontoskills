@@ -14,7 +14,7 @@ export function layoutForce3D(nodes: GraphNode[], edges: GraphEdge[]) {
       z: R * Math.cos(phi),
     };
   });
-  const iters = Math.min(120, Math.max(30, Math.round(3000 / n)));
+  const iters = n > 100 ? 0 : Math.min(120, Math.max(30, Math.round(3000 / n)));
   for (let iter = 0; iter < iters; iter++) {
     const cooling = 0.1 * (1 - iter / iters);
     for (let i = 0; i < n; i++) {
