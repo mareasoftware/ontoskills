@@ -5,6 +5,16 @@ import Footer from '../components/landing/Footer.astro';
 ---
 
 <LandingLayout title="404 — Page Not Found | OntoSkills">
+  <script is:inline>
+    (function(){
+      var p=window.location.pathname;
+      if(/^\/(zh\/)?ontostore\//.test(p)&&p!=='/ontostore/'&&p!=='/zh/ontostore/'){
+        var prefix=p.startsWith('/zh/')?'/zh':'';
+        var sub=p.replace(/^\/(zh\/)?ontostore\/?/,'');
+        window.location.replace(prefix+'/ontostore/?r='+encodeURIComponent(sub));
+      }
+    })();
+  </script>
   <Header lang="en" />
   <main class="min-h-[70vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#52c7e8]/[0.03] rounded-full blur-[120px] pointer-events-none"></div>
@@ -23,14 +33,3 @@ import Footer from '../components/landing/Footer.astro';
   </main>
   <Footer lang="en" />
 </LandingLayout>
-
-<script is:inline>
-  (function(){
-    var p=window.location.pathname;
-    if(/^\/(zh\/)?ontostore\//.test(p)&&p!=='/ontostore/'&&p!=='/zh/ontostore/'){
-      var prefix=p.startsWith('/zh/')?'/zh':'';
-      var sub=p.replace(/^\/(zh\/)?ontostore\/?/,'');
-      window.location.replace(prefix+'/ontostore/?r='+encodeURIComponent(sub));
-    }
-  })();
-</script>

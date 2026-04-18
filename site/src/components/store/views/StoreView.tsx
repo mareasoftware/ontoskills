@@ -61,8 +61,16 @@ export function StoreView({ loading, filteredSkills, meta, t, prefix, navigate, 
   return (
     <>
       <div className="mb-10">
-        <h2 className="text-2xl sm:text-3xl font-bold text-[#f5f5f5] mb-2">{t.storeLabel}</h2>
-        <p className="text-base text-[#d4d4d4]">{t.allSkills}</p>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-4">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
+          <span className="text-[10px] uppercase tracking-[0.15em] text-[#8a8a8a] font-mono">{t.officialStore}</span>
+        </div>
+
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+          <span className="text-[#f5f5f5]">Onto</span><span style={{ background: 'linear-gradient(135deg, #52c7e8 0%, #85f496 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Store</span>
+        </h2>
+
+        <p className="text-base text-[#8a8a8a] max-w-lg">{t.allSkills}</p>
       </div>
 
       <div className="mb-8 inline-flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">

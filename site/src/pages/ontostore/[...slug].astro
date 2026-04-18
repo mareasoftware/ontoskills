@@ -5,13 +5,15 @@ import Footer from '../../components/landing/Footer.astro';
 import OntoStoreApp from '../../components/store/OntoStoreApp.astro';
 
 export function getStaticPaths() {
-  // Generate pages for all SPA sub-routes: root, author, package, skill
-  // The React component handles URL parsing client-side
+  // Placeholder pages so Vite generates index.html for each depth.
+  // The React SPA handles actual URL routing client-side.
+  // Deeper paths are caught by the 404 page's redirect script.
   return [
-    { params: { slug: undefined } },          // /ontostore/
-    { params: { slug: 'a' } },                // /ontostore/:author
-    { params: { slug: 'a/b' } },              // /ontostore/:author/:package
-    { params: { slug: 'a/b/c' } },            // /ontostore/:author/:package/:skill
+    { params: { slug: undefined } },
+    { params: { slug: 'a' } },
+    { params: { slug: 'a/b' } },
+    { params: { slug: 'a/b/c' } },
+    { params: { slug: 'a/b/c/d' } },
   ];
 }
 ---

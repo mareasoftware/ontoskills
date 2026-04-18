@@ -16,6 +16,25 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
     if (el) el.remove();
   }, []);
 
+  // Patch Header language toggles to preserve SPA sub-routes
+  useEffect(() => {
+    const toggles = document.querySelectorAll<HTMLElement>('.lang-toggle');
+    if (toggles.length === 0) return;
+    const handler = (e: Event) => {
+      const me = e as MouseEvent;
+      if (me.button !== 0 || me.metaKey || me.ctrlKey || me.shiftKey) return;
+      e.preventDefault();
+      const currentPath = window.location.pathname;
+      const r = new URLSearchParams(window.location.search).get('r');
+      const subpath = r || currentPath.replace(prefix, '').replace(/^\//, '');
+      window.location.href = lang === 'en'
+        ? `/zh/ontostore/${subpath}`
+        : `/ontostore/${subpath}`;
+    };
+    toggles.forEach(el => { el.onclick = handler; });
+    return () => { toggles.forEach(el => { el.onclick = null; }); };
+  }, [lang, prefix]);
+
   const [skills, setSkills] = useState<Skill[]>([]);
   const [packages, setPackages] = useState<PackageManifest[]>([]);
   const [loading, setLoading] = useState(true);

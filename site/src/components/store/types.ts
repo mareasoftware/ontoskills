@@ -116,6 +116,7 @@ export type Translations = {
   knowledgeMap: string;
   openGraph: string;
   loadingGraph: string;
+  loading3d: string;
   graphError: string;
   legend: string;
   controls: string;
@@ -131,4 +132,5 @@ export type Translations = {
   clickToExplore: string;
   clusterInstances: string;
   viewRaw: string;
+  officialStore: string;
 };

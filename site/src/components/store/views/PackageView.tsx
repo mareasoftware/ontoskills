@@ -1,12 +1,15 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import type { Skill, PackageManifest, Translations } from '../types';
-import { navClick, buildGraphData, packageHasDeps } from '../helpers';
+import { navClick } from '../helpers';
+import { buildGraphData, packageHasDeps } from '../graph-builder';
 import { OFFICIAL_STORE_REPO_URL } from '../../../data/store';
 import { TrustBadge } from '../components/TrustBadge';
 import { InstallBar } from '../components/InstallBar';
+import { GraphLoader } from '../components/GraphLoader';
 import { STAT_COLORS } from '../uiColors';
 import { SkillCard } from './StoreView';
-import { KnowledgeGraph3D } from '../graph/KnowledgeGraph3D';
+
+const KnowledgeGraph3D = lazy(() => import('../graph/KnowledgeGraph3D').then(m => ({ default: m.KnowledgeGraph3D })));
 
 export function PackageView({ loading, skills, packages, pkgId, t, prefix, navigate }: { loading: boolean; skills: Skill[]; packages: PackageManifest[]; pkgId: string; t: Translations; prefix: string; navigate: (href: string) => void }) {
   const [showPkgGraph, setShowPkgGraph] = useState(false);
@@ -111,19 +114,21 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
             </button>
           </div>
           <div className="flex-1 relative">
-            <KnowledgeGraph3D
-              nodes={graphData.nodes}
-              edges={graphData.edges}
-              onNodeClick={(node) => {
-                const skill = skills.find(s => s.packageId === pkgId && s.qualifiedId === node.id);
-                if (skill) {
-                  setShowPkgGraph(false);
-                  navigate(`${prefix}/${skill.qualifiedId}`);
-                }
-              }}
-              height="100%"
-              t={t}
-            />
+            <Suspense fallback={<GraphLoader t={t} />}>
+              <KnowledgeGraph3D
+                nodes={graphData.nodes}
+                edges={graphData.edges}
+                onNodeClick={(node) => {
+                  const skill = skills.find(s => s.packageId === pkgId && s.qualifiedId === node.id);
+                  if (skill) {
+                    setShowPkgGraph(false);
+                    navigate(`${prefix}/${skill.qualifiedId}`);
+                  }
+                }}
+                height="100%"
+                t={t}
+              />
+            </Suspense>
           </div>
         </div>
       )}

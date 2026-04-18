@@ -50,8 +50,8 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
         <a href={pageHref('how-it-works')} class="text-text-secondary hover:text-text-primary transition-colors">{t.howItWorks}</a>
         <a href={docHref('overview')} class="text-text-secondary hover:text-text-primary transition-colors">{t.docs}</a>
 
-        <!-- Language Toggle -->
-        <a href={alternateHref} class="lang-toggle flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-sm" onclick="event.preventDefault();var p=window.location.pathname;var isZh=p.indexOf('/zh/')===0||p==='/zh';var om=p.match(/^\/(zh\/)?ontostore\/?(.*)$/);if(om){var s=om[2];window.location.href=isZh?'/ontostore/'+(s?'?r='+s:''):'/zh/ontostore/'+(s?'?r='+s:'')}else{window.location.href=isZh?(p.replace(/^\/zh\/?/, '/')||'/'):'/zh'+p}">
+        <!-- Language Toggle (React patches onclick for OntoStore SPA routes) -->
+        <a href={alternateHref} class="lang-toggle flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-sm">
           <span class:list={[lang === 'en' ? 'text-text-primary font-medium' : 'text-text-muted']}>EN</span>
           <span class="text-text-muted">/</span>
           <span class:list={[lang === 'zh' ? 'text-text-primary font-medium' : 'text-text-muted']}>中文</span>
@@ -75,8 +75,8 @@ const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"
         <a href={pageHref('how-it-works')} class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.howItWorks}</a>
         <a href={docHref('overview')} class="text-text-secondary hover:text-text-primary transition-colors py-2">{t.docs}</a>
 
-        <!-- Mobile Language Toggle -->
-        <a href={alternateHref} class="lang-toggle flex items-center gap-1.5 px-3 py-2 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-sm w-fit" onclick="event.preventDefault();var p=window.location.pathname;var isZh=p.indexOf('/zh/')===0||p==='/zh';var om=p.match(/^\/(zh\/)?ontostore\/?(.*)$/);if(om){var s=om[2];window.location.href=isZh?'/ontostore/'+(s?'?r='+s:''):'/zh/ontostore/'+(s?'?r='+s:'')}else{window.location.href=isZh?(p.replace(/^\/zh\/?/, '/')||'/'):'/zh'+p}">
+        <!-- Mobile Language Toggle (React patches onclick for OntoStore SPA routes) -->
+        <a href={alternateHref} class="lang-toggle flex items-center gap-1.5 px-3 py-2 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-sm w-fit">
           <span class:list={[lang === 'en' ? 'text-text-primary font-medium' : 'text-text-muted']}>EN</span>
           <span class="text-text-muted">/</span>
           <span class:list={[lang === 'zh' ? 'text-text-primary font-medium' : 'text-text-muted']}>中文</span>

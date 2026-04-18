@@ -75,6 +75,7 @@ export const translations: Record<string, Translations> = {
     knowledgeMap: 'Knowledge Map',
     openGraph: 'Open 3D Graph',
     loadingGraph: 'Parsing TTL files…',
+    loading3d: 'Loading 3D engine…',
     graphError: 'Failed to load graph data.',
     legend: 'Legend',
     controls: 'Controls',
@@ -90,6 +91,7 @@ export const translations: Record<string, Translations> = {
     clickToExplore: 'Click to explore →',
     clusterInstances: 'instances',
     viewRaw: 'View raw',
+    officialStore: 'Official Store',
   },
   zh: {
     searchPlaceholder: '按本体技能、意图或描述搜索...',
@@ -164,6 +166,7 @@ export const translations: Record<string, Translations> = {
     knowledgeMap: '知识图谱',
     openGraph: '打开 3D 图谱',
     loadingGraph: '正在解析 TTL 文件…',
+    loading3d: '正在加载 3D 引擎…',
     graphError: '加载图谱数据失败。',
     legend: '图例',
     controls: '快捷键',
@@ -180,5 +183,6 @@ export const translations: Record<string, Translations> = {
     clusterInstances: '个实例',
     viewRaw: '查看原始',
     more: '更多',
+    officialStore: '官方商店',
   },
 };
