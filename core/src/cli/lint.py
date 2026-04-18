@@ -8,7 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from linter import lint_ontology, LintResult
+from compiler.linter import lint_ontology, LintResult
 
 console = Console()
 

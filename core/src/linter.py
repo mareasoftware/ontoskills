@@ -288,9 +288,6 @@ def _check_workflow_cycles(g: Graph) -> list[LintIssue]:
                         dep_step_id_obj = next(g.objects(dep_step, OC.stepId), None)
                         if dep_step_id_obj:
                             dep_ids.add(str(dep_step_id_obj))
-                    # Backward compatibility: also honor literal step-id dependencies via oc:dependsOnSkill.
-                    for dep_literal in g.objects(step, OC.dependsOnSkill):
-                        dep_ids.add(str(dep_literal))
                     step_deps[step_id] = dep_ids
 
             # Detect cycles via DFS
