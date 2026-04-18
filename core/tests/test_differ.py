@@ -165,3 +165,20 @@ def test_clean_diff_has_no_suggestions(tmp_path):
 
     report = compute_diff(str(f), str(f))
     assert report.suggestions() == []
+
+
+def test_migration_suggestion_sparql_uses_union(tmp_path):
+    """Migration suggestions should query both dependsOnSkill and dependsOn."""
+    old_f = tmp_path / 'old.ttl'
+    new_f = tmp_path / 'new.ttl'
+    old_f.write_text(OLD_TTL)
+    new_f.write_text("@prefix oc: <https://ontoskills.sh/ontology#> .\n")
+
+    report = compute_diff(str(old_f), str(new_f))
+    suggestions = report.suggestions()
+
+    skill_sug = next(s for s in suggestions if s.category == 'skill-removed')
+    # SPARQL should contain UNION covering both old and new property names
+    assert 'UNION' in skill_sug.sparql_query
+    assert 'dependsOnSkill' in skill_sug.sparql_query
+    assert 'dependsOn' in skill_sug.sparql_query

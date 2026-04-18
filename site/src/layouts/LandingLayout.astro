@@ -11,12 +11,14 @@ interface Props {
   title?: string;
   description?: string;
   lang?: string;
+  noTransitions?: boolean;
 }
 
 const {
   title = 'OntoSkills — Deterministic AI Skills via Rust MCP & OWL Ontologies',
   description = 'Stop burning tokens on probabilistic skill reading. OntoSkills delivers sub-millisecond SPARQL queries through a Rust MCP runtime. Ontological, deterministic, precise.',
-  lang = 'en'
+  lang = 'en',
+  noTransitions = false
 } = Astro.props;
 
 const jsonLd = {
@@ -65,9 +67,10 @@ const jsonLd = {
     <meta name="twitter:image" content="https://ontoskills.sh/og-image.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={Astro.url.origin + Astro.url.pathname} />
+    <link rel="canonical" href={Astro.url.origin + Astro.url.pathname} />
     <meta name="twitter:card" content="summary_large_image" />
     <title>{title}</title>
-    <ViewTransitions />
+    {!noTransitions && <ViewTransitions />}
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
   <body class="min-h-screen bg-bg-primary">

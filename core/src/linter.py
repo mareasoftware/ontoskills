@@ -5,7 +5,7 @@ Analyses the compiled ontology (or a set of .ttl files) without calling the
 Anthropic API and reports structural issues:
 
   - dead_states      : a skill requiresState X but no skill yieldsState X
-  - circular_deps    : A dependsOn B dependsOn ... dependsOn A
+  - circular_deps    : A dependsOnSkill B dependsOnSkill ... dependsOnSkill A
   - duplicate_intents: two different skills resolve the same intent string
   - unreachable_skills: skill with requiresState but no skill yields those states
                         and the skill has no entry-point intents
@@ -136,35 +136,35 @@ def _check_dead_states(g: Graph) -> list[LintIssue]:
 
 def _check_circular_deps(g: Graph) -> list[LintIssue]:
     """
-    Detect circular dependency chains via oc:dependsOn.
+    Detect circular dependency chains via oc:dependsOnSkill.
 
     Uses DFS with a recursion stack. Reports each skill that is part of a cycle.
     """
     # Build adjacency: skill_id → set of skill_ids it depends on
     adj: dict[str, set[str]] = {}
-    for s, o in g.subject_objects(OC.dependsOn):
+    for s, o in g.subject_objects(OC.dependsOnSkill):
         sid = _local(s)
         oid = _local(o)
         adj.setdefault(sid, set()).add(oid)
 
     visited:   set[str] = set()
     rec_stack: set[str] = set()
+    rec_order: list[str] = []
     cycles:    set[str] = set()
 
-    def dfs(node: str) -> bool:
+    def dfs(node: str) -> None:
         visited.add(node)
         rec_stack.add(node)
+        rec_order.append(node)
         for neighbour in adj.get(node, set()):
             if neighbour not in visited:
-                if dfs(neighbour):
-                    cycles.add(node)
-                    return True
+                dfs(neighbour)
             elif neighbour in rec_stack:
-                cycles.add(node)
-                cycles.add(neighbour)
-                return True
+                # Collect only the nodes actually in the cycle
+                idx = rec_order.index(neighbour)
+                cycles.update(rec_order[idx:])
+        rec_order.pop()
         rec_stack.discard(node)
-        return False
 
     for skill in list(adj.keys()):
         if skill not in visited:
@@ -176,7 +176,7 @@ def _check_circular_deps(g: Graph) -> list[LintIssue]:
             code="circular-dep",
             skill_id=sid,
             message=f"Circular dependency detected involving '{sid}'",
-            detail="Resolve the cycle in oc:dependsOn before deploying.",
+            detail="Resolve the cycle in oc:dependsOnSkill before deploying.",
         )
         for sid in sorted(cycles)
     ]
@@ -288,9 +288,6 @@ def _check_workflow_cycles(g: Graph) -> list[LintIssue]:
                         dep_step_id_obj = next(g.objects(dep_step, OC.stepId), None)
                         if dep_step_id_obj:
                             dep_ids.add(str(dep_step_id_obj))
-                    # Backward compatibility: also honor literal step-id dependencies via oc:dependsOn.
-                    for dep_literal in g.objects(step, OC.dependsOn):
-                        dep_ids.add(str(dep_literal))
                     step_deps[step_id] = dep_ids
 
             # Detect cycles via DFS

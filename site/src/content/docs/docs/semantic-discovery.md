@@ -209,8 +209,8 @@ Results are ranked by **hybrid score** — cosine similarity multiplied by a tru
 
 | Trust Tier | Multiplier | Effect |
 |------------|------------|--------|
-| `local` | 1.2 | Boosts locally compiled skills |
-| `trusted` | 1.2 | Boosts official/trusted author skills |
+| `local` | 1.0 | Neutral for locally compiled skills |
+| `official` | 1.2 | Boosts official/trusted author skills |
 | `verified` | 1.0 | Neutral (baseline) |
 | `community` | 0.8 | Dampens community contributions |
 

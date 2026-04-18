@@ -71,11 +71,14 @@ class DriftReport:
                 sparql_query=(
                     f'PREFIX oc: <{OC_PREFIX}>\n'
                     f'SELECT ?agent WHERE {{\n'
-                    f'  ?agent oc:dependsOn oc:{local} .\n'
+                    f'  {{ ?agent oc:dependsOnSkill oc:{local} . }}\n'
+                    f'  UNION\n'
+                    f'  {{ ?agent oc:dependsOn oc:{local} . }}\n'
                     f'}}'
                 ),
                 action=(
-                    f"Remove or replace all oc:dependsOn oc:{local} references. "
+                    f"Remove or replace all oc:dependsOnSkill (and legacy oc:dependsOn) "
+                    f"references to oc:{local}. "
                     f"Check if a replacement skill covers the same intents."
                 ),
             ))

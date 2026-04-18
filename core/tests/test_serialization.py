@@ -316,6 +316,33 @@ def test_serialize_skill_relations_use_skill_uris():
     assert (skill_uri, oc.contradicts, skill_uri_for_id("legacy-office")) in g
 
 
+def test_serialize_skill_no_self_loop_depends():
+    """Self-referencing depends_on should be silently skipped."""
+    oc = get_oc_namespace()
+    g = Graph()
+
+    skill = ExtractedSkill(
+        id="selfdep",
+        hash="selfdephash",
+        nature="Test",
+        genus="Test",
+        differentia="depends on itself",
+        intents=["test self-dep"],
+        requirements=[],
+        depends_on=["selfdep", "other"],
+        extends=[],
+        contradicts=[],
+        generated_by="test",
+    )
+
+    serialize_skill(g, skill)
+    skill_uri = skill_uri_for_id(skill.id)
+
+    # Should depend on 'other' but NOT on itself
+    assert (skill_uri, oc.dependsOnSkill, skill_uri_for_id("other")) in g
+    assert (skill_uri, oc.dependsOnSkill, skill_uri) not in g
+
+
 def test_skill_uri_for_qualified_id():
     """Test URI generation handles Qualified IDs by slugifying slashes."""
     from compiler.serialization import skill_uri_for_id

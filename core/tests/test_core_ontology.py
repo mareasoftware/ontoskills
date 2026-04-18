@@ -11,7 +11,7 @@ These tests verify the OntoSkills core ontology (TBox) creation including:
 """
 import pytest
 from pathlib import Path
-from rdflib import Graph, RDF, RDFS, OWL, Namespace
+from rdflib import Graph, RDF, RDFS, OWL, Namespace, Literal
 
 from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.config import BASE_URI, CORE_STATES, FAILURE_STATES
@@ -217,6 +217,20 @@ class TestSkillRelationshipProperties:
     def test_enables_property(self, core_ontology, oc):
         """Test oc:enables property (inverse of dependsOn)."""
         assert (oc.enables, RDF.type, OWL.ObjectProperty) in core_ontology
+
+    def test_depends_on_is_deprecated(self, core_ontology, oc):
+        """oc:dependsOn should be marked as owl:deprecated."""
+        assert (oc.dependsOn, OWL.deprecated, Literal(True)) in core_ontology
+
+    def test_depends_on_skill_has_inverse(self, core_ontology, oc):
+        """oc:dependsOnSkill should have owl:inverseOf oc:enablesSkill."""
+        assert (oc.dependsOnSkill, OWL.inverseOf, oc.enablesSkill) in core_ontology
+
+    def test_enables_skill_property(self, core_ontology, oc):
+        """Test oc:enablesSkill property (inverse of dependsOnSkill)."""
+        assert (oc.enablesSkill, RDF.type, OWL.ObjectProperty) in core_ontology
+        assert (oc.enablesSkill, RDFS.domain, oc.Skill) in core_ontology
+        assert (oc.enablesSkill, RDFS.range, oc.Skill) in core_ontology
 
     def test_extends_property(self, core_ontology, oc):
         """Test oc:extends transitive property."""

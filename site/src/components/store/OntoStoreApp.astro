@@ -1,0 +1,6 @@
+---
+import OntoStoreReact from './OntoStoreApp';
+const { lang = 'en' } = Astro.props;
+---
+
+<OntoStoreReact client:only="react" lang={lang} />

@@ -16,12 +16,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`ontostore/index.json` embedding_model section** — Registry index includes model name, dimension, and file references for embedding discovery
 - **Per-skill embedding generation** — Every compiled skill produces `intents.json` with 384-dim L2-normalized embeddings alongside `ontoskill.ttl`. Requires `ontocore[embeddings]` extra; skipped with a warning when not installed
 - **`oc:dependsOnSkill`** — New ObjectProperty replacing `oc:dependsOn` for unambiguous skill-to-skill dependencies (domain/range `oc:Skill`)
+- **`oc:enablesSkill`** — Inverse ObjectProperty of `dependsOnSkill` (`owl:inverseOf`) for bidirectional skill relationship traversal
 - **9 optional metadata properties** — `category`, `version`, `license`, `author`, `package_name`, `is_user_invocable`, `argument_hint`, `allowed_tools`, `aliases` in ontology, SHACL shapes, Pydantic models, and serialization
 - **Multi-level install resolution** — `ontoskills install` supports author-level, package-level, and skill-level references via `resolve_install_ref()`
 - **Parallel compile workers** — Configurable retry mechanism and parallel LLM extraction workers
 - **Direct content injection** — Skip tool-use discovery phase, inject content directly to LLM
 - **`sentence-transformers` as optional dependency** — Available via `ontocore[embeddings]` extra in `pyproject.toml`; compilation succeeds without it
 - **uv.lock** — Committed lockfile for reproducible builds
+- **`ontocore lint` CLI command** — Run structural lint checks on compiled TTL files with Rich table output, `--errors-only` and `--json` flags
 
 ### Changed
 
@@ -33,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Install single skill** — Remote module download via HTTP for single-skill installs from remote registries
 - **Global vendor→author rename** — Directory paths (`ontologies/vendor/` → `ontologies/author/`), variables, functions (`install_vendor` → `install_author`), types (`VendorTarget` → `AuthorTarget`), ontology property (`hasVendor` → `hasAuthor`), and all documentation
 - **Smart install resolution** — Single-segment targets resolve as author prefix match or short-name package match, with ambiguity disambiguation
+- **`oc:dependsOn` deprecated** — Marked with `owl:deprecated true`; linter, differ, and serialization now use `oc:dependsOnSkill`
 
 ### Fixed
 
@@ -41,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Skill registry context** — Preserved during sub-skill extraction to maintain LLM context
 - **Anti-hallucination rules** — Added to extraction prompts for more reliable LLM output
 - **`ONTOSKILLS_TRUST_TIER` env var** — Missing `os` import for environment variable reading
+- **Self-loop prevention** — Serialization silently skips `depends_on` entries that reference the skill itself
+- **Differ backward compatibility** — Migration suggestion SPARQL queries use UNION to cover both `dependsOnSkill` and deprecated `dependsOn`
+- **Linter property mismatch** — Circular dependency and workflow cycle detection now correctly query `oc:dependsOnSkill` instead of old `oc:dependsOn`
 
 ## [0.10.0] - 2026-03-27
 

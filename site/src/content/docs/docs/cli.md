@@ -232,6 +232,25 @@ List all compiled skills.
 ontoskills list-skills
 ```
 
+### `lint <ttl-path>`
+
+Run structural lint checks on a compiled TTL file.
+
+```bash
+ontoskills lint ontoskills/index.ttl
+ontoskills lint ontoskills/index.ttl --errors-only
+ontoskills lint ontoskills/index.ttl --json
+```
+
+Checks for dead states, circular dependencies, duplicate intents, unreachable skills, and workflow cycles.
+
+| Option | Description |
+|--------|-------------|
+| `--errors-only` | Only show errors (suppress warnings and info) |
+| `--json` | Output results as JSON |
+
+Exit codes: 0 if clean, 1 if errors found.
+
 ### `security-audit`
 
 Run security audit on all skills.

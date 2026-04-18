@@ -3,7 +3,7 @@
 docs/superpowers/
 .skills/
 .ontoskills/
-ontostore/
+/ontostore/
 node_modules/
 .agents/
 mcp/target/
@@ -18,6 +18,9 @@ mcp/tests/fixtures/
 # Compiled ontology output (regenerate with: ontoskills compile)
 ontoskills/
 ontoskills/system/
+
+# Astro build cache
+.astro/
 
 # Claude Code runtime artifacts
 .claude/scheduled_tasks.lock

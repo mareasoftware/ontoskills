@@ -473,6 +473,87 @@ skill:test-skill a oc:Skill ;
             "Expected --force to bypass cache and trigger extraction"
 
 
+def test_lint_command_clean(tmp_path):
+    """Lint command exits 0 on a clean ontology."""
+    from compiler.cli import cli
+    runner = CliRunner()
+
+    ttl_file = tmp_path / 'clean.ttl'
+    ttl_file.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "do_thing" .
+""")
+    result = runner.invoke(cli, ['lint', str(ttl_file)])
+    assert result.exit_code == 0
+    assert 'no issues' in result.output.lower()
+
+
+def test_lint_command_with_errors(tmp_path):
+    """Lint command exits 1 when errors are found."""
+    from compiler.cli import cli
+    runner = CliRunner()
+
+    ttl_file = tmp_path / 'circular.ttl'
+    ttl_file.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:SkillA a oc:Skill ;
+    oc:resolvesIntent "intent_a" ;
+    oc:dependsOnSkill oc:SkillB .
+oc:SkillB a oc:Skill ;
+    oc:resolvesIntent "intent_b" ;
+    oc:dependsOnSkill oc:SkillA .
+""")
+    result = runner.invoke(cli, ['lint', str(ttl_file)])
+    assert result.exit_code == 1
+    assert 'circular' in result.output.lower()
+
+
+def test_lint_command_errors_only(tmp_path):
+    """Lint --errors-only suppresses warnings."""
+    from compiler.cli import cli
+    runner = CliRunner()
+
+    ttl_file = tmp_path / 'dead_state.ttl'
+    ttl_file.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "do_thing" ;
+    oc:requiresState oc:NeverYielded .
+""")
+    result = runner.invoke(cli, ['lint', str(ttl_file), '--errors-only'])
+    # dead-state is a warning, so errors-only should find nothing
+    assert result.exit_code == 0
+    assert 'no issues' in result.output.lower()
+
+
+def test_lint_command_json_output(tmp_path):
+    """Lint --json produces valid JSON output."""
+    import json as json_mod
+    from compiler.cli import cli
+    runner = CliRunner()
+
+    ttl_file = tmp_path / 'skills.ttl'
+    ttl_file.write_text("""
+@prefix oc: <https://ontoskills.sh/ontology#> .
+oc:TestSkill a oc:Skill ;
+    oc:resolvesIntent "do_thing" .
+""")
+    result = runner.invoke(cli, ['lint', str(ttl_file), '--json'])
+    assert result.exit_code == 0
+    data = json_mod.loads(result.output)
+    assert isinstance(data, list)
+
+
+def test_lint_in_help():
+    """Lint command should appear in CLI help."""
+    from compiler.cli import cli
+    runner = CliRunner()
+    result = runner.invoke(cli, ['--help'])
+    assert result.exit_code == 0
+    assert 'lint' in result.output
+
+
 def test_infer_parent_skill_id_from_nested_skill_path(tmp_path):
     """Nested skills should inherit from the nearest ancestor skill directory."""
     from compiler.cli.compile import infer_parent_skill_id

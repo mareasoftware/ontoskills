@@ -1,0 +1,9 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import DefaultHead from '@astrojs/starlight/components/Head.astro';
+
+const props = Astro.props;
+---
+
+<DefaultHead {...props} />
+<ClientRouter />

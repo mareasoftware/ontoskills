@@ -84,6 +84,17 @@ body {
   background: var(--sl-color-bg);
 }
 
+/* Dark mode typography hierarchy */
+:root[data-theme='dark'] .sl-markdown-content p,
+:root[data-theme='dark'] .sl-markdown-content li,
+:root[data-theme='dark'] .sl-markdown-content td {
+  color: #d4d4dc;
+}
+
+:root[data-theme='dark'] .sl-markdown-content strong {
+  color: #f0f0f5;
+}
+
 header {
   background: var(--sl-color-bg-nav) !important;
   border-bottom: 1px solid var(--sl-color-border) !important;
@@ -92,6 +103,11 @@ header {
 .sidebar-pane {
   background: var(--sl-color-bg-sidebar) !important;
   border-inline-end: 1px solid var(--sl-color-border) !important;
+}
+
+/* Reduce sidebar right padding */
+.sidebar-pane nav {
+  padding-inline-end: 0.5rem !important;
 }
 
 .main-pane,
@@ -225,23 +241,34 @@ a:hover {
   border-bottom: none;
 }
 
-/* Headings - cleaner, no borders */
-.sl-markdown-content h1 {
+/* Headings (dark mode) - cleaner, no borders */
+:root[data-theme='dark'] .sl-markdown-content h1 {
   border-bottom: none;
   padding-bottom: 0;
   margin-bottom: 1.5rem;
+  color: #fafafa !important;
 }
 
-.sl-markdown-content h2 {
+:root[data-theme='dark'] .sl-markdown-content h2 {
   border-bottom: none;
   margin-top: 2.5rem;
   margin-bottom: 1rem;
+  color: #f0f0f5 !important;
 }
 
-.sl-markdown-content h3 {
+:root[data-theme='dark'] .sl-markdown-content h3 {
   margin-top: 2rem;
   margin-bottom: 0.75rem;
+  color: #d4d4dc !important;
 }
+
+:root[data-theme='dark'] .sl-markdown-content h4,
+:root[data-theme='dark'] .sl-markdown-content h5,
+:root[data-theme='dark'] .sl-markdown-content h6 {
+  color: #b4b4c0 !important;
+}
+
+/* Light mode headings keep default */
 
 /* Content panel - cleaner */
 .content-panel {

@@ -141,3 +141,48 @@
     color: var(--text-muted);
   }
 }
+
+/* ─── OntoStore React component styles ─── */
+
+.ontoskills-store-root {
+  position: relative;
+  min-height: 60vh;
+}
+
+.store-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(82,199,232,0.07) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  pointer-events: none;
+}
+
+.section-panel {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+
+.skill-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dropdown options in dark mode */
+.ontoskills-store-root select option {
+  background: #111;
+  color: #f0f0f5;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

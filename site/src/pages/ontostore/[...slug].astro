@@ -1,0 +1,35 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+import Header from '../../components/landing/Header.astro';
+import Footer from '../../components/landing/Footer.astro';
+import OntoStoreApp from '../../components/store/OntoStoreApp.astro';
+
+export function getStaticPaths() {
+  // Generate pages for all SPA sub-routes: root, author, package, skill
+  // The React component handles URL parsing client-side
+  return [
+    { params: { slug: undefined } },          // /ontostore/
+    { params: { slug: 'a' } },                // /ontostore/:author
+    { params: { slug: 'a/b' } },              // /ontostore/:author/:package
+    { params: { slug: 'a/b/c' } },            // /ontostore/:author/:package/:skill
+  ];
+}
+---
+
+<LandingLayout
+  title="OntoStore — Browse Ontological Skills"
+  description="Browse verified ontological skills. Search by intent, copy install commands, one-line setup."
+  noTransitions
+>
+  <Header lang="en" />
+  <main class="pb-20">
+    <div id="ontostore-loader" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-center py-20 gap-3">
+        <div class="w-5 h-5 border-2 border-[#52c7e8]/30 border-t-[#52c7e8] rounded-full animate-spin"></div>
+        <p class="text-[#8a8a8a] text-sm">Connecting to the official store…</p>
+      </div>
+    </div>
+    <OntoStoreApp lang="en" />
+  </main>
+  <Footer lang="en" />
+</LandingLayout>
