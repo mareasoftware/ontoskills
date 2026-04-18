@@ -115,4 +115,5 @@ export type Translations = {
   openKnowledgeMap: string;
   viewSkill: string;
   clickToExplore: string;
+  clusterInstances: string;
 };

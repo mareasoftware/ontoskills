@@ -74,6 +74,7 @@ export const translations: Record<string, Translations> = {
     openKnowledgeMap: 'Open knowledge map',
     viewSkill: 'View skill →',
     clickToExplore: 'Click to explore →',
+    clusterInstances: 'instances',
   },
   zh: {
     searchPlaceholder: '按本体技能、意图或描述搜索...',
@@ -147,6 +148,7 @@ export const translations: Record<string, Translations> = {
     openKnowledgeMap: '打开知识图谱',
     viewSkill: '查看技能 →',
     clickToExplore: '点击探索 →',
+    clusterInstances: '个实例',
     more: '更多',
   },
 };

@@ -167,14 +167,6 @@
   padding: 1.25rem;
 }
 
-.section-panel h3 {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #8a8a8a;
-  margin-bottom: 0.75rem;
-}
 
 .skill-desc {
   display: -webkit-box;

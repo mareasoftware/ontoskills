@@ -5,12 +5,14 @@ import type { GraphNode } from '../types';
 import { getNodeColor } from './colors';
 import { CATEGORY_LABELS } from './colors';
 
-export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideLabel = false }: {
+export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideLabel = false, clusterLabel, exploreLabel }: {
   node: GraphNode;
   position: [number, number, number];
   onClick: (node: GraphNode) => void;
   dimmed?: boolean;
   hideLabel?: boolean;
+  clusterLabel?: string;
+  exploreLabel?: string;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -125,7 +127,7 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideL
             </div>
             {isCluster ? (
               <span style={{ fontSize: '10px', color, fontWeight: 500 }}>
-                {clusterCount} instances — click to expand
+                {clusterLabel ?? `${clusterCount} instances`}
               </span>
             ) : (
               <>
@@ -133,7 +135,7 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideL
                   {categoryLabel}
                 </span>
                 {isExplorable && (
-                  <div style={{ fontSize: '10px', color: '#52c7e8', marginTop: '6px' }}>Click to explore →</div>
+                  <div style={{ fontSize: '10px', color: '#52c7e8', marginTop: '6px' }}>{exploreLabel ?? 'Click to explore →'}</div>
                 )}
               </>
             )}

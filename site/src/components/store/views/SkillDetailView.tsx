@@ -121,7 +121,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
           className="fixed inset-0 z-50 bg-[#090909] flex flex-col overflow-hidden"
           onKeyDown={(e) => { if (e.key === 'Escape') { setShowGraph(false); setSelectedNode(null); } }}
           tabIndex={-1}
-          ref={(el) => el?.focus()}
+          ref={(el) => { if (el && !el.contains(document.activeElement)) el.focus(); }}
         >
           <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 gap-3">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -202,7 +202,6 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
                 {/* Cluster: list all values */}
                 {selectedNode.isCluster && selectedNode.clusterNodes && (
                   <div className="px-5 py-4 border-b border-white/[0.05]">
-                    <h3 className="text-xs uppercase tracking-widest text-[#8a8a8a] mb-3">{t.value}</h3>
                     <div className="space-y-2">
                       {selectedNode.clusterNodes.map((cn, i) => (
                         <div
@@ -219,22 +218,10 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
                   </div>
                 )}
 
-                {/* Single node: description */}
-                {!selectedNode.isCluster && selectedNode.description && (
+                {/* Single node: value or description */}
+                {!selectedNode.isCluster && (selectedNode.description || selectedNode.value) && (
                   <div className="px-5 py-4 border-b border-white/[0.05]">
-                    <h3 className="text-xs uppercase tracking-widest text-[#8a8a8a] mb-2">{t.value}</h3>
-                    <p className="text-sm text-[#d4d4d4] leading-relaxed break-words">{selectedNode.description}</p>
-                    {selectedNode.value && (
-                      <p className="text-xs text-[#8a8a8a] mt-2">{selectedNode.value}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Single node: show value if different from label */}
-                {!selectedNode.isCluster && selectedNode.value && !selectedNode.description && (
-                  <div className="px-5 py-4 border-b border-white/[0.05]">
-                    <h3 className="text-xs uppercase tracking-widest text-[#8a8a8a] mb-2">{t.value}</h3>
-                    <p className="text-sm text-[#d4d4d4] leading-relaxed break-words">{selectedNode.value}</p>
+                    <p className="text-sm text-[#d4d4d4] leading-relaxed break-words">{selectedNode.description || selectedNode.value}</p>
                   </div>
                 )}
 
@@ -258,7 +245,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
                         const depName = selectedNode.qualifiedId.replace(/^dep:/, '').replace(/_/g, '-');
                         return (
                           <div className="flex items-start gap-3">
-                            <span className="text-xs text-[#8a8a8a] shrink-0 w-14">{t.skills.slice(0, -1)}</span>
+                            <span className="text-xs text-[#8a8a8a] shrink-0 w-14">{t.skill_one}</span>
                             <span className="text-xs text-[#d4d4d4]">{depName}</span>
                           </div>
                         );

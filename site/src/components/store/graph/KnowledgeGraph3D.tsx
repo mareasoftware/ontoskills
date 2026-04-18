@@ -34,6 +34,8 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
           highlightCategory={highlightCategory}
           focusNodeId={undefined}
           hideLabels={hideLabels}
+          clusterLabel={t.clusterInstances ? `${t.clusterInstances}` : undefined}
+          exploreLabel={t.clickToExplore}
         />
       </Canvas>
       </GraphErrorBoundary>
