@@ -33,7 +33,7 @@ export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, 
               <span className="text-xs font-bold" style={{ color: getNodeColor(node.category, false) }}>×{node.count}</span>
             )}
           </div>
-          <button onClick={() => onSelectNode(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-[#8a8a8a] transition-colors">
+          <button onClick={() => onSelectNode(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 text-[#8a8a8a] transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
