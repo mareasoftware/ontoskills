@@ -461,19 +461,6 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
 
       {/* Dependencies + Aliases */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-        {skill.intents.length > 0 && (
-          <div className="section-panel">
-            <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.intents}</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {skill.intents.map(intent => (
-                <span key={intent} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#dba32c]/[0.06] border border-[#dba32c]/20 text-sm text-[#d4d4d4]">
-                  <svg className="w-3 h-3 text-[#dba32c] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  {intent}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         {skill.dependsOn.length > 0 && (
           <div className="section-panel">
             <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.dependencies}</h3>
