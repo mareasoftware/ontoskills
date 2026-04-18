@@ -3,7 +3,8 @@ import type { Translations } from '../types';
 
 export function CopyButton({ text, t }: { text: string; t: Translations }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);

@@ -127,7 +127,7 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideL
             </div>
             {isCluster ? (
               <span style={{ fontSize: '10px', color, fontWeight: 500 }}>
-                {clusterLabel ?? `${clusterCount} instances`}
+                {clusterCount} {clusterLabel ?? 'instances'}
               </span>
             ) : (
               <>

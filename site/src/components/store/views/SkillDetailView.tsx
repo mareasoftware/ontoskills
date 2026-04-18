@@ -287,7 +287,8 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
                 {/* Actions: explore file / view skill */}
                 {!selectedNode.isCluster && (() => {
                   const isTtlFile = ['main', 'prompt', 'test', 'module'].includes(selectedNode.category) && selectedNode.qualifiedId.endsWith('.ttl');
-                  const depSkill = skills.find(s => s.packageId === pkgId && s.skillId === selectedNode.id);
+                  const rawId = selectedNode.id.replace(/^dep:/, '').replace(/_/g, '-');
+                  const depSkill = skills.find(s => s.packageId === pkgId && s.skillId === rawId);
                   return (
                     <div className="px-5 py-4 space-y-2">
                       {isTtlFile && (
