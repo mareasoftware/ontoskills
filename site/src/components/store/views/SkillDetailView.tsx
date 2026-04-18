@@ -266,7 +266,7 @@ export function SkillDetailView({ skills, packages, pkgId, skillId, t, prefix, n
           <div className="section-panel w-full md:w-2/5 min-w-0">
             <h3 className="text-sm font-semibold text-[#8a8a8a] uppercase tracking-wider mb-3">{t.fileTree}</h3>
             <div className="space-y-0.5">
-              <FileTree paths={treeModules} basePath={skillId} pkgId={pkgId} onTtlClick={openFileKnowledgeMap} githubBase={`${OFFICIAL_STORE_REPO_URL}/blob/main/packages/${pkgId}`} />
+              <FileTree paths={treeModules} basePath={skillId} onTtlClick={openFileKnowledgeMap} githubBase={`${OFFICIAL_STORE_REPO_URL}/blob/main/packages/${pkgId}`} />
             </div>
           </div>
         )}

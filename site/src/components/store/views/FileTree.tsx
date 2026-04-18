@@ -94,10 +94,9 @@ function FileTreeLevel({ node, depth, onTtlClick, githubBase }: {
   );
 }
 
-export function FileTree({ paths, basePath, pkgId, onTtlClick, githubBase }: {
+export function FileTree({ paths, basePath, onTtlClick, githubBase }: {
   paths: string[];
   basePath: string;
-  pkgId: string;
   onTtlClick: (path: string) => void;
   githubBase: string;
 }) {
