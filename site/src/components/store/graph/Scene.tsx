@@ -66,6 +66,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
             end={[t.x, t.y, t.z]}
             sourceColor={sNode ? getNodeColor(sNode.category, sNode.isHighlighted) : '#ffffff'}
             targetColor={tNode ? getNodeColor(tNode.category, tNode.isHighlighted) : '#ffffff'}
+            directed={e.directed}
           />
         );
       })}
