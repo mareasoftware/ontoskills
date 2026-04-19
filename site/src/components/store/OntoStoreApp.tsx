@@ -27,9 +27,10 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
       const currentPath = window.location.pathname;
       const r = new URLSearchParams(window.location.search).get('r');
       const subpath = r || currentPath.replace(prefix, '').replace(/^\//, '');
-      window.location.href = lang === 'en'
-        ? `/zh/ontostore/${subpath}`
-        : `/ontostore/${subpath}`;
+      const target = lang === 'en' ? '/zh/ontostore/' : '/ontostore/';
+      window.location.href = subpath
+        ? `${target}?r=${encodeURIComponent(subpath)}`
+        : target;
     };
     toggles.forEach(el => { el.onclick = handler; });
     return () => { toggles.forEach(el => { el.onclick = null; }); };
