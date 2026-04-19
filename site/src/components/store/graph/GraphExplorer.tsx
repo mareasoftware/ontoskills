@@ -45,6 +45,9 @@ export function GraphExplorer({ skills, packages, initialStack, t, prefix, navig
     setGraphError(false);
     if (currentLevel.type === 'skill') {
       setGraphMode(currentLevel.mode);
+      if (currentLevel.mode === 'knowledge' && !knowledgeData) {
+        loadKnowledgeGraph();
+      }
     } else {
       setGraphMode('files');
     }
@@ -122,7 +125,7 @@ export function GraphExplorer({ skills, packages, initialStack, t, prefix, navig
   if (currentLevel.type === 'author') displayData = authorGraphData;
   else if (currentLevel.type === 'package') displayData = packageGraphData;
   else if (graphMode === 'files') displayData = fileGraphData;
-  else displayData = clusteredKnowledgeData ?? null;
+  else if (graphMode === 'knowledge') displayData = clusteredKnowledgeData ?? null;
 
   // --- onNodeClick: always open detail panel ---
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -211,6 +214,13 @@ export function GraphExplorer({ skills, packages, initialStack, t, prefix, navig
           <Suspense fallback={<GraphLoader t={t} />}>
             {displayData ? (
               <KnowledgeGraph3D nodes={displayData.nodes} edges={displayData.edges} onNodeClick={handleNodeClick} onBackgroundClick={() => setSelectedNode(null)} highlightCategory={highlightCategory} onHighlightCategory={setHighlightCategory} height="100%" t={t} hideLabels={!!selectedNode} />
+            ) : loadingKnowledge ? (
+              <div className="flex items-center justify-center h-full gap-3">
+                <div className="w-5 h-5 border-2 border-[#52c7e8]/30 border-t-[#52c7e8] rounded-full animate-spin" />
+                <p className="text-[#8a8a8a] text-sm">{t.loadingGraph}</p>
+              </div>
+            ) : graphError ? (
+              <div className="flex items-center justify-center h-full"><p className="text-[#f9a8d4]">{t.graphError}</p></div>
             ) : (
               <div className="flex items-center justify-center h-full"><p className="text-[#8a8a8a] text-sm">{t.graphError}</p></div>
             )}
