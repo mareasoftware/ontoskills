@@ -35,7 +35,7 @@ export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, 
     onSelectNode(null);
     if (canDrillToPackage) {
       onPushLevel({ type: 'package', authorId: currentLevel.authorId, pkgId: node.qualifiedId });
-    } else if (drillSkill) {
+    } else if (drillSkill && currentLevel.type === 'package') {
       onPushLevel({ type: 'skill', pkgId: currentLevel.pkgId, skillId: drillSkill.skillId, mode: 'files' });
     }
   };
