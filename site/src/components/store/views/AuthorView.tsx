@@ -23,7 +23,7 @@ export function AuthorView({ loading, skills, authorId, t, prefix, navigate }: {
             <h2 className="text-2xl sm:text-3xl font-bold text-[#f5f5f5] mb-2">{authorId}</h2>
             <p className="text-sm text-[#8a8a8a]">{authorSkills.length} {t.totalSkills} · {Object.keys(pkgMap).length} {Object.keys(pkgMap).length === 1 ? t.package_one : t.package_other}</p>
           </div>
-          <InstallBar command={`npx ontoskills install ${authorId}/<package>`} t={t} id="authInstall" />
+          <InstallBar command={`npx ontoskills install ${authorId}`} t={t} id="authInstall" />
         </div>
         <div className="flex flex-wrap gap-3 mt-4 items-center">
           {allCats.slice(0, 5).map(c => (
@@ -48,7 +48,7 @@ export function AuthorView({ loading, skills, authorId, t, prefix, navigate }: {
         return (
           <div
             key={pid}
-            className="mb-6 p-5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12] transition-colors cursor-pointer"
+            className="mb-6 p-5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:border-[#52c7e8]/30 hover:bg-[#52c7e8]/[0.04] hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(0,0,0,0.3)] transition-all duration-200 cursor-pointer"
             onClick={navClick(`${prefix}/${pid}`, navigate) as unknown as React.MouseEventHandler}
           >
             <div className="flex items-center gap-3 mb-3">
