@@ -60,7 +60,7 @@ function FileTreeLevel({ node, depth, onTtlClick, githubBase }: {
   return (
     <>
       {depth > 0 && (
-        <button onClick={() => setOpen(!open)} className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md hover:bg-white/[0.04] transition-colors text-left" style={{ paddingLeft: `${depth * 16 + 20}px` }}>
+        <button onClick={() => setOpen(!open)} className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md hover:bg-white/[0.04] transition-colors text-left" style={{ paddingLeft: `${depth * 16}px` }}>
           <Chevron open={open} />
           <FolderIcon open={open} />
           <span className={`text-xs sm:text-sm font-medium truncate ${open ? 'text-[#d4d4d4]' : 'text-[#8a8a8a]'}`}>{node.name}</span>
@@ -70,7 +70,7 @@ function FileTreeLevel({ node, depth, onTtlClick, githubBase }: {
         if (!child.isFile) return <FileTreeLevel key={child.name} node={child} depth={depth + 1} onTtlClick={onTtlClick} githubBase={githubBase} />;
         const isTtl = child.name.endsWith('.ttl');
         const isMain = child.fullPath?.endsWith('/ontoskill.ttl');
-        const paddingLeft = `${(depth + 1) * 16 + 20}px`;
+        const paddingLeft = `${(depth + 1) * 16}px`;
         const ghUrl = `${githubBase}/${child.fullPath}`;
 
         if (isTtl) return (
