@@ -45,10 +45,11 @@ export function NodeDetailPanel({ node, skills, packages, pkgId, prefix, edges, 
 
   // "View in page" handler — navigate to the skill's page (closes graph)
   const handleViewInPage = () => {
-    if (drillSkill) {
+    const viewSkill = drillSkill ?? depSkill;
+    if (viewSkill) {
       onCloseGraph();
       onSelectNode(null);
-      onNavigate(`${prefix}/${drillSkill.qualifiedId}`);
+      onNavigate(`${prefix}/${viewSkill.qualifiedId}`);
     }
   };
 

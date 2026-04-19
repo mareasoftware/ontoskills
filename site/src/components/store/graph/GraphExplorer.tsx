@@ -27,20 +27,34 @@ export function GraphExplorer({ skills, packages, initialStack, t, prefix, navig
   const [knowledgeData, setKnowledgeData] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] } | null>(null);
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
   const [graphError, setGraphError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Compute skillModules early so singleFile can reference it (fixes TDZ)
+  const skillModules = useMemo(() => {
+    if (currentLevel.type !== 'skill') return [];
+    const rawPkg = packages.find(p => p.package_id === currentLevel.pkgId);
+    const modules: string[] = rawPkg?.modules || [];
+    const sid = currentLevel.skillId;
+    const filtered = modules.filter(m => m.startsWith(sid + '/') || m === `${sid}/ontoskill.ttl`);
+    return filtered.length ? filtered : modules.filter(m => m.startsWith(sid));
+  }, [packages, currentLevel]);
+
   const singleFile = currentLevel.type === 'skill' && skillModules.length <= 1;
   const [graphMode, setGraphMode] = useState<'files' | 'knowledge'>(
     currentLevel.type === 'skill' ? (singleFile ? 'knowledge' : currentLevel.mode) : 'files'
   );
-  const abortRef = useRef<AbortController | null>(null);
 
   const savedUrl = useRef(typeof window !== 'undefined' ? window.location.href : '');
 
-  // Lock body scroll, restore URL on close
+  // Lock body scroll, push initial history entry for Back-button support
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    history.pushState(null, '');
     return () => {
       document.body.style.overflow = '';
-      history.replaceState(null, '', savedUrl.current);
+      if (window.location.href !== savedUrl.current) {
+        history.replaceState(null, '', savedUrl.current);
+      }
     };
   }, []);
 
@@ -114,15 +128,6 @@ export function GraphExplorer({ skills, packages, initialStack, t, prefix, navig
     const built = buildGraphData(pkgSkills);
     return { nodes: built.nodes, edges: built.edges.map(e => ({ ...e, directed: true })) };
   }, [skills, currentLevel]);
-
-  const skillModules = useMemo(() => {
-    if (currentLevel.type !== 'skill') return [];
-    const rawPkg = packages.find(p => p.package_id === currentLevel.pkgId);
-    const modules: string[] = rawPkg?.modules || [];
-    const sid = currentLevel.skillId;
-    const filtered = modules.filter(m => m.startsWith(sid + '/') || m === `${sid}/ontoskill.ttl`);
-    return filtered.length ? filtered : modules.filter(m => m.startsWith(sid));
-  }, [packages, currentLevel]);
 
   const fileGraphData = useMemo(() => {
     if (currentLevel.type !== 'skill') return null;
