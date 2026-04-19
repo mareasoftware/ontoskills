@@ -120,6 +120,8 @@ def enrich_extracted_skill(extracted, skill_dir: Path, input_path: Path, skill_p
         extracted.depends_on = skill_registry.filter_relations(extracted.depends_on, "depends_on")
         extracted.extends = skill_registry.filter_relations(extracted.extends, "extends")
         extracted.contradicts = skill_registry.filter_relations(extracted.contradicts, "contradicts")
+    # Prevent self-referencing dependencies
+    extracted.depends_on = [d for d in extracted.depends_on if d != extracted.id]
     return extracted
 
 

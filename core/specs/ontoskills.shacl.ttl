@@ -322,3 +322,51 @@ oc:SkillKnowledgeWarningShape
         sh:message "ATTENZIONE: Questa Skill non fornisce nodi di conoscenza epistemica (impartsKnowledge). Considera l'aggiunta di Standard, AntiPattern o Heuristics nel file SKILL.md." ;
     ] ;
     .
+
+# === Content Block Shapes ===
+
+oc:CodeExampleShape a sh:NodeShape ;
+    sh:targetClass oc:CodeExample ;
+    sh:property [
+        sh:path oc:codeLanguage ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "CodeExample must have a codeLanguage" ;
+    ] , [
+        sh:path oc:codeContent ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "CodeExample must have codeContent" ;
+    ] .
+
+oc:TableShape a sh:NodeShape ;
+    sh:targetClass oc:Table ;
+    sh:property [
+        sh:path oc:tableMarkdown ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Table must have tableMarkdown" ;
+    ] .
+
+oc:FlowchartShape a sh:NodeShape ;
+    sh:targetClass oc:Flowchart ;
+    sh:property [
+        sh:path oc:flowchartSource ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Flowchart must have flowchartSource" ;
+    ] , [
+        sh:path oc:flowchartType ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Flowchart must have flowchartType" ;
+    ] .
+
+oc:TemplateShape a sh:NodeShape ;
+    sh:targetClass oc:Template ;
+    sh:property [
+        sh:path oc:templateContent ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Template must have templateContent" ;
+    ] .
