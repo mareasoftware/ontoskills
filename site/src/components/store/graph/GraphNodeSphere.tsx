@@ -62,7 +62,7 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideL
     <group position={position}>
       {node.isHighlighted && !dimmed && (
         <mesh>
-          <sphereGeometry args={[radius * 2.5, 32, 32]} />
+          <sphereGeometry args={[radius * 2.5, 12, 12]} />
           <meshBasicMaterial color={color} transparent opacity={0.08} />
         </mesh>
       )}
@@ -72,7 +72,7 @@ export function GraphNodeSphere({ node, position, onClick, dimmed = false, hideL
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
         onPointerOut={() => { setHovered(false); }}
       >
-        <sphereGeometry args={[radius, 32, 32]} />
+        <sphereGeometry args={[radius, 16, 16]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
