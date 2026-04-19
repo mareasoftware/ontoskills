@@ -34,6 +34,10 @@ export const CATEGORY_COLORS: Record<string, string> = {
   // Skill root
   skill:          '#e0e0e0', // bright neutral white — root node stands out
 
+  // Graph-level entities
+  author:          '#52c7e8', // cyan — brand
+  package:         '#a78bfa', // purple — package clusters
+
   // File categories — warm family
   main:           '#dba32c', // gold
   prompt:         '#e07a3a', // burnt orange
@@ -75,7 +79,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
 export const PALETTE_FALLBACK = HUE_PALETTE;
 
 import { hashStr } from '../helpers';
-export { hashStr };
 
 export function getNodeColor(category: string, isHighlighted: boolean): string {
   if (isHighlighted) return '#52c7e8';
@@ -94,6 +97,8 @@ export function getConnectedNodes(node: import('../types').GraphNode, edges: imp
 
 export const CATEGORY_LABELS: Record<string, [string, string]> = {
   skill:           ['Skill',          CATEGORY_COLORS.skill],
+  author:          ['Author',   CATEGORY_COLORS.author],
+  package:         ['Package',  CATEGORY_COLORS.package],
   main:            ['ontoskill.ttl',  CATEGORY_COLORS.main],
   prompt:          ['Prompt',         CATEGORY_COLORS.prompt],
   test:            ['Test',           CATEGORY_COLORS.test],
@@ -121,6 +126,8 @@ export const CATEGORY_LABELS: Record<string, [string, string]> = {
 
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   skill: 'The root skill definition',
+  author: 'The skill author',
+  package: 'A collection of related skills',
   main: 'Primary ontology file',
   prompt: 'Prompt template definitions',
   test: 'Test specifications',

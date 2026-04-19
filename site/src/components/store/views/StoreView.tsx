@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { navClick } from '../helpers';
 import { getCategoryColor } from '../uiColors';
 import { TrustBadge } from '../components/TrustBadge';
@@ -10,7 +11,7 @@ interface StoreMeta {
   trustTiers: string[];
 }
 
-export function SkillCard({ skill, t, prefix, navigate }: { skill: Skill; t: Translations; prefix: string; navigate: (href: string) => void }) {
+export const SkillCard = memo(function SkillCard({ skill, t, prefix, navigate }: { skill: Skill; t: Translations; prefix: string; navigate: (href: string) => void }) {
   const catColor = skill.category ? getCategoryColor(skill.category) : null;
   return (
     <a
@@ -31,7 +32,7 @@ export function SkillCard({ skill, t, prefix, navigate }: { skill: Skill; t: Tra
       <InstallBar command={skill.installCommand} t={t} id={`card-${skill.qualifiedId}`} />
     </a>
   );
-}
+});
 
 export function StoreView({ loading, filteredSkills, meta, t, prefix, navigate, searchQuery, setSearchQuery, filterAuthor, setFilterAuthor, filterCategory, setFilterCategory, filterTier, setFilterTier, filterSort, setFilterSort, visibleCount, setVisibleCount, lang }: {
   loading: boolean;

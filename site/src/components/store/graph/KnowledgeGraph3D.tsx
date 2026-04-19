@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import type { GraphNode, GraphEdge, Translations } from '../types';
 import { getNodeColor, CATEGORY_LABELS, CATEGORY_DESCRIPTIONS } from './colors';
@@ -20,8 +20,11 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
   const [shortcutsVisible, setShortcutsVisible] = useState(false);
 
   if (!nodes.length) return null;
-  const camDist = Math.max(nodes.length * 3, 45);
-  const cats = [...new Set(nodes.map(n => n.category))];
+  const R = 5 + Math.sqrt(nodes.length) * 4;
+  const viewH = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const fovScale = viewH < 600 ? 0.7 : viewH < 900 ? 0.85 : 1;
+  const camDist = Math.max(R * 3 * fovScale, 25);
+  const cats = useMemo(() => [...new Set(nodes.map(n => n.category))], [nodes]);
 
   return (
     <div className="relative" style={{ width: '100%', height, borderRadius: '0.5rem', overflow: 'hidden', background: 'rgba(0,0,0,0.3)', cursor: 'grab' }}>
@@ -95,11 +98,11 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
           {shortcutsVisible && (
             <div className="absolute bottom-9 right-0 w-44 rounded-lg bg-[#090909]/95 backdrop-blur-md border border-white/[0.08] p-3 text-[11px] text-[#8a8a8a] space-y-1.5">
               <p className="text-[#d4d4d4] font-medium mb-1">{t.controls}</p>
-              <p>Scroll = Zoom</p>
-              <p>Drag = Orbit</p>
-              <p>Right-drag = Pan</p>
-              <p>Click node = Details</p>
-              <p>Esc = Close</p>
+              <p>{t.ctrlZoom}</p>
+              <p>{t.ctrlOrbit}</p>
+              <p>{t.ctrlPan}</p>
+              <p>{t.ctrlDetails}</p>
+              <p>{t.ctrlClose}</p>
             </div>
           )}
         </div>

@@ -18,11 +18,6 @@ export function buildGraphData(skillList: Skill[], highlightId: string | null = 
   return { nodes, edges };
 }
 
-export function packageHasDeps(skillList: Skill[]) {
-  const idSet = new Set(skillList.map(s => s.skillId));
-  return skillList.some(s => s.dependsOn.some(d => idSet.has(d)));
-}
-
 export function buildFileGraphData(modules: string[], skillId: string) {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
@@ -42,6 +37,31 @@ export function buildFileGraphData(modules: string[], skillId: string) {
     if (!isMain && skillModules.includes(mainFile)) {
       edges.push({ source: mainFile, target: m });
     }
+  }
+  return { nodes, edges };
+}
+
+export function buildAuthorGraphData(skillList: Skill[], authorId: string) {
+  const authorSkills = skillList.filter(s => s.author === authorId);
+  const pkgIds = [...new Set(authorSkills.map(s => s.packageId))];
+  const nodes: GraphNode[] = [
+    { id: 'author', label: authorId, category: 'author', qualifiedId: authorId, isHighlighted: false },
+  ];
+  const edges: GraphEdge[] = [];
+  for (const pid of pkgIds) {
+    const pkgName = pid.split('/').slice(1).join('/');
+    const pkgSkills = authorSkills.filter(s => s.packageId === pid);
+    const cats = [...new Set(pkgSkills.map(s => s.category).filter(Boolean))];
+    nodes.push({
+      id: pid,
+      label: pkgName,
+      category: 'package',
+      qualifiedId: pid,
+      isHighlighted: false,
+      count: pkgSkills.length,
+      description: cats.join(', '),
+    });
+    edges.push({ source: 'author', target: pid });
   }
   return { nodes, edges };
 }

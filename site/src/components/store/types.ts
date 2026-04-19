@@ -30,6 +30,7 @@ export interface GraphNode {
 export interface GraphEdge {
   source: string;
   target: string;
+  directed?: boolean;
 }
 
 export interface PackageManifest {
@@ -41,6 +42,11 @@ export interface PackageManifest {
 }
 
 export type ViewMode = 'store' | 'author' | 'package' | 'skill';
+
+export type GraphLevel =
+  | { type: 'author'; authorId: string }
+  | { type: 'package'; authorId: string; pkgId: string }
+  | { type: 'skill'; pkgId: string; skillId: string; mode: 'files' | 'knowledge' };
 
 export type Translations = {
   searchPlaceholder: string;
@@ -106,15 +112,12 @@ export type Translations = {
   setupSkillCommand: string;
   setupDocs: string;
   noDeps: string;
-  viewPackageGraph: string;
-  backToSkillGraph: string;
   copied: string;
   loadMore: string;
   remaining: string;
   more: string;
   fileGraph: string;
   knowledgeMap: string;
-  openGraph: string;
   loadingGraph: string;
   loading3d: string;
   graphError: string;
@@ -133,4 +136,14 @@ export type Translations = {
   clusterInstances: string;
   viewRaw: string;
   officialStore: string;
+  exploreGraph: string;
+  backToGraph: string;
+  authorGraph: string;
+  packageGraph: string;
+  skillGraph: string;
+  ctrlZoom: string;
+  ctrlOrbit: string;
+  ctrlPan: string;
+  ctrlDetails: string;
+  ctrlClose: string;
 };

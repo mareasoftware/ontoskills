@@ -1,25 +1,17 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import type { Skill, PackageManifest, Translations } from '../types';
 import { navClick } from '../helpers';
-import { buildGraphData, packageHasDeps } from '../graph-builder';
 import { OFFICIAL_STORE_REPO_URL } from '../../../data/store';
 import { TrustBadge } from '../components/TrustBadge';
 import { InstallBar } from '../components/InstallBar';
-import { GraphLoader } from '../components/GraphLoader';
+import { GraphButton } from '../components/GraphButton';
 import { STAT_COLORS } from '../uiColors';
+
+const GraphExplorer = lazy(() => import('../graph/GraphExplorer').then(m => ({ default: m.GraphExplorer })));
 import { SkillCard } from './StoreView';
 
-const KnowledgeGraph3D = lazy(() => import('../graph/KnowledgeGraph3D').then(m => ({ default: m.KnowledgeGraph3D })));
-
 export function PackageView({ loading, skills, packages, pkgId, t, prefix, navigate }: { loading: boolean; skills: Skill[]; packages: PackageManifest[]; pkgId: string; t: Translations; prefix: string; navigate: (href: string) => void }) {
-  const [showPkgGraph, setShowPkgGraph] = useState(false);
-
-  useEffect(() => {
-    if (showPkgGraph) {
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = ''; };
-    }
-  }, [showPkgGraph]);
+  const [showGraph, setShowGraph] = useState(false);
   const pkgSkills = skills.filter(s => s.packageId === pkgId);
   const author = pkgId.split('/')[0];
   const pkgName = pkgId.split('/').slice(1).join('/');
@@ -27,8 +19,6 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
   const ver = pkgSkills[0]?.version || '';
   const rawPkg = packages.find(p => p.package_id === pkgId);
   const modules: string[] = rawPkg?.modules || [];
-  const hasDeps = packageHasDeps(pkgSkills);
-  const graphData = useMemo(() => hasDeps ? buildGraphData(pkgSkills) : null, [pkgSkills, hasDeps]);
 
   return (
     <>
@@ -73,15 +63,7 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
 
           <span className="text-white/10 mx-0.5">|</span>
 
-          {hasDeps && (
-            <button
-              onClick={() => setShowPkgGraph(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#52c7e8]/[0.06] border border-[#52c7e8]/20 text-xs font-medium text-[#52c7e8] hover:bg-[#52c7e8]/[0.12] transition-all cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
-              {t.openGraph}
-            </button>
-          )}
+          <GraphButton label={t.exploreGraph} onClick={() => setShowGraph(true)} />
 
           <a
             href={`${OFFICIAL_STORE_REPO_URL}/tree/main/packages/${pkgId}`}
@@ -95,44 +77,6 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
         </div>
       </div>
 
-      {/* Fullscreen package graph overlay */}
-      {showPkgGraph && graphData && (
-        <div className="fixed inset-0 z-50 bg-[#090909] flex flex-col overflow-hidden"
-          onKeyDown={(e) => { if (e.key === 'Escape') setShowPkgGraph(false); }}
-          tabIndex={-1}
-          ref={(el) => { if (el && !el.contains(document.activeElement)) el.focus(); }}
-        >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <div>
-              <h3 className="text-lg font-semibold text-[#f5f5f5]">{t.knowledgeGraph} — {pkgName}</h3>
-              <p className="text-xs text-[#8a8a8a] mt-0.5">
-                {graphData.nodes.length} {graphData.nodes.length === 1 ? t.node_one : t.node_other} · {graphData.edges.length} {graphData.edges.length === 1 ? t.edge_one : t.edge_other}
-              </p>
-            </div>
-            <button onClick={() => setShowPkgGraph(false)} className="p-2 rounded-lg hover:bg-white/10 text-[#8a8a8a] hover:text-[#f5f5f5] transition-colors" aria-label="Close">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-          <div className="flex-1 relative">
-            <Suspense fallback={<GraphLoader t={t} />}>
-              <KnowledgeGraph3D
-                nodes={graphData.nodes}
-                edges={graphData.edges}
-                onNodeClick={(node) => {
-                  const skill = skills.find(s => s.packageId === pkgId && s.qualifiedId === node.id);
-                  if (skill) {
-                    setShowPkgGraph(false);
-                    navigate(`${prefix}/${skill.qualifiedId}`);
-                  }
-                }}
-                height="100%"
-                t={t}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
-
       {/* Skills grid — full width, two columns */}
       {loading ? (
         <div className="flex items-center justify-center py-16 gap-3">
@@ -143,6 +87,23 @@ export function PackageView({ loading, skills, packages, pkgId, t, prefix, navig
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {pkgSkills.map(s => <SkillCard key={s.qualifiedId} skill={s} t={t} prefix={prefix} navigate={navigate} />)}
         </div>
+      )}
+
+      {showGraph && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-[#090909] flex items-center justify-center"><div className="w-6 h-6 border-2 border-[#52c7e8]/30 border-t-[#52c7e8] rounded-full animate-spin" /></div>}>
+          <GraphExplorer
+            skills={skills}
+            packages={packages}
+            initialStack={[
+              { type: 'author', authorId: author },
+              { type: 'package', authorId: author, pkgId },
+            ]}
+            t={t}
+            prefix={prefix}
+            navigate={navigate}
+            onClose={() => setShowGraph(false)}
+          />
+        </Suspense>
       )}
     </>
   );

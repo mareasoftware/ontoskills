@@ -1,4 +1,4 @@
-import type { Skill, GraphNode, GraphEdge, Translations } from '../types';
+import type { Skill, GraphNode, GraphEdge, GraphLevel, Translations } from '../types';
 import { getNodeColor, getConnectedNodes, CATEGORY_LABELS, CATEGORY_DESCRIPTIONS } from '../graph/colors';
 
 interface NodeDetailPanelProps {
@@ -8,18 +8,47 @@ interface NodeDetailPanelProps {
   prefix: string;
   edges: GraphEdge[];
   allNodes: GraphNode[];
+  currentLevel: GraphLevel;
   t: Translations;
   onSelectNode: (node: GraphNode | null) => void;
   onExploreFile: (node: GraphNode) => void;
+  onPushLevel: (level: GraphLevel) => void;
   onNavigate: (href: string) => void;
   onCloseGraph: () => void;
 }
 
-export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, t, onSelectNode, onExploreFile, onNavigate, onCloseGraph }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, currentLevel, t, onSelectNode, onExploreFile, onPushLevel, onNavigate, onCloseGraph }: NodeDetailPanelProps) {
   const connected = getConnectedNodes(node, edges, allNodes);
   const isTtlFile = ['main', 'prompt', 'test', 'module'].includes(node.category) && node.qualifiedId.endsWith('.ttl');
   const rawId = node.id.replace(/^dep:/, '').replace(/_/g, '-');
   const depSkill = skills.find(s => s.packageId === pkgId && s.skillId === rawId);
+
+  const canDrillToPackage = currentLevel.type === 'author' && node.category === 'package' && node.id !== 'author';
+  const drillSkill = currentLevel.type === 'package' ? skills.find(s => s.packageId === currentLevel.pkgId && s.qualifiedId === node.id) : null;
+  const canDrill = canDrillToPackage || !!drillSkill;
+
+  // For author-level package nodes, compute package info
+  const pkgSkillCount = canDrillToPackage ? skills.filter(s => s.packageId === node.qualifiedId).length : 0;
+
+  // Drill-down handler
+  const handleDrillDown = () => {
+    onSelectNode(null);
+    if (canDrillToPackage) {
+      onPushLevel({ type: 'package', authorId: currentLevel.authorId, pkgId: node.qualifiedId });
+    } else if (drillSkill && currentLevel.type === 'package') {
+      onPushLevel({ type: 'skill', pkgId: currentLevel.pkgId, skillId: drillSkill.skillId, mode: 'files' });
+    }
+  };
+
+  // "View in page" handler — navigate to the skill's page (closes graph)
+  const handleViewInPage = () => {
+    const viewSkill = drillSkill ?? depSkill;
+    if (viewSkill) {
+      onCloseGraph();
+      onSelectNode(null);
+      onNavigate(`${prefix}/${viewSkill.qualifiedId}`);
+    }
+  };
 
   return (
     <div className="absolute sm:right-0 sm:top-0 sm:bottom-0 sm:left-auto sm:w-[360px] bottom-0 left-0 right-0 sm:max-h-none max-h-[60vh] bg-[#0d0d14]/95 backdrop-blur-md sm:border-l border-t border-white/[0.08] overflow-y-auto z-20" style={{ animation: 'slideIn 0.25s ease-out' }}>
@@ -31,6 +60,9 @@ export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, 
             <span className="text-sm font-semibold text-[#f5f5f5]">{CATEGORY_LABELS[node.category]?.[0] || node.category}</span>
             {node.isCluster && node.count && (
               <span className="text-xs font-bold" style={{ color: getNodeColor(node.category, false) }}>×{node.count}</span>
+            )}
+            {canDrillToPackage && (
+              <span className="text-xs text-[#8a8a8a]">{pkgSkillCount} {pkgSkillCount === 1 ? t.skill_one : t.skill_other}</span>
             )}
           </div>
           <button onClick={() => onSelectNode(null)} aria-label="Close" className="p-1.5 rounded-lg hover:bg-white/10 text-[#8a8a8a] transition-colors">
@@ -108,14 +140,20 @@ export function NodeDetailPanel({ node, skills, pkgId, prefix, edges, allNodes, 
       {/* Actions */}
       {!node.isCluster && (
         <div className="px-5 py-4 space-y-2">
+          {canDrill && (
+            <button onClick={handleDrillDown} className="w-full py-2.5 rounded-lg bg-[#52c7e8]/10 text-[#52c7e8] text-sm font-medium hover:bg-[#52c7e8]/20 transition-colors flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              {t.exploreGraph}
+            </button>
+          )}
           {isTtlFile && (
             <button onClick={() => onExploreFile(node)} className="w-full py-2.5 rounded-lg bg-[#52c7e8]/10 text-[#52c7e8] text-sm font-medium hover:bg-[#52c7e8]/20 transition-colors flex items-center justify-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               {t.openKnowledgeMap}
             </button>
           )}
-          {depSkill && (
-            <button onClick={() => { onCloseGraph(); onSelectNode(null); onNavigate(`${prefix}/${depSkill.qualifiedId}`); }} className="w-full py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-sm text-[#d4d4d4] hover:border-[#52c7e8]/30 hover:text-[#52c7e8] transition-colors">
+          {(depSkill || drillSkill) && (
+            <button onClick={handleViewInPage} className="w-full py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-sm text-[#d4d4d4] hover:border-[#52c7e8]/30 hover:text-[#52c7e8] transition-colors">
               {t.viewSkill}
             </button>
           )}

@@ -2,10 +2,11 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export function AutoRotate() {
+export function AutoRotate({ paused }: { paused?: boolean }) {
   const { camera } = useThree();
   useFrame(() => {
-    camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.002);
+    if (paused) return;
+    camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.0006);
     camera.lookAt(0, 0, 0);
   });
   return null;

@@ -75,6 +75,21 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
+
+    // Try loading from localStorage cache for instant render
+    try {
+      const raw = localStorage.getItem('ontostore_data');
+      if (raw) {
+        const cached = JSON.parse(raw) as { skills: Skill[]; packages: PackageManifest[]; ts: number };
+        if (Date.now() - cached.ts < 3_600_000) {
+          setSkills(cached.skills);
+          setPackages(cached.packages);
+          setLoading(false);
+          return () => controller.abort();
+        }
+      }
+    } catch {}
+
     const load = async () => {
       try {
         const res = await fetch(STORE_INDEX_URL, { mode: 'cors', headers: { Accept: 'application/json' }, signal });
@@ -99,6 +114,9 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
         newSkills.sort((a, b) => a.qualifiedId.localeCompare(b.qualifiedId));
         setSkills(newSkills);
         setLoading(false);
+        try {
+          localStorage.setItem('ontostore_data', JSON.stringify({ skills: newSkills, packages: manifests, ts: Date.now() }));
+        } catch {}
       } catch (e) {
         if (signal.aborted) return;
         setError(true); setLoading(false);
@@ -171,7 +189,7 @@ export default function OntoStoreApp({ lang = 'en' }: { lang?: string }) {
       <div className="store-glow" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
         {viewMode === 'store' && <StoreView loading={loading} filteredSkills={filteredSkills} meta={meta} t={t} prefix={prefix} navigate={navigate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterAuthor={filterAuthor} setFilterAuthor={setFilterAuthor} filterCategory={filterCategory} setFilterCategory={setFilterCategory} filterTier={filterTier} setFilterTier={setFilterTier} filterSort={filterSort} setFilterSort={setFilterSort} visibleCount={visibleCount} setVisibleCount={setVisibleCount} lang={lang} />}
-        {viewMode === 'author' && <AuthorView loading={loading} skills={skills} authorId={authorId} t={t} prefix={prefix} navigate={navigate} />}
+        {viewMode === 'author' && <AuthorView loading={loading} skills={skills} packages={packages} authorId={authorId} t={t} prefix={prefix} navigate={navigate} />}
         {viewMode === 'package' && <PackageView loading={loading} skills={skills} packages={packages} pkgId={pkgId} t={t} prefix={prefix} navigate={navigate} />}
         {viewMode === 'skill' && <SkillDetailView skills={skills} packages={packages} pkgId={pkgId} skillId={skillId} t={t} prefix={prefix} navigate={navigate} />}
       </div>

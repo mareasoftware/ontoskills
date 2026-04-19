@@ -19,6 +19,8 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
   exploreLabel?: string;
 }) {
   const positions = useMemo(() => layoutForce3D(nodes, edges), [nodes, edges]);
+  const R = 5 + Math.sqrt(nodes.length) * 4;
+  const largeGraph = nodes.length > 50;
   const focusNode = focusNodeId ? nodes.find(n => n.id === focusNodeId) : null;
   const focusPos = focusNode ? positions[focusNode.id] : null;
 
@@ -32,10 +34,11 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
       {focusPos && isFinite(focusPos.x) && <CameraFocus target={[focusPos.x, focusPos.y, focusPos.z]} active={!!focusNode} />}
       <OrbitControls
         enableDamping
-        dampingFactor={0.08}
+        dampingFactor={0.12}
+        rotateSpeed={0.5}
         autoRotate={false}
-        minDistance={5}
-        maxDistance={100}
+        minDistance={Math.max(3, R * 0.3)}
+        maxDistance={Math.max(R * 6, 60)}
       />
       {nodes.map(n => {
         const p = positions[n.id];
@@ -51,6 +54,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
             hideLabel={hideLabels}
             clusterLabel={clusterLabel}
             exploreLabel={exploreLabel}
+            lowDetail={largeGraph}
           />
         );
       })}
@@ -66,6 +70,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
             end={[t.x, t.y, t.z]}
             sourceColor={sNode ? getNodeColor(sNode.category, sNode.isHighlighted) : '#ffffff'}
             targetColor={tNode ? getNodeColor(tNode.category, tNode.isHighlighted) : '#ffffff'}
+            directed={e.directed}
           />
         );
       })}
