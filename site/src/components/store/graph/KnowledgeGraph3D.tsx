@@ -21,7 +21,9 @@ export function KnowledgeGraph3D({ nodes, edges, onNodeClick, onBackgroundClick,
 
   if (!nodes.length) return null;
   const R = 5 + Math.sqrt(nodes.length) * 4;
-  const camDist = Math.max(R * 3, 35);
+  const viewH = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const fovScale = viewH < 600 ? 0.7 : viewH < 900 ? 0.85 : 1;
+  const camDist = Math.max(R * 3 * fovScale, 25);
   const cats = [...new Set(nodes.map(n => n.category))];
 
   return (

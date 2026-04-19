@@ -20,6 +20,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
 }) {
   const positions = useMemo(() => layoutForce3D(nodes, edges), [nodes, edges]);
   const R = 5 + Math.sqrt(nodes.length) * 4;
+  const largeGraph = nodes.length > 50;
   const focusNode = focusNodeId ? nodes.find(n => n.id === focusNodeId) : null;
   const focusPos = focusNode ? positions[focusNode.id] : null;
 
@@ -52,6 +53,7 @@ export function Scene({ nodes, edges, onNodeClick, autoRotate = true, highlightC
             hideLabel={hideLabels}
             clusterLabel={clusterLabel}
             exploreLabel={exploreLabel}
+            lowDetail={largeGraph}
           />
         );
       })}
