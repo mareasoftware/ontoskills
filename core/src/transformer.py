@@ -356,3 +356,82 @@ Use the available tools to:
             messages.extend(tool_results)
 
     raise ExtractionError(f"Max iterations ({MAX_ITERATIONS}) exceeded")
+
+
+# ============================================================================
+# DocGraph v2: Skeleton Hydration (Phase 1c)
+# ============================================================================
+
+def hydrate_skeleton(
+    skeleton: "DocumentSkeleton",
+    blocks_index: dict[str, "FlatBlock"],
+    markdown: str | None = None,
+) -> list["Section"]:
+    """Hydrate a document skeleton with real Pydantic objects.
+
+    Phase 1c: replaces block_ids in skeleton with actual content from Phase 1a.
+    Falls back to v1 deterministic tree builder if skeleton is empty.
+    """
+    from compiler.schemas import Section
+
+    if not skeleton.sections and markdown:
+        # Fallback to v1 builder
+        from compiler.content_parser import extract_structural_content
+        result = extract_structural_content(markdown)
+        return result.sections
+
+    sections = []
+    section_order = 0
+
+    for node in skeleton.sections:
+        block = blocks_index.get(node.block_id)
+        if block is None:
+            continue
+
+        if block.block_type == "heading":
+            section_order += 1
+            section = Section(
+                title=block.content.text,
+                level=block.content.level,
+                order=section_order,
+            )
+            _hydrate_children(section, node, blocks_index)
+            sections.append(section)
+        elif block.block_type == "frontmatter":
+            # Frontmatter as preamble section
+            section = Section(title="", level=0, order=0)
+            section.content.append(block.content)
+            _hydrate_children(section, node, blocks_index)
+            sections.append(section)
+        else:
+            # Non-heading root — create anonymous section
+            section_order += 1
+            section = Section(title="", level=0, order=section_order)
+            section.content.append(block.content)
+            _hydrate_children(section, node, blocks_index)
+            sections.append(section)
+
+    return sections
+
+
+def _hydrate_children(section, node, blocks_index):
+    """Recursively hydrate children of a skeleton node into a section."""
+    from compiler.schemas import Section
+
+    for child_node in node.children:
+        block = blocks_index.get(child_node.block_id)
+        if block is None:
+            continue
+
+        if block.block_type == "heading":
+            # Subsection
+            sub = Section(
+                title=block.content.text,
+                level=block.content.level,
+                order=len(section.subsections) + 1,
+            )
+            _hydrate_children(sub, child_node, blocks_index)
+            section.subsections.append(sub)
+        else:
+            section.content.append(block.content)
+            _hydrate_children(section, child_node, blocks_index)
