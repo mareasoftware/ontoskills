@@ -432,7 +432,7 @@ class HeadingBlock(BaseModel):
 ContentBlock = Annotated[
     Union[Paragraph, CodeBlock, MarkdownTable, FlowchartBlock,
           TemplateBlock, BulletListBlock, BlockQuoteBlock, OrderedProcedure,
-          HTMLBlock, FrontmatterBlock],
+          HTMLBlock, FrontmatterBlock, HeadingBlock],
     Field(discriminator="block_type")
 ]
 

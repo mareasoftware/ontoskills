@@ -210,3 +210,57 @@ class TestGuardrails:
         proc = result.sections[0].content[0]
         assert proc.block_type == "ordered_procedure"
         assert len(proc.items) == 2
+
+
+from compiler.content_parser import extract_flat_blocks
+
+
+class TestFlatExtraction:
+    def test_flat_blocks_have_ids(self):
+        md = "## Section\n\nParagraph text.\n\n```python\nx=1\n```\n"
+        blocks = extract_flat_blocks(md)
+        assert all(b.block_id.startswith("blk_") for b in blocks)
+        assert len(blocks) >= 3  # heading, paragraph, code_block
+
+    def test_flat_blocks_line_ranges(self):
+        md = "## Section\n\nParagraph text.\n"
+        blocks = extract_flat_blocks(md)
+        for b in blocks:
+            assert b.line_start >= 0
+            assert b.line_end >= b.line_start
+
+    def test_frontmatter_extracted(self):
+        md = "---\nname: test-skill\ndescription: A test\n---\n\n## Section\n\nText.\n"
+        blocks = extract_flat_blocks(md)
+        fm = [b for b in blocks if b.block_type == "frontmatter"]
+        assert len(fm) == 1
+        assert fm[0].content.properties["name"] == "test-skill"
+
+    def test_html_block_extracted(self):
+        md = "## Section\n\n<HARD-GATE>Do not proceed</HARD-GATE>\n\nText.\n"
+        blocks = extract_flat_blocks(md)
+        html = [b for b in blocks if b.block_type == "html_block"]
+        assert len(html) == 1
+        assert "HARD-GATE" in html[0].content.content
+
+    def test_heading_blocks_extracted(self):
+        md = "## First\n\nText.\n\n### Second\n\nMore.\n"
+        blocks = extract_flat_blocks(md)
+        headings = [b for b in blocks if b.block_type == "heading"]
+        assert len(headings) == 2
+        assert headings[0].content.text == "First"
+        assert headings[0].content.level == 2
+
+    def test_flat_extraction_covers_all_types(self):
+        md = "---\nname: test\n---\n\n## Title\n\nParagraph.\n\n- Item 1\n- Item 2\n\n> Quote\n\n```python\nx=1\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n1. Step 1\n2. Step 2\n\n<div>HTML</div>\n"
+        blocks = extract_flat_blocks(md)
+        types = {b.block_type for b in blocks}
+        assert "frontmatter" in types
+        assert "heading" in types
+        assert "paragraph" in types
+        assert "bullet_list" in types
+        assert "blockquote" in types
+        assert "code_block" in types
+        assert "table" in types
+        assert "ordered_procedure" in types
+        assert "html_block" in types

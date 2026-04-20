@@ -14,7 +14,8 @@ import re
 
 from compiler.schemas import (
     BlockQuoteBlock, BulletItem, BulletListBlock,
-    CodeBlock, ContentExtraction, FlowchartBlock,
+    CodeBlock, ContentExtraction, FlatBlock, FlowchartBlock,
+    FrontmatterBlock, HeadingBlock, HTMLBlock,
     MarkdownTable, OrderedProcedure, Paragraph, ProcedureStep,
     Section, TemplateBlock,
 )
@@ -68,6 +69,224 @@ def extract_structural_content(markdown: str) -> ContentExtraction:
         procedures=procedures,
         templates=templates,
     )
+
+
+def extract_flat_blocks(markdown: str) -> list[FlatBlock]:
+    """Extract ALL content blocks as a flat list with unique block_ids.
+
+    Phase 1a of Skeleton & Hydration architecture. Every markdown element
+    becomes a FlatBlock with block_id, line range, and byte-perfect content.
+    """
+    from markdown_it import MarkdownIt
+    from mdit_py_plugins.front_matter import front_matter_plugin
+
+    md_it = MarkdownIt("commonmark", {"html": True}).enable("table")
+    front_matter_plugin(md_it)
+    tokens = md_it.parse(markdown)
+    md_lines = markdown.splitlines(keepends=True)
+
+    blocks: list[FlatBlock] = []
+    block_counter = 0
+    i = 0
+
+    while i < len(tokens):
+        token = tokens[i]
+
+        # Frontmatter
+        if token.type == "front_matter" and token.map:
+            start, end = token.map
+            raw = "".join(md_lines[start:end])
+            props: dict[str, str] = {}
+            for line in raw.split("\n"):
+                if ":" in line and not line.strip().startswith("---"):
+                    key, _, val = line.partition(":")
+                    key = key.strip()
+                    val = val.strip()
+                    if key and val:
+                        props[key] = val
+            bid = f"blk_{block_counter}"
+            block_counter += 1
+            blocks.append(FlatBlock(
+                block_id=bid,
+                block_type="frontmatter",
+                content=FrontmatterBlock(raw_yaml=raw, properties=props, content_order=0),
+                line_start=start + 1,
+                line_end=end,
+            ))
+            i += 1
+            continue
+
+        # HTML block
+        if token.type == "html_block" and token.map:
+            start, end = token.map
+            raw = "".join(md_lines[start:end])
+            bid = f"blk_{block_counter}"
+            block_counter += 1
+            blocks.append(FlatBlock(
+                block_id=bid,
+                block_type="html_block",
+                content=HTMLBlock(content=raw.strip(), content_order=0),
+                line_start=start + 1,
+                line_end=end,
+            ))
+            i += 1
+            continue
+
+        # Heading
+        if token.type == "heading_open" and token.map:
+            level = int(token.tag[1])
+            title = ""
+            if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
+                title = tokens[i + 1].content
+            start = token.map[0]
+            end = token.map[1]
+            bid = f"blk_{block_counter}"
+            block_counter += 1
+            blocks.append(FlatBlock(
+                block_id=bid,
+                block_type="heading",
+                content=HeadingBlock(text=title, level=level, content_order=0),
+                line_start=start + 1,
+                line_end=end,
+            ))
+            i += 3  # heading_open, inline, heading_close
+            continue
+
+        # Fence (code/flowchart/template)
+        if token.type == "fence" and token.map:
+            block = _classify_fence(token, 0)
+            if block is not None:
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type=block.block_type,
+                    content=block,
+                    line_start=token.map[0] + 1,
+                    line_end=token.map[1],
+                ))
+            i += 1
+            continue
+
+        # Table
+        if token.type == "table_open" and token.map:
+            table = _extract_table(token, tokens, i, md_lines, 0)
+            if table:
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type="table",
+                    content=table,
+                    line_start=token.map[0] + 1,
+                    line_end=token.map[1],
+                ))
+            while i < len(tokens) and tokens[i].type != "table_close":
+                i += 1
+            i += 1
+            continue
+
+        # Ordered list (procedure)
+        if token.type == "ordered_list_open" and token.map:
+            proc = _extract_ordered_procedure(token, tokens, i, 0)
+            if proc:
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type="ordered_procedure",
+                    content=proc,
+                    line_start=token.map[0] + 1,
+                    line_end=token.map[1],
+                ))
+            depth = 0
+            while i < len(tokens):
+                if tokens[i].type == "ordered_list_open":
+                    depth += 1
+                elif tokens[i].type == "ordered_list_close":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            i += 1
+            continue
+
+        # Bullet list
+        if token.type == "bullet_list_open" and token.map:
+            bl = _extract_bullet_list(token, tokens, i, 0)
+            if bl:
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type="bullet_list",
+                    content=bl,
+                    line_start=token.map[0] + 1,
+                    line_end=token.map[1],
+                ))
+            while i < len(tokens) and tokens[i].type != "bullet_list_close":
+                i += 1
+            i += 1
+            continue
+
+        # Blockquote
+        if token.type == "blockquote_open" and token.map:
+            bq = _extract_blockquote(token, tokens, i, md_lines, 0)
+            if bq:
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type="blockquote",
+                    content=bq,
+                    line_start=token.map[0] + 1,
+                    line_end=token.map[1],
+                ))
+            while i < len(tokens) and tokens[i].type != "blockquote_close":
+                i += 1
+            i += 1
+            continue
+
+        # Paragraph (or HTML-dominant paragraph promoted to html_block)
+        if token.type == "paragraph_open" and token.map:
+            # Check if paragraph contains html_inline children (e.g. <HARD-GATE>)
+            inline_token = tokens[i + 1] if i + 1 < len(tokens) and tokens[i + 1].type == "inline" else None
+            is_html_dominant = False
+            if inline_token and inline_token.children:
+                html_chars = sum(len(c.content) for c in inline_token.children if c.type == "html_inline")
+                text_chars = sum(len(c.content) for c in inline_token.children if c.type == "text" and c.content.strip())
+                is_html_dominant = html_chars > 0 and html_chars >= text_chars
+
+            if is_html_dominant:
+                start, end = token.map
+                raw = "".join(md_lines[start:end]).strip()
+                bid = f"blk_{block_counter}"
+                block_counter += 1
+                blocks.append(FlatBlock(
+                    block_id=bid,
+                    block_type="html_block",
+                    content=HTMLBlock(content=raw, content_order=0),
+                    line_start=start + 1,
+                    line_end=end,
+                ))
+            else:
+                para = _extract_paragraph(token, tokens, i, md_lines, 0)
+                if para:
+                    bid = f"blk_{block_counter}"
+                    block_counter += 1
+                    blocks.append(FlatBlock(
+                        block_id=bid,
+                        block_type="paragraph",
+                        content=para,
+                        line_start=token.map[0] + 1,
+                        line_end=token.map[1],
+                    ))
+            i += 1
+            continue
+
+        i += 1
+
+    return blocks
 
 
 def _collect_flat_lists(section, code_blocks, tables, flowcharts, procedures, templates):
