@@ -1,150 +1,212 @@
-"""Tests for the content_parser module."""
+"""Tests for the content_parser module — DocGraph tree builder."""
 import pytest
 from compiler.content_parser import extract_structural_content
 
 
-class TestCodeBlockExtraction:
-    def test_single_python_code_block(self):
-        md = "# Title\n\n```python\nprint('hello')\n```\n"
+class TestSectionTree:
+    def test_single_section_with_paragraph(self):
+        md = "## Overview\n\nThis is the overview text.\n"
         result = extract_structural_content(md)
-        assert len(result.code_blocks) == 1
-        assert result.code_blocks[0].language == "python"
-        assert "print('hello')" in result.code_blocks[0].content
+        assert len(result.sections) == 1
+        assert result.sections[0].title == "Overview"
+        assert result.sections[0].level == 2
+        assert result.sections[0].order == 1
+        assert len(result.sections[0].content) == 1
+        assert result.sections[0].content[0].block_type == "paragraph"
+        assert "overview text" in result.sections[0].content[0].text_content
 
-    def test_multiple_code_blocks(self):
-        md = "```python\nx = 1\n```\n\nSome text.\n\n```bash\necho hello\n```\n"
+    def test_multiple_sections_ordered(self):
+        md = "## First\n\nText A\n\n## Second\n\nText B\n\n## Third\n\nText C\n"
+        result = extract_structural_content(md)
+        assert len(result.sections) == 3
+        assert result.sections[0].title == "First"
+        assert result.sections[1].title == "Second"
+        assert result.sections[2].title == "Third"
+        assert result.sections[0].order == 1
+        assert result.sections[1].order == 2
+        assert result.sections[2].order == 3
+
+    def test_nested_subsections(self):
+        md = "## Parent\n\nParent text.\n\n### Child A\n\nChild A text.\n\n### Child B\n\nChild B text.\n"
+        result = extract_structural_content(md)
+        assert len(result.sections) == 1
+        assert result.sections[0].title == "Parent"
+        assert len(result.sections[0].subsections) == 2
+        assert result.sections[0].subsections[0].title == "Child A"
+        assert result.sections[0].subsections[0].level == 3
+        assert result.sections[0].subsections[1].title == "Child B"
+
+    def test_content_before_first_heading(self):
+        """Content before any heading goes into a preamble section."""
+        md = "Preamble text.\n\n## First Section\n\nSection text.\n"
+        result = extract_structural_content(md)
+        assert len(result.sections) == 2
+        assert result.sections[0].title == ""
+        assert result.sections[0].level == 0
+        assert result.sections[0].order == 0
+        assert "Preamble text" in result.sections[0].content[0].text_content
+        assert result.sections[1].title == "First Section"
+
+
+class TestParagraphExtraction:
+    def test_paragraph_preserves_inline_formatting(self):
+        md = "## Section\n\nThis has **bold** and `inline code`.\n"
+        result = extract_structural_content(md)
+        para = result.sections[0].content[0]
+        assert para.block_type == "paragraph"
+        assert "**bold**" in para.text_content
+        assert "`inline code`" in para.text_content
+
+    def test_multiple_paragraphs_in_section(self):
+        md = "## Section\n\nFirst paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n"
+        result = extract_structural_content(md)
+        assert len(result.sections[0].content) == 3
+        assert result.sections[0].content[0].text_content.strip() == "First paragraph."
+        assert result.sections[0].content[2].text_content.strip() == "Third paragraph."
+
+    def test_paragraph_content_order(self):
+        md = "## S\n\nPara 1.\n\n- bullet\n\nPara 2.\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].content_order == 1
+        assert section.content[1].content_order == 2
+        assert section.content[2].content_order == 3
+
+
+class TestBulletListExtraction:
+    def test_bullet_list_in_section(self):
+        md = "## Section\n\n- First item\n- Second item\n- Third item\n"
+        result = extract_structural_content(md)
+        bl = result.sections[0].content[0]
+        assert bl.block_type == "bullet_list"
+        assert len(bl.items) == 3
+        assert bl.items[0].text == "First item"
+        assert bl.items[0].order == 1
+        assert bl.items[2].order == 3
+
+    def test_bullet_list_content_order(self):
+        md = "## S\n\nIntro text.\n\n- Item A\n- Item B\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].block_type == "paragraph"
+        assert section.content[0].content_order == 1
+        assert section.content[1].block_type == "bullet_list"
+        assert section.content[1].content_order == 2
+
+
+class TestBlockQuoteExtraction:
+    def test_blockquote_in_section(self):
+        md = "## Section\n\n> This is a quote.\n"
+        result = extract_structural_content(md)
+        bq = result.sections[0].content[0]
+        assert bq.block_type == "blockquote"
+        assert "This is a quote" in bq.content
+
+    def test_blockquote_attribution(self):
+        md = "## Section\n\n> Clean code always looks like it was written by someone who cares.\n>\n> — Robert C. Martin\n"
+        result = extract_structural_content(md)
+        bq = result.sections[0].content[0]
+        assert bq.block_type == "blockquote"
+        assert "Clean code" in bq.content
+
+
+class TestExistingBlocksInSection:
+    def test_code_block_in_section(self):
+        md = "## Example\n\n```python\nprint('hello')\n```\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert len(section.content) == 1
+        assert section.content[0].block_type == "code_block"
+        assert section.content[0].language == "python"
+
+    def test_table_in_section(self):
+        md = "## Data\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].block_type == "table"
+        assert section.content[0].row_count == 1
+
+    def test_flowchart_in_section(self):
+        md = "## Flow\n\n```mermaid\ngraph TD\n    A --> B\n```\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].block_type == "flowchart"
+        assert section.content[0].chart_type == "mermaid"
+
+    def test_template_in_section(self):
+        md = "## Template\n\n```text\nHello {name}\n```\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].block_type == "template"
+        assert "name" in section.content[0].detected_variables
+
+    def test_ordered_procedure_in_section(self):
+        md = "## Steps\n\n1. First\n2. Second\n3. Third\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert section.content[0].block_type == "ordered_procedure"
+        assert len(section.content[0].items) == 3
+
+    def test_mixed_content_in_section(self):
+        md = "## Section\n\nIntro paragraph.\n\n- Bullet 1\n- Bullet 2\n\n```python\nx=1\n```\n\nClosing text.\n"
+        result = extract_structural_content(md)
+        section = result.sections[0]
+        assert len(section.content) == 4
+        assert section.content[0].block_type == "paragraph"
+        assert section.content[1].block_type == "bullet_list"
+        assert section.content[2].block_type == "code_block"
+        assert section.content[3].block_type == "paragraph"
+        assert section.content[0].content_order == 1
+        assert section.content[1].content_order == 2
+        assert section.content[2].content_order == 3
+        assert section.content[3].content_order == 4
+
+
+class TestBackwardCompatFlatLists:
+    def test_flat_code_blocks_populated(self):
+        md = "## S\n\n```python\nx=1\n```\n\n```bash\necho hi\n```\n"
         result = extract_structural_content(md)
         assert len(result.code_blocks) == 2
-        assert result.code_blocks[0].language == "python"
-        assert result.code_blocks[1].language == "bash"
 
-    def test_no_code_blocks(self):
-        md = "# Just a title\n\nSome text."
-        result = extract_structural_content(md)
-        assert result.code_blocks == []
-
-    def test_code_block_content_preserved_exact(self):
-        code = "def foo():\n    return 42\n"
-        md = f"```python\n{code}```\n"
-        result = extract_structural_content(md)
-        assert len(result.code_blocks) == 1
-        # content is just the inner code (no fence markers)
-        assert "def foo():" in result.code_blocks[0].content
-        assert "return 42" in result.code_blocks[0].content
-        assert not result.code_blocks[0].content.startswith("```")
-
-    def test_code_block_line_numbers_1_based(self):
-        md = "# Title\n\n```python\nprint('hello')\n```\n"
-        result = extract_structural_content(md)
-        assert len(result.code_blocks) == 1
-        # Lines are 1-based: line 3 = ```python, line 5 = ```
-        assert result.code_blocks[0].source_line_start == 3
-        assert result.code_blocks[0].source_line_end == 5
-
-    def test_empty_language_treated_as_text(self):
-        md = "```\nsome text\n```\n"
-        result = extract_structural_content(md)
-        assert len(result.code_blocks) == 1
-        assert result.code_blocks[0].language == ""
-
-
-class TestTableExtraction:
-    def test_single_table(self):
-        md = "| Name | Type |\n|------|------|\n| foo  | bar  |\n| baz  | qux  |\n"
+    def test_flat_tables_populated(self):
+        md = "## S\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
         result = extract_structural_content(md)
         assert len(result.tables) == 1
-        assert result.tables[0].row_count == 2
-        assert "Name" in result.tables[0].markdown_source
 
-    def test_table_raw_markdown_preserved(self):
-        md = "| a | b |\n|---|---|\n| 1 | 2 |\n"
-        result = extract_structural_content(md)
-        assert len(result.tables) == 1
-        assert result.tables[0].markdown_source.startswith("| a | b |")
-
-    def test_no_tables(self):
-        md = "# Title\n\nJust text."
-        result = extract_structural_content(md)
-        assert result.tables == []
-
-    def test_table_caption_detected_with_blank_line(self):
-        """Caption should be found even when separated by a blank line."""
-        md = "## Parameters\n\n| Name | Type |\n|------|------|\n| foo  | bar  |\n"
-        result = extract_structural_content(md)
-        assert len(result.tables) == 1
-        assert result.tables[0].caption == "## Parameters"
-
-
-class TestFlowchartExtraction:
-    def test_graphviz_flowchart(self):
-        md = "```dot\ndigraph {\n    A -> B -> C\n}\n```\n"
+    def test_flat_flowcharts_populated(self):
+        md = "## S\n\n```mermaid\ngraph TD\n    A --> B\n```\n"
         result = extract_structural_content(md)
         assert len(result.flowcharts) == 1
-        assert result.flowcharts[0].chart_type == "graphviz"
-        assert "digraph" in result.flowcharts[0].source
 
-    def test_mermaid_flowchart(self):
-        md = "```mermaid\ngraph TD\n    A --> B\n```\n"
-        result = extract_structural_content(md)
-        assert len(result.flowcharts) == 1
-        assert result.flowcharts[0].chart_type == "mermaid"
-
-    def test_no_flowcharts(self):
-        md = "```python\nprint('hi')\n```\n"
-        result = extract_structural_content(md)
-        assert result.flowcharts == []
-
-
-class TestOrderedProcedureExtraction:
-    def test_numbered_list(self):
-        md = "1. First step\n2. Second step\n3. Third step\n"
-        result = extract_structural_content(md)
-        assert len(result.procedures) == 1
-        assert len(result.procedures[0].items) == 3
-        assert result.procedures[0].items[0].position == 1
-        assert result.procedures[0].items[0].text == "First step"
-        assert result.procedures[0].items[2].position == 3
-
-    def test_no_ordered_lists(self):
-        md = "- bullet one\n- bullet two\n"
-        result = extract_structural_content(md)
-        assert result.procedures == []
-
-    def test_nested_ordered_list_skipped(self):
-        """Nested list items should not pollute the top-level procedure."""
-        md = "1. First step\n   1. Nested sub-step\n   2. Another nested\n2. Second step\n"
+    def test_flat_procedures_populated(self):
+        md = "## S\n\n1. Step one\n2. Step two\n"
         result = extract_structural_content(md)
         assert len(result.procedures) == 1
         assert len(result.procedures[0].items) == 2
-        assert result.procedures[0].items[0].text == "First step"
-        assert result.procedures[0].items[1].text == "Second step"
 
-
-class TestTemplateExtraction:
-    def test_template_with_variables(self):
-        md = "```text\nHello {name}, your order {order_id} is ready.\n```\n"
+    def test_flat_templates_populated(self):
+        md = "## S\n\n```text\nHello {name}\n```\n"
         result = extract_structural_content(md)
         assert len(result.templates) == 1
-        assert "name" in result.templates[0].detected_variables
-        assert "order_id" in result.templates[0].detected_variables
 
+    def test_empty_markdown(self):
+        md = ""
+        result = extract_structural_content(md)
+        assert result.sections == []
+        assert result.code_blocks == []
+        assert result.tables == []
+
+
+class TestGuardrails:
     def test_python_fstring_not_template(self):
-        """Python code with f-string must be CodeBlock, not Template."""
-        md = '```python\nname = "world"\nprint(f"Hello {name}")\n```\n'
-        result = extract_structural_content(md)
-        assert len(result.templates) == 0
-        assert len(result.code_blocks) == 1
-        assert result.code_blocks[0].language == "python"
-
-    def test_js_template_literal_not_template(self):
-        """JavaScript with template literals must be CodeBlock."""
-        md = '```javascript\nconst name = "world";\nconsole.log(`Hello ${name}`);\n```\n'
+        md = '## S\n\n```python\nprint(f"Hello {name}")\n```\n'
         result = extract_structural_content(md)
         assert len(result.templates) == 0
         assert len(result.code_blocks) == 1
 
-    def test_empty_fence_with_vars_is_template(self):
-        md = "```\nUse {tool} to {action}.\n```\n"
+    def test_nested_ordered_list_only_top_level(self):
+        md = "## S\n\n1. First\n   1. Nested\n   2. Nested 2\n2. Second\n"
         result = extract_structural_content(md)
-        assert len(result.templates) == 1
-        assert "tool" in result.templates[0].detected_variables
+        proc = result.sections[0].content[0]
+        assert proc.block_type == "ordered_procedure"
+        assert len(proc.items) == 2

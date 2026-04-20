@@ -334,6 +334,7 @@ class CodeBlock(BaseModel):
     content: str
     source_line_start: int
     source_line_end: int
+    content_order: int = 0
 
 
 class MarkdownTable(BaseModel):
@@ -342,6 +343,7 @@ class MarkdownTable(BaseModel):
     markdown_source: str
     caption: str | None
     row_count: int
+    content_order: int = 0
 
 
 class FlowchartBlock(BaseModel):
@@ -349,6 +351,7 @@ class FlowchartBlock(BaseModel):
     block_type: Literal["flowchart"] = "flowchart"
     source: str
     chart_type: Literal["graphviz", "mermaid"]
+    content_order: int = 0
 
 
 class ProcedureStep(BaseModel):
@@ -361,6 +364,7 @@ class OrderedProcedure(BaseModel):
     """Ordered checklist/numbered list extracted from markdown."""
     block_type: Literal["ordered_procedure"] = "ordered_procedure"
     items: list[ProcedureStep]
+    content_order: int = 0
 
 
 class TemplateBlock(BaseModel):
@@ -368,6 +372,7 @@ class TemplateBlock(BaseModel):
     block_type: Literal["template"] = "template"
     content: str
     detected_variables: list[str]
+    content_order: int = 0
 
 
 class Paragraph(BaseModel):
