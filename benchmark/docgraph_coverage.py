@@ -27,22 +27,18 @@ def _env_path(name, fallback):
     return Path(value).expanduser() if value else Path(fallback)
 
 
-SUP_DIR = _env_path("DOCGRAPH_SUP_DIR", os.path.expanduser(
-    "~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills"))
-ANT_DIR = _env_path("DOCGRAPH_ANT_DIR", os.path.expanduser(
-    "~/.claude/plugins/cache/anthropic-agent-skills/document-skills/3d5951151859/skills"))
+_SKILLS_DIR = _env_path("DOCGRAPH_SKILLS_DIR", str(
+    Path(__file__).resolve().parent.parent / ".agents" / "skills"))
 
 
 def collect_skill_paths():
     paths = []
-    for d in sorted(SUP_DIR.iterdir()):
-        p = d / "SKILL.md"
-        if p.exists():
-            paths.append(("sup", p))
-    for d in sorted(ANT_DIR.iterdir()):
-        p = d / "SKILL.md"
-        if p.exists():
-            paths.append(("ant", p))
+    skills_dir = _SKILLS_DIR
+    if not skills_dir.is_dir():
+        return paths
+    for p in sorted(skills_dir.rglob("SKILL.md")):
+        vendor = p.parent.parent.parent.name if len(p.parts) > 5 else "local"
+        paths.append((vendor, p))
     return paths
 
 
@@ -117,11 +113,9 @@ def main():
     parser.add_argument("--target", type=float, default=95.0, help="Coverage target %% (default: 95)")
     args = parser.parse_args()
 
-    if not SUP_DIR.is_dir() and not ANT_DIR.is_dir():
-        print(f"Error: No skill directories found.")
-        print(f"  Superpowers: {SUP_DIR}")
-        print(f"  Anthropic:   {ANT_DIR}")
-        print(f"Set DOCGRAPH_SUP_DIR and DOCGRAPH_ANT_DIR to override.")
+    if not _SKILLS_DIR.is_dir():
+        print(f"Error: Skills directory not found: {_SKILLS_DIR}")
+        print(f"Set DOCGRAPH_SKILLS_DIR to override.")
         sys.exit(1)
 
     sys.exit(run_benchmark(target=args.target, verbose=args.verbose, json_output=args.json_output))
