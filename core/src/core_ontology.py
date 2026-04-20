@@ -238,7 +238,6 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
 
     for prop_name, label, comment, has_range in [
         ("textContent", "text content", "Raw markdown text of the paragraph", False),
-        ("contentOrder", "content order", "Position within parent section", True),
     ]:
         prop_uri = oc[prop_name]
         g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
@@ -247,6 +246,12 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
         g.add((prop_uri, RDFS.comment, Literal(comment)))
         if has_range:
             g.add((prop_uri, RDFS.range, XSD.integer))
+
+    # contentOrder is used by all content block types — no domain restriction
+    g.add((oc.contentOrder, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.contentOrder, RDFS.label, Literal("content order")))
+    g.add((oc.contentOrder, RDFS.comment, Literal("Position within parent section")))
+    g.add((oc.contentOrder, RDFS.range, XSD.integer))
 
     # ========== BulletList + BulletItem ==========
     g.add((oc.BulletList, RDF.type, OWL.Class))
@@ -294,7 +299,7 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
     for prop_name, domain, range_cls, label, comment in [
         ("hasSection", oc.Skill, oc.Section, "has section", "Top-level section of a skill document"),
         ("hasSubsection", oc.Section, oc.Section, "has subsection", "Nested section within a section"),
-        ("hasContent", oc.Section, None, "has content", "Content block within a section"),
+        ("hasContent", oc.Section, OWL.Thing, "has content", "Content block within a section"),
         ("hasItem", oc.BulletList, oc.BulletItem, "has item", "Item in a bullet list"),
     ]:
         prop_uri = oc[prop_name]
@@ -304,10 +309,6 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
             g.add((prop_uri, RDFS.range, range_cls))
         g.add((prop_uri, RDFS.label, Literal(label)))
         g.add((prop_uri, RDFS.comment, Literal(comment)))
-
-    # contentOrder also applies to BulletList and BlockQuote
-    for cls in [oc.BulletList, oc.BlockQuote]:
-        g.add((oc.contentOrder, RDFS.domain, cls))
 
 
 def _add_docgraph_v2_classes(g: Graph, oc: Namespace) -> None:
@@ -339,6 +340,8 @@ def _add_docgraph_v2_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== hasChild ==========
     g.add((oc.hasChild, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasChild, RDFS.domain, oc.BulletItem))
+    g.add((oc.hasChild, RDFS.range, OWL.Thing))
     g.add((oc.hasChild, RDFS.label, Literal("has child")))
     g.add((oc.hasChild, RDFS.comment, Literal(
         "Nested content block within a list item or procedure step"
