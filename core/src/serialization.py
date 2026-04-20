@@ -125,6 +125,10 @@ def _serialize_section_tree(
                 graph.add((item_node, RDF.type, oc.BulletItem))
                 graph.add((item_node, oc.itemText, Literal(item.text)))
                 graph.add((item_node, oc.itemOrder, Literal(item.order)))
+                for child in item.children:
+                    child_node = _serialize_content_block(graph, child, make_bnode)
+                    if child_node:
+                        graph.add((item_node, oc.hasChild, child_node))
             return node
 
         elif block.block_type == "blockquote":
@@ -133,6 +137,20 @@ def _serialize_section_tree(
             graph.add((node, oc.quoteContent, Literal(block.content)))
             if block.attribution:
                 graph.add((node, oc.quoteAttribution, Literal(block.attribution)))
+            graph.add((node, oc.contentOrder, Literal(block.content_order)))
+            return node
+
+        elif block.block_type == "html_block":
+            node = make_bnode("html", f"{block.content_order}:{hash(block.content) & 0xFFFF}")
+            graph.add((node, RDF.type, oc.HTMLBlock))
+            graph.add((node, oc.htmlContent, Literal(block.content)))
+            graph.add((node, oc.contentOrder, Literal(block.content_order)))
+            return node
+
+        elif block.block_type == "frontmatter":
+            node = make_bnode("fm", f"{block.content_order}:{hash(block.raw_yaml) & 0xFFFF}")
+            graph.add((node, RDF.type, oc.FrontmatterBlock))
+            graph.add((node, oc.rawYaml, Literal(block.raw_yaml)))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             return node
 
@@ -186,6 +204,10 @@ def _serialize_section_tree(
                 graph.add((step_node, oc.stepId, Literal(f"step_{step.position}")))
                 graph.add((step_node, DCTERMS.description, Literal(step.text)))
                 graph.add((step_node, oc.stepOrder, Literal(step.position)))
+                for child in step.children:
+                    child_node = _serialize_content_block(graph, child, make_bnode)
+                    if child_node:
+                        graph.add((step_node, oc.hasChild, child_node))
             return node
 
         return None

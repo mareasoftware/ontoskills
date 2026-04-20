@@ -741,3 +741,46 @@ class TestDocGraphSerialization:
         # Check that at least one code node has contentOrder = 2
         has_order_2 = any((node, oc.contentOrder, Literal(2)) in graph for node in code_nodes)
         assert has_order_2
+
+
+class TestDocGraphV2Serialization:
+    def _make_skill(self, **kw):
+        defaults = dict(id="v2-skill", hash="v2hash", nature="test", genus="Test", differentia="v2", intents=["test"], generated_by="test")
+        defaults.update(kw)
+        return ExtractedSkill(**defaults)
+
+    def test_html_block_serialization(self):
+        from compiler.schemas import Section, HTMLBlock
+        skill = self._make_skill()
+        ce = ContentExtraction(sections=[Section(title="S", level=2, order=1, content=[HTMLBlock(content="<HARD-GATE>", content_order=1)])])
+        graph = Graph()
+        oc = get_oc_namespace()
+        serialize_skill(graph, skill, content_extraction=ce)
+        html_nodes = list(graph.subjects(RDF.type, oc.HTMLBlock))
+        assert len(html_nodes) == 1
+        assert (html_nodes[0], oc.htmlContent, Literal("<HARD-GATE>")) in graph
+
+    def test_frontmatter_block_serialization(self):
+        from compiler.schemas import Section, FrontmatterBlock
+        skill = self._make_skill()
+        ce = ContentExtraction(sections=[Section(title="", level=0, order=0, content=[FrontmatterBlock(raw_yaml="name: test", properties={"name": "test"}, content_order=0)])])
+        graph = Graph()
+        oc = get_oc_namespace()
+        serialize_skill(graph, skill, content_extraction=ce)
+        fm_nodes = list(graph.subjects(RDF.type, oc.FrontmatterBlock))
+        assert len(fm_nodes) == 1
+        assert (fm_nodes[0], oc.rawYaml, Literal("name: test")) in graph
+
+    def test_bullet_item_children_serialization(self):
+        from compiler.schemas import Section, BulletListBlock, BulletItem, CodeBlock
+        skill = self._make_skill()
+        ce = ContentExtraction(sections=[Section(title="S", level=2, order=1, content=[BulletListBlock(items=[
+            BulletItem(text="Run tests", order=1, children=[CodeBlock(language="bash", content="pytest", source_line_start=3, source_line_end=3, content_order=0)]),
+        ], content_order=1)])])
+        graph = Graph()
+        oc = get_oc_namespace()
+        serialize_skill(graph, skill, content_extraction=ce)
+        child_nodes = list(graph.subjects(RDF.type, oc.CodeExample))
+        assert len(child_nodes) >= 1
+        has_child = any((item, oc.hasChild, child) for item in list(graph.subjects(RDF.type, oc.BulletItem)) for child in child_nodes)
+        assert has_child
