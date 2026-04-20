@@ -1,8 +1,26 @@
 import { useRef, useState, memo } from 'react';
 import { Html, Text, Billboard } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { GraphNode } from '../types';
 import { getNodeColor, CATEGORY_LABELS } from './colors';
+
+
+/** Text that scales fontSize with camera distance so labels stay readable. */
+function DistanceScaledText({ position, baseFontSize, children, ...props }: {
+  position: [number, number, number];
+  baseFontSize: number;
+  children: string;
+} & Omit<React.ComponentProps<typeof Text>, 'fontSize' | 'position'>) {
+  const { camera } = useThree();
+  const [fontSize, setFontSize] = useState(baseFontSize);
+  useFrame(() => {
+    const d = camera.position.distanceTo(new THREE.Vector3(...position));
+    const target = baseFontSize * Math.max(1, d / 25);
+    setFontSize(prev => Math.abs(prev - target) > 0.02 ? THREE.MathUtils.lerp(prev, target, 0.15) : prev);
+  });
+  return <Text fontSize={fontSize} {...props}>{children}</Text>;
+}
 
 export const GraphNodeSphere = memo(function GraphNodeSphere({ node, position, onClick, dimmed = false, hideLabel = false, clusterLabel, exploreLabel, lowDetail = false }: {
   node: GraphNode;
@@ -56,8 +74,9 @@ export const GraphNodeSphere = memo(function GraphNodeSphere({ node, position, o
       </mesh>
       {isCluster && !dimmed && (
         <Billboard position={[0, radius + 0.35, 0]}>
-          <Text
-            fontSize={0.35}
+          <DistanceScaledText
+            position={position}
+            baseFontSize={0.35}
             color={color}
             anchorX="center"
             anchorY="middle"
@@ -65,13 +84,14 @@ export const GraphNodeSphere = memo(function GraphNodeSphere({ node, position, o
             outlineColor="#000000"
           >
             {`\u00d7${clusterCount}`}
-          </Text>
+          </DistanceScaledText>
         </Billboard>
       )}
       {!hideLabel && (
         <Billboard position={[0, -(radius + 0.55), 0]}>
-          <Text
-            fontSize={0.3}
+          <DistanceScaledText
+            position={position}
+            baseFontSize={0.3}
             color="#e0e0e0"
             fillOpacity={dimmed ? 0.12 : 1}
             outlineWidth={dimmed ? 0 : 0.12}
@@ -83,7 +103,7 @@ export const GraphNodeSphere = memo(function GraphNodeSphere({ node, position, o
             onClick={(e) => { e.stopPropagation(); onClick(node); }}
           >
             {displayLabel}
-          </Text>
+          </DistanceScaledText>
         </Billboard>
       )}
       {hovered && !dimmed && (
