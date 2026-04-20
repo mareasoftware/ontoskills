@@ -198,6 +198,7 @@ def _extract_ordered_items(ol_open_token, tokens, start_idx, md_lines, block_cou
             k = j + 1
             item_depth = 1
             first_para_skipped = False
+            child_order = 0
             while k < len(tokens):
                 tk = tokens[k]
                 if tk.type == "list_item_close":
@@ -211,12 +212,16 @@ def _extract_ordered_items(ol_open_token, tokens, start_idx, md_lines, block_cou
                 elif item_depth >= 1 and tk.type == "paragraph_open" and not first_para_skipped:
                     first_para_skipped = True  # skip first paragraph (item text)
                 elif item_depth >= 1 and tk.map:
-                    result = _try_extract_child_block(tk, tokens, k, md_lines, block_counter + 1 + len(child_blocks), parent_id)
+                    result = _try_extract_child_block(tk, tokens, k, md_lines, block_counter + 1 + len(child_blocks), parent_id, child_order)
                     if result:
                         child_blocks.extend(result)
                         if item_idx < len(items):
                             for r in result:
+                                r.content.content_order = child_order
                                 items[item_idx].children.append(r.content)
+                        child_order += 1
+                        k = _skip_extracted_block(tk, tokens, k)
+                        continue
                 k += 1
             item_idx += 1
         j += 1
@@ -275,6 +280,7 @@ def _extract_bullet_items(bl_open_token, tokens, start_idx, md_lines, block_coun
             k = j + 1
             item_depth = 1
             first_para_skipped = False
+            child_order = 0
             while k < len(tokens):
                 tk = tokens[k]
                 if tk.type == "list_item_close":
@@ -288,26 +294,57 @@ def _extract_bullet_items(bl_open_token, tokens, start_idx, md_lines, block_coun
                 elif item_depth >= 1 and tk.type == "paragraph_open" and not first_para_skipped:
                     first_para_skipped = True  # skip first paragraph (item text)
                 elif item_depth >= 1 and tk.map:
-                    result = _try_extract_child_block(tk, tokens, k, md_lines, block_counter + 1 + len(child_blocks), parent_id)
+                    result = _try_extract_child_block(tk, tokens, k, md_lines, block_counter + 1 + len(child_blocks), parent_id, child_order)
                     if result:
                         child_blocks.extend(result)
                         if item_idx < len(items):
                             for r in result:
+                                r.content.content_order = child_order
                                 items[item_idx].children.append(r.content)
+                        child_order += 1
+                        k = _skip_extracted_block(tk, tokens, k)
+                        continue
                 k += 1
             item_idx += 1
         j += 1
     return BulletListBlock(items=items, content_order=0), child_blocks
 
 
-def _try_extract_child_block(token, tokens, idx, md_lines, block_counter, parent_id):
+def _skip_extracted_block(token, tokens, idx):
+    """After extracting a block at idx, skip past its closing token.
+
+    For structures with open/close pairs (bullet_list, blockquote, table),
+    advance idx to the matching close. For single-token blocks (fence,
+    paragraph, html_block), return idx + 1.
+    """
+    close_type = {
+        "bullet_list_open": "bullet_list_close",
+        "ordered_list_open": "ordered_list_close",
+        "blockquote_open": "blockquote_close",
+        "table_open": "table_close",
+    }.get(token.type)
+    if close_type:
+        depth = 0
+        k = idx
+        while k < len(tokens):
+            if tokens[k].type == token.type:
+                depth += 1
+            elif tokens[k].type == close_type:
+                depth -= 1
+                if depth == 0:
+                    return k
+            k += 1
+    return idx + 1
+
+
+def _try_extract_child_block(token, tokens, idx, md_lines, block_counter, parent_id, child_order=0):
     """Try to extract child blocks from a token inside a list item.
 
     Returns a list of FlatBlocks (may be empty, or contain the block plus
     any descendant blocks from nested structures).
     """
     if token.type == "fence" and token.map:
-        block = _classify_fence(token, 0)
+        block = _classify_fence(token, child_order)
         if block:
             return [FlatBlock(
                 block_id=f"blk_{block_counter}",
@@ -318,7 +355,7 @@ def _try_extract_child_block(token, tokens, idx, md_lines, block_counter, parent
                 parent_block_id=parent_id,
             )]
     elif token.type == "paragraph_open" and token.map:
-        para = _extract_paragraph(token, tokens, idx, md_lines, 0)
+        para = _extract_paragraph(token, tokens, idx, md_lines, child_order)
         if para:
             return [FlatBlock(
                 block_id=f"blk_{block_counter}",
@@ -358,7 +395,7 @@ def _try_extract_child_block(token, tokens, idx, md_lines, block_counter, parent
         return [FlatBlock(
             block_id=f"blk_{block_counter}",
             block_type="html_block",
-            content=HTMLBlock(content=raw.strip(), content_order=0),
+            content=HTMLBlock(content=raw.strip(), content_order=child_order),
             line_start=start + 1,
             line_end=end,
             parent_block_id=parent_id,

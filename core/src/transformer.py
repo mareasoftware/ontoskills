@@ -242,7 +242,13 @@ Use the available tools to:
 3. Submit with extract_skill"""]
 
     # Inject pre-extracted content block summaries for LLM annotation
-    if content_extraction:
+    if content_extraction and (
+        content_extraction.code_blocks
+        or content_extraction.tables
+        or content_extraction.flowcharts
+        or content_extraction.procedures
+        or content_extraction.templates
+    ):
         import json as _json
         content_summary_parts = ["\n\n## PRE-EXTRACTED CONTENT BLOCKS\n"]
 
