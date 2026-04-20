@@ -112,7 +112,8 @@ def _classify_fence(token, md_lines: list[str]):
     Uses token.content for the inner content (excludes fence markers),
     and token.map for source line tracking only.
     """
-    lang = (token.info or "").strip().split()[0] if token.info.strip() else ""
+    info = (token.info or "").strip()
+    lang = info.split()[0] if info else ""
     lang_lower = lang.lower()
     content = token.content
 

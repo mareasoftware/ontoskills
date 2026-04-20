@@ -322,6 +322,10 @@ def serialize_skill(
         for tag in ex.tags:
             graph.add((ex_node, oc.hasTag, Literal(tag)))
 
+    # === Resolve content_extraction: explicit param or skill attribute ===
+    if content_extraction is None:
+        content_extraction = getattr(skill, 'content_extraction', None)
+
     # === Ordered Procedures (from Phase 1 content extraction) ===
     # Convert extracted OrderedProcedure items to Workflow/WorkflowStep triples
     if content_extraction:
@@ -342,9 +346,6 @@ def serialize_skill(
                 graph.add((step_node, oc.stepOrder, Literal(step.position)))
 
     # === Content Block Serialization ===
-
-    if content_extraction is None:
-        content_extraction = getattr(skill, 'content_extraction', None)
 
     if content_extraction:
         def _find_annotation(annotations: list, index: int):
