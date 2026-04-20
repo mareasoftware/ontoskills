@@ -468,9 +468,10 @@ def serialize_skill(
     if content_extraction is None:
         content_extraction = getattr(skill, 'content_extraction', None)
 
-    # === Content Block Serialization ===
-
-    if content_extraction:
+    # === DocGraph Serialization (section tree OR flat lists, never both) ===
+    if content_extraction and content_extraction.sections:
+        _serialize_section_tree(graph, skill_uri, content_extraction, make_bnode)
+    elif content_extraction:
         def _find_annotation(annotations: list, index: int):
             for a in annotations:
                 if getattr(a, 'index', None) == index:
@@ -541,10 +542,6 @@ def serialize_skill(
                 graph.add((step_node, oc.stepId, Literal(f"step_{step.position}")))
                 graph.add((step_node, DCTERMS.description, Literal(step.text)))
                 graph.add((step_node, oc.stepOrder, Literal(step.position)))
-
-    # === DocGraph Section Tree Serialization ===
-    if content_extraction and content_extraction.sections:
-        _serialize_section_tree(graph, skill_uri, content_extraction, make_bnode)
 
     # Frontmatter properties
     if hasattr(skill, 'frontmatter') and skill.frontmatter:
