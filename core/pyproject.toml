@@ -61,5 +61,6 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "benchmark: marks coverage benchmark tests requiring external skill directories",
 ]
 addopts = "-m 'not integration'"

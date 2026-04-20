@@ -41,6 +41,7 @@ def _calc_line_coverage(md, blocks):
     return covered_content / total_content * 100 if total_content else 100.0
 
 
+@pytest.mark.benchmark
 @pytest.mark.skipif(not _dirs_available(), reason="Skill benchmark directories not available")
 def test_coverage_all_skills():
     """Benchmark: measure line-level coverage across all available skills."""
@@ -78,6 +79,7 @@ def test_coverage_all_skills():
         assert cov >= 60.0, f"{source}:{name} coverage {cov:.1f}% below 60%"
 
 
+@pytest.mark.benchmark
 @pytest.mark.skipif(not _dirs_available(), reason="Skill benchmark directories not available")
 def test_flat_extraction_preserves_all_block_types():
     """Verify all expected block types are represented in at least one skill."""
