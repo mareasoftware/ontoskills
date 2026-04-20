@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-04-20T22:47:35.603314" ;
+    dcterms:created "2026-04-21T00:45:09.450969" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 
@@ -185,6 +185,12 @@ oc:appliesToContext a owl:DatatypeProperty ;
     rdfs:label "applies to context" ;
     rdfs:comment "When this rule applies" ;
     rdfs:domain oc:KnowledgeNode .
+
+oc:blockType a owl:DatatypeProperty ;
+    rdfs:label "block type" ;
+    rdfs:comment "Discriminator string matching the Pydantic block_type literal" ;
+    rdfs:domain oc:ContentBlock ;
+    rdfs:range xsd:string .
 
 oc:code a owl:DatatypeProperty ;
     rdfs:label "code" ;
@@ -721,7 +727,8 @@ oc:Attempt a owl:Class ;
 
 oc:BulletList a owl:Class ;
     rdfs:label "Bullet List" ;
-    rdfs:comment "Unordered list of items" .
+    rdfs:comment "Unordered list of items" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:ExecutableSkill a owl:Class ;
     rdfs:label "Executable Skill" ;
@@ -733,15 +740,18 @@ oc:FileResourceUnion rdf:first oc:ReferenceFile ;
 
 oc:FrontmatterBlock a owl:Class ;
     rdfs:label "Frontmatter Block" ;
-    rdfs:comment "YAML frontmatter from the document header" .
+    rdfs:comment "YAML frontmatter from the document header" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:HTMLBlock a owl:Class ;
     rdfs:label "HTML Block" ;
-    rdfs:comment "Raw HTML block from markdown" .
+    rdfs:comment "Raw HTML block from markdown" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:Paragraph a owl:Class ;
     rdfs:label "Paragraph" ;
-    rdfs:comment "Free-form text paragraph preserving inline formatting" .
+    rdfs:comment "Free-form text paragraph preserving inline formatting" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:enables a owl:ObjectProperty ;
     rdfs:label "enables" ;
@@ -784,7 +794,8 @@ oc:isExtendedBy a owl:ObjectProperty ;
 
 oc:BlockQuote a owl:Class ;
     rdfs:label "Block Quote" ;
-    rdfs:comment "Blockquote from markdown, optionally with attribution" .
+    rdfs:comment "Blockquote from markdown, optionally with attribution" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:Observability a owl:Class ;
     rdfs:label "Observability" ;
@@ -808,7 +819,8 @@ oc:TrustMetric a owl:Class ;
 
 oc:BulletItem a owl:Class ;
     rdfs:label "Bullet Item" ;
-    rdfs:comment "Single item in a bullet list" .
+    rdfs:comment "Single item in a bullet list" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:CognitiveBoundary a owl:Class ;
     rdfs:label "CognitiveBoundary" ;
@@ -843,15 +855,18 @@ oc:FileResource a owl:Class ;
 
 oc:Flowchart a owl:Class ;
     rdfs:label "Flowchart" ;
-    rdfs:comment "Graphviz or Mermaid diagram extracted from skill content" .
+    rdfs:comment "Graphviz or Mermaid diagram extracted from skill content" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:Template a owl:Class ;
     rdfs:label "Template" ;
-    rdfs:comment "Reusable template with variable placeholders" .
+    rdfs:comment "Reusable template with variable placeholders" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:Workflow a owl:Class ;
     rdfs:label "Workflow" ;
-    rdfs:comment "A sequential workflow with dependencies between steps" .
+    rdfs:comment "A sequential workflow with dependencies between steps" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:Example a owl:Class ;
     rdfs:label "Example" ;
@@ -863,15 +878,18 @@ oc:ExecutionPayload a owl:Class ;
 
 oc:Table a owl:Class ;
     rdfs:label "Table" ;
-    rdfs:comment "Markdown table extracted from skill content" .
+    rdfs:comment "Markdown table extracted from skill content" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:CodeExample a owl:Class ;
     rdfs:label "Code Example" ;
-    rdfs:comment "Inline code block extracted from skill markdown" .
+    rdfs:comment "Inline code block extracted from skill markdown" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:WorkflowStep a owl:Class ;
     rdfs:label "Workflow Step" ;
-    rdfs:comment "A single step in a workflow with optional dependencies" .
+    rdfs:comment "A single step in a workflow with optional dependencies" ;
+    rdfs:subClassOf oc:ContentBlock .
 
 oc:ExecutableScript a owl:Class ;
     rdfs:label "Executable Script" ;
@@ -880,6 +898,10 @@ oc:ExecutableScript a owl:Class ;
 oc:Section a owl:Class ;
     rdfs:label "Section" ;
     rdfs:comment "A section of the document, identified by a header" .
+
+oc:ContentBlock a owl:Class ;
+    rdfs:label "Content Block" ;
+    rdfs:comment "Abstract superclass for all typed content blocks in a document" .
 
 oc:KnowledgeNode a owl:Class ;
     rdfs:label "Knowledge Node" ;

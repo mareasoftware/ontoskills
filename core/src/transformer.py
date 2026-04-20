@@ -413,9 +413,8 @@ def hydrate_skeleton(
             _hydrate_children(section, node, blocks_index)
             sections.append(section)
         else:
-            # Non-heading root — create anonymous section
-            section_order += 1
-            section = Section(title="", level=0, order=section_order)
+            # Non-heading root — preamble section gets order=0
+            section = Section(title="", level=0, order=0)
             section.content.append(block.content)
             _hydrate_children(section, node, blocks_index)
             sections.append(section)
@@ -427,6 +426,7 @@ def _hydrate_children(section, node, blocks_index):
     """Recursively hydrate children of a skeleton node into a section."""
     from compiler.schemas import Section
 
+    content_counter = len(section.content)
     for child_node in node.children:
         block = blocks_index.get(child_node.block_id)
         if block is None:
@@ -445,5 +445,7 @@ def _hydrate_children(section, node, blocks_index):
             _hydrate_children(sub, child_node, blocks_index)
             section.subsections.append(sub)
         else:
+            content_counter += 1
+            block.content.content_order = content_counter
             section.content.append(block.content)
             _hydrate_children(section, child_node, blocks_index)

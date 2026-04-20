@@ -93,24 +93,28 @@ def _add_content_block_classes(g: Graph, oc: Namespace) -> None:
     # ========== Content Block Classes ==========
 
     g.add((oc.CodeExample, RDF.type, OWL.Class))
+    g.add((oc.CodeExample, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.CodeExample, RDFS.label, Literal("Code Example")))
     g.add((oc.CodeExample, RDFS.comment, Literal(
         "Inline code block extracted from skill markdown"
     )))
 
     g.add((oc.Table, RDF.type, OWL.Class))
+    g.add((oc.Table, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.Table, RDFS.label, Literal("Table")))
     g.add((oc.Table, RDFS.comment, Literal(
         "Markdown table extracted from skill content"
     )))
 
     g.add((oc.Flowchart, RDF.type, OWL.Class))
+    g.add((oc.Flowchart, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.Flowchart, RDFS.label, Literal("Flowchart")))
     g.add((oc.Flowchart, RDFS.comment, Literal(
         "Graphviz or Mermaid diagram extracted from skill content"
     )))
 
     g.add((oc.Template, RDF.type, OWL.Class))
+    g.add((oc.Template, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.Template, RDFS.label, Literal("Template")))
     g.add((oc.Template, RDFS.comment, Literal(
         "Reusable template with variable placeholders"
@@ -209,7 +213,22 @@ def _add_content_block_classes(g: Graph, oc: Namespace) -> None:
 def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
     """Add DocGraph classes for complete document structure preservation."""
 
-    # ========== Section ==========
+    # ========== ContentBlock superclass ==========
+    g.add((oc.ContentBlock, RDF.type, OWL.Class))
+    g.add((oc.ContentBlock, RDFS.label, Literal("Content Block")))
+    g.add((oc.ContentBlock, RDFS.comment, Literal(
+        "Abstract superclass for all typed content blocks in a document"
+    )))
+
+    g.add((oc.blockType, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.blockType, RDFS.domain, oc.ContentBlock))
+    g.add((oc.blockType, RDFS.range, XSD.string))
+    g.add((oc.blockType, RDFS.label, Literal("block type")))
+    g.add((oc.blockType, RDFS.comment, Literal(
+        "Discriminator string matching the Pydantic block_type literal"
+    )))
+
+    # ========== Section (container, not a ContentBlock) ==========
     g.add((oc.Section, RDF.type, OWL.Class))
     g.add((oc.Section, RDFS.label, Literal("Section")))
     g.add((oc.Section, RDFS.comment, Literal(
@@ -231,6 +250,7 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== Paragraph ==========
     g.add((oc.Paragraph, RDF.type, OWL.Class))
+    g.add((oc.Paragraph, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.Paragraph, RDFS.label, Literal("Paragraph")))
     g.add((oc.Paragraph, RDFS.comment, Literal(
         "Free-form text paragraph preserving inline formatting"
@@ -258,12 +278,14 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== BulletList + BulletItem ==========
     g.add((oc.BulletList, RDF.type, OWL.Class))
+    g.add((oc.BulletList, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.BulletList, RDFS.label, Literal("Bullet List")))
     g.add((oc.BulletList, RDFS.comment, Literal(
         "Unordered list of items"
     )))
 
     g.add((oc.BulletItem, RDF.type, OWL.Class))
+    g.add((oc.BulletItem, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.BulletItem, RDFS.label, Literal("Bullet Item")))
     g.add((oc.BulletItem, RDFS.comment, Literal(
         "Single item in a bullet list"
@@ -283,6 +305,7 @@ def _add_docgraph_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== BlockQuote ==========
     g.add((oc.BlockQuote, RDF.type, OWL.Class))
+    g.add((oc.BlockQuote, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.BlockQuote, RDFS.label, Literal("Block Quote")))
     g.add((oc.BlockQuote, RDFS.comment, Literal(
         "Blockquote from markdown, optionally with attribution"
@@ -319,6 +342,7 @@ def _add_docgraph_v2_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== HTMLBlock ==========
     g.add((oc.HTMLBlock, RDF.type, OWL.Class))
+    g.add((oc.HTMLBlock, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.HTMLBlock, RDFS.label, Literal("HTML Block")))
     g.add((oc.HTMLBlock, RDFS.comment, Literal(
         "Raw HTML block from markdown"
@@ -331,6 +355,7 @@ def _add_docgraph_v2_classes(g: Graph, oc: Namespace) -> None:
 
     # ========== FrontmatterBlock ==========
     g.add((oc.FrontmatterBlock, RDF.type, OWL.Class))
+    g.add((oc.FrontmatterBlock, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.FrontmatterBlock, RDFS.label, Literal("Frontmatter Block")))
     g.add((oc.FrontmatterBlock, RDFS.comment, Literal(
         "YAML frontmatter from the document header"
@@ -985,6 +1010,7 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # oc:Workflow - Sequential workflow with dependencies
     g.add((oc.Workflow, RDF.type, OWL.Class))
+    g.add((oc.Workflow, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.Workflow, RDFS.label, Literal("Workflow")))
     g.add((oc.Workflow, RDFS.comment, Literal(
         "A sequential workflow with dependencies between steps"
@@ -992,6 +1018,7 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # oc:WorkflowStep - Single step in a workflow
     g.add((oc.WorkflowStep, RDF.type, OWL.Class))
+    g.add((oc.WorkflowStep, RDFS.subClassOf, oc.ContentBlock))
     g.add((oc.WorkflowStep, RDFS.label, Literal("Workflow Step")))
     g.add((oc.WorkflowStep, RDFS.comment, Literal(
         "A single step in a workflow with optional dependencies"

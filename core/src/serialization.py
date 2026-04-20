@@ -112,21 +112,26 @@ def _serialize_section_tree(
     def _serialize_content_block(graph, block, make_bnode, section_ctx="root", parent_id=""):
         """Serialize a single content block, return its BNode."""
         ctx = f"{section_ctx}:{parent_id}" if parent_id else section_ctx
+
+        def _add_type(node, owl_class, block_type_str):
+            graph.add((node, RDF.type, owl_class))
+            graph.add((node, oc.blockType, Literal(block_type_str)))
+
         if block.block_type == "paragraph":
             node = make_bnode("para", f"{ctx}:{block.content_order}:{len(block.text_content)}")
-            graph.add((node, RDF.type, oc.Paragraph))
+            _add_type(node, oc.Paragraph, block.block_type)
             graph.add((node, oc.textContent, Literal(block.text_content)))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             return node
 
         elif block.block_type == "bullet_list":
             node = make_bnode("blist", f"{ctx}:{block.content_order}:{len(block.items)}")
-            graph.add((node, RDF.type, oc.BulletList))
+            _add_type(node, oc.BulletList, block.block_type)
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             for item in block.items:
                 item_node = make_bnode("bitem", f"{ctx}:{block.content_order}:{item.order}:{len(item.text)}")
                 graph.add((node, oc.hasItem, item_node))
-                graph.add((item_node, RDF.type, oc.BulletItem))
+                _add_type(item_node, oc.BulletItem, "bullet_item")
                 graph.add((item_node, oc.itemText, Literal(item.text)))
                 graph.add((item_node, oc.itemOrder, Literal(item.order)))
                 for child in item.children:
@@ -137,7 +142,7 @@ def _serialize_section_tree(
 
         elif block.block_type == "blockquote":
             node = make_bnode("bquote", f"{ctx}:{block.content_order}:{len(block.content)}")
-            graph.add((node, RDF.type, oc.BlockQuote))
+            _add_type(node, oc.BlockQuote, block.block_type)
             graph.add((node, oc.quoteContent, Literal(block.content)))
             if block.attribution:
                 graph.add((node, oc.quoteAttribution, Literal(block.attribution)))
@@ -146,14 +151,14 @@ def _serialize_section_tree(
 
         elif block.block_type == "html_block":
             node = make_bnode("html", f"{ctx}:{block.content_order}:{len(block.content)}")
-            graph.add((node, RDF.type, oc.HTMLBlock))
+            _add_type(node, oc.HTMLBlock, block.block_type)
             graph.add((node, oc.htmlContent, Literal(block.content)))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             return node
 
         elif block.block_type == "frontmatter":
             node = make_bnode("fm", f"{ctx}:{block.content_order}:{len(block.raw_yaml)}")
-            graph.add((node, RDF.type, oc.FrontmatterBlock))
+            _add_type(node, oc.FrontmatterBlock, block.block_type)
             graph.add((node, oc.rawYaml, Literal(block.raw_yaml)))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             return node
@@ -161,7 +166,7 @@ def _serialize_section_tree(
         elif block.block_type == "code_block":
             loc = f"{block.source_line_start}-{block.source_line_end}"
             node = make_bnode("code", f"{ctx}:{block.content_order}:{block.language}:{loc}")
-            graph.add((node, RDF.type, oc.CodeExample))
+            _add_type(node, oc.CodeExample, block.block_type)
             graph.add((node, oc.codeLanguage, Literal(block.language)))
             graph.add((node, oc.codeContent, Literal(block.content)))
             graph.add((node, oc.sourceLocation,
@@ -171,7 +176,7 @@ def _serialize_section_tree(
 
         elif block.block_type == "table":
             node = make_bnode("table", f"{ctx}:{block.content_order}:{block.caption or 'untitled'}")
-            graph.add((node, RDF.type, oc.Table))
+            _add_type(node, oc.Table, block.block_type)
             graph.add((node, oc.tableMarkdown, Literal(block.markdown_source)))
             if block.caption:
                 graph.add((node, oc.tableCaption, Literal(block.caption)))
@@ -181,7 +186,7 @@ def _serialize_section_tree(
 
         elif block.block_type == "flowchart":
             node = make_bnode("flow", f"{ctx}:{block.content_order}:{block.chart_type}")
-            graph.add((node, RDF.type, oc.Flowchart))
+            _add_type(node, oc.Flowchart, block.block_type)
             graph.add((node, oc.flowchartSource, Literal(block.source)))
             graph.add((node, oc.flowchartType, Literal(block.chart_type)))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
@@ -189,7 +194,7 @@ def _serialize_section_tree(
 
         elif block.block_type == "template":
             node = make_bnode("tmpl", f"{ctx}:{block.content_order}:{','.join(block.detected_variables)}")
-            graph.add((node, RDF.type, oc.Template))
+            _add_type(node, oc.Template, block.block_type)
             graph.add((node, oc.templateContent, Literal(block.content)))
             for var in block.detected_variables:
                 graph.add((node, oc.templateVariables, Literal(var)))
@@ -198,14 +203,14 @@ def _serialize_section_tree(
 
         elif block.block_type == "ordered_procedure":
             node = make_bnode("proc", f"{ctx}:{block.content_order}")
-            graph.add((node, RDF.type, oc.Workflow))
+            _add_type(node, oc.Workflow, block.block_type)
             graph.add((node, oc.workflowId, Literal(f"procedure_{block.content_order}")))
             graph.add((node, oc.workflowName, Literal("Ordered Procedure")))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             for step in block.items:
                 step_node = make_bnode("step", f"{ctx}:{block.content_order}_{step.position}")
                 graph.add((node, oc.hasStep, step_node))
-                graph.add((step_node, RDF.type, oc.WorkflowStep))
+                _add_type(step_node, oc.WorkflowStep, "workflow_step")
                 graph.add((step_node, oc.stepId, Literal(f"step_{step.position}")))
                 graph.add((step_node, DCTERMS.description, Literal(step.text)))
                 graph.add((step_node, oc.stepOrder, Literal(step.position)))
@@ -542,6 +547,7 @@ def serialize_skill(
                 step_node = make_bnode("step", f"{idx}_{step.position}")
                 graph.add((proc_node, oc.hasStep, step_node))
                 graph.add((step_node, RDF.type, oc.WorkflowStep))
+                graph.add((step_node, oc.blockType, Literal("workflow_step")))
                 graph.add((step_node, oc.stepId, Literal(f"step_{step.position}")))
                 graph.add((step_node, DCTERMS.description, Literal(step.text)))
                 graph.add((step_node, oc.stepOrder, Literal(step.position)))
