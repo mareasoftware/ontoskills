@@ -217,9 +217,10 @@ def _extract_ordered_items(ol_open_token, tokens, start_idx, md_lines, block_cou
                         child_blocks.extend(result)
                         if item_idx < len(items):
                             for r in result:
-                                r.content.content_order = child_order
-                                items[item_idx].children.append(r.content)
-                        child_order += 1
+                                if r.parent_block_id == parent_id:
+                                    r.content.content_order = child_order
+                                    items[item_idx].children.append(r.content)
+                                    child_order += 1
                         k = _skip_extracted_block(tk, tokens, k)
                         continue
                 k += 1
@@ -299,9 +300,10 @@ def _extract_bullet_items(bl_open_token, tokens, start_idx, md_lines, block_coun
                         child_blocks.extend(result)
                         if item_idx < len(items):
                             for r in result:
-                                r.content.content_order = child_order
-                                items[item_idx].children.append(r.content)
-                        child_order += 1
+                                if r.parent_block_id == parent_id:
+                                    r.content.content_order = child_order
+                                    items[item_idx].children.append(r.content)
+                                    child_order += 1
                         k = _skip_extracted_block(tk, tokens, k)
                         continue
                 k += 1
@@ -322,6 +324,7 @@ def _skip_extracted_block(token, tokens, idx):
         "ordered_list_open": "ordered_list_close",
         "blockquote_open": "blockquote_close",
         "table_open": "table_close",
+        "paragraph_open": "paragraph_close",
     }.get(token.type)
     if close_type:
         depth = 0
@@ -670,7 +673,7 @@ def _classify_fence(token, content_order):
     )
 
 
-def _extract_paragraph(token, section_tokens, start_idx, md_lines, content_order):
+def _extract_paragraph(token, _tokens, start_idx, md_lines, content_order):
     """Extract paragraph text via map slicing."""
     if not token.map:
         return None

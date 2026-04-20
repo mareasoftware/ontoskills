@@ -392,6 +392,7 @@ def hydrate_skeleton(
     for node in skeleton.sections:
         block = blocks_index.get(node.block_id)
         if block is None:
+            logger.warning("Skeleton node references missing block_id=%s, skipping", node.block_id)
             continue
 
         if block.block_type == "heading":
@@ -427,6 +428,7 @@ def _hydrate_children(section, node, blocks_index):
     for child_node in node.children:
         block = blocks_index.get(child_node.block_id)
         if block is None:
+            logger.warning("Skeleton child references missing block_id=%s, skipping", child_node.block_id)
             continue
 
         if block.block_type == "heading":
