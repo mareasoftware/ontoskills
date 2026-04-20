@@ -121,7 +121,7 @@ def _serialize_section_tree(
             graph.add((node, RDF.type, oc.BulletList))
             graph.add((node, oc.contentOrder, Literal(block.content_order)))
             for item in block.items:
-                item_node = make_bnode("bitem", f"{section_ctx}:{item.order}:{len(item.text)}")
+                item_node = make_bnode("bitem", f"{section_ctx}:{block.content_order}:{item.order}:{len(item.text)}")
                 graph.add((node, oc.hasItem, item_node))
                 graph.add((item_node, RDF.type, oc.BulletItem))
                 graph.add((item_node, oc.itemText, Literal(item.text)))
