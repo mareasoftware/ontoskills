@@ -359,7 +359,8 @@ oc:FlowchartShape a sh:NodeShape ;
         sh:path oc:flowchartType ;
         sh:minCount 1 ;
         sh:datatype xsd:string ;
-        sh:message "Flowchart must have flowchartType" ;
+        sh:in ("graphviz" "mermaid") ;
+        sh:message "Flowchart must have flowchartType (graphviz or mermaid)" ;
     ] .
 
 oc:TemplateShape a sh:NodeShape ;
@@ -369,4 +370,10 @@ oc:TemplateShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:datatype xsd:string ;
         sh:message "Template must have templateContent" ;
+    ] , [
+        sh:path oc:templateType ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ("prompt" "output" "boilerplate") ;
+        sh:message "If present, templateType must be prompt, output, or boilerplate" ;
     ] .
