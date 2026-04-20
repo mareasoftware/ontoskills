@@ -36,8 +36,10 @@ _TEMPLATE_VAR_RE = re.compile(r'\{([a-zA-Z_][a-zA-Z0-9_]*)\}')
 def extract_structural_content(markdown: str) -> ContentExtraction:
     """Parse markdown and extract structural content blocks.
 
-    Uses markdown-it-py for tokenization. Content is extracted via
-    line-based slicing (map field) to guarantee byte-perfect fidelity.
+    Uses markdown-it-py for tokenization. Tables use line-based slicing
+    via token.map for raw markdown fidelity. Fenced blocks (code,
+    flowcharts, templates) use token.content from the parser for
+    clean inner content without fence markers.
     """
     from markdown_it import MarkdownIt
     from mdit_py_plugins.front_matter import front_matter_plugin
@@ -188,7 +190,7 @@ def _extract_ordered_procedure(ol_open_token, tokens, start_idx):
         t = tokens[j]
         if t.type == "ordered_list_close":
             depth -= 1
-            if depth < 0:
+            if depth == 0:
                 break
         elif t.type == "ordered_list_open":
             depth += 1

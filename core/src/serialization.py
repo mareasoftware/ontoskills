@@ -322,7 +322,29 @@ def serialize_skill(
         for tag in ex.tags:
             graph.add((ex_node, oc.hasTag, Literal(tag)))
 
+    # === Ordered Procedures (from Phase 1 content extraction) ===
+    # Convert extracted OrderedProcedure items to Workflow/WorkflowStep triples
+    if content_extraction:
+        for proc_idx, proc in enumerate(content_extraction.procedures):
+            proc_node = make_bnode("proc_workflow", f"{proc_idx}")
+            graph.add((skill_uri, oc.hasWorkflow, proc_node))
+            graph.add((proc_node, RDF.type, oc.Workflow))
+            graph.add((proc_node, oc.workflowId, Literal(f"procedure_{proc_idx}")))
+            graph.add((proc_node, oc.workflowName, Literal(f"Ordered Procedure {proc_idx + 1}")))
+            graph.add((proc_node, DCTERMS.description, Literal(
+                f"Extracted ordered procedure with {len(proc.items)} steps")))
+            for step in proc.items:
+                step_node = make_bnode("proc_step", f"{proc_idx}_{step.position}")
+                graph.add((proc_node, oc.hasStep, step_node))
+                graph.add((step_node, RDF.type, oc.WorkflowStep))
+                graph.add((step_node, oc.stepId, Literal(f"step_{step.position}")))
+                graph.add((step_node, DCTERMS.description, Literal(step.text)))
+                graph.add((step_node, oc.stepOrder, Literal(step.position)))
+
     # === Content Block Serialization ===
+
+    if content_extraction is None:
+        content_extraction = getattr(skill, 'content_extraction', None)
 
     if content_extraction:
         def _find_annotation(annotations: list, index: int):
