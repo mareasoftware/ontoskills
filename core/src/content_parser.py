@@ -156,9 +156,13 @@ def _try_skeleton_tree(blocks: list[FlatBlock], markdown: str) -> list[Section] 
         blocks_index = {b.block_id: b for b in blocks}
 
         import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            base_url=os.environ.get("ANTHROPIC_BASE_URL"),
+        )
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=model,
             max_tokens=4096,
             system=SKELETON_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
