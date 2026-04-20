@@ -3,7 +3,7 @@ import re
 import warnings
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator, model_validator, computed_field
-from typing import Literal, Any
+from typing import Annotated, Literal, Union, Any
 
 
 class Requirement(BaseModel):
@@ -329,6 +329,7 @@ class FileInfo(BaseModel):
 
 class CodeBlock(BaseModel):
     """Inline code block extracted from markdown."""
+    block_type: Literal["code_block"] = "code_block"
     language: str
     content: str
     source_line_start: int
@@ -337,6 +338,7 @@ class CodeBlock(BaseModel):
 
 class MarkdownTable(BaseModel):
     """Markdown table extracted via map slicing."""
+    block_type: Literal["table"] = "table"
     markdown_source: str
     caption: str | None
     row_count: int
@@ -344,6 +346,7 @@ class MarkdownTable(BaseModel):
 
 class FlowchartBlock(BaseModel):
     """Graphviz or Mermaid diagram extracted from markdown."""
+    block_type: Literal["flowchart"] = "flowchart"
     source: str
     chart_type: Literal["graphviz", "mermaid"]
 
@@ -356,22 +359,69 @@ class ProcedureStep(BaseModel):
 
 class OrderedProcedure(BaseModel):
     """Ordered checklist/numbered list extracted from markdown."""
+    block_type: Literal["ordered_procedure"] = "ordered_procedure"
     items: list[ProcedureStep]
 
 
 class TemplateBlock(BaseModel):
     """Template with variable placeholders."""
+    block_type: Literal["template"] = "template"
     content: str
     detected_variables: list[str]
 
 
+class Paragraph(BaseModel):
+    """Free-form text paragraph from markdown."""
+    block_type: Literal["paragraph"] = "paragraph"
+    text_content: str
+    content_order: int
+
+
+class BulletItem(BaseModel):
+    """Single item in a bullet list."""
+    text: str
+    order: int
+
+
+class BulletListBlock(BaseModel):
+    """Unordered (bullet) list from markdown."""
+    block_type: Literal["bullet_list"] = "bullet_list"
+    items: list[BulletItem]
+    content_order: int
+
+
+class BlockQuoteBlock(BaseModel):
+    """Blockquote from markdown."""
+    block_type: Literal["blockquote"] = "blockquote"
+    content: str
+    attribution: str | None = None
+    content_order: int
+
+
+ContentBlock = Annotated[
+    Union[Paragraph, CodeBlock, MarkdownTable, FlowchartBlock,
+          TemplateBlock, BulletListBlock, BlockQuoteBlock, OrderedProcedure],
+    Field(discriminator="block_type")
+]
+
+
+class Section(BaseModel):
+    """A section of the markdown document, identified by a header."""
+    title: str
+    level: int
+    order: int
+    content: list[ContentBlock] = Field(default_factory=list)
+    subsections: list["Section"] = Field(default_factory=list)
+
+
 class ContentExtraction(BaseModel):
     """Result of Phase 1 structural content extraction from markdown."""
-    code_blocks: list[CodeBlock]
-    tables: list[MarkdownTable]
-    flowcharts: list[FlowchartBlock]
-    procedures: list[OrderedProcedure]
-    templates: list[TemplateBlock]
+    sections: list[Section] = Field(default_factory=list)
+    code_blocks: list[CodeBlock] = Field(default_factory=list)
+    tables: list[MarkdownTable] = Field(default_factory=list)
+    flowcharts: list[FlowchartBlock] = Field(default_factory=list)
+    procedures: list[OrderedProcedure] = Field(default_factory=list)
+    templates: list[TemplateBlock] = Field(default_factory=list)
 
 
 class DirectoryScan(BaseModel):

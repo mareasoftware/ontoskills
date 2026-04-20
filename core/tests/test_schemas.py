@@ -555,3 +555,72 @@ class TestAnnotationModels:
             )],
         )
         assert len(compiled.workflows) == 1
+
+
+class TestDocGraphModels:
+    def test_paragraph_model(self):
+        from compiler.schemas import Paragraph
+        p = Paragraph(text_content="Hello **world**", content_order=1)
+        assert p.block_type == "paragraph"
+        assert p.content_order == 1
+
+    def test_bullet_list_model(self):
+        from compiler.schemas import BulletListBlock, BulletItem
+        bl = BulletListBlock(
+            items=[BulletItem(text="First", order=1), BulletItem(text="Second", order=2)],
+            content_order=2,
+        )
+        assert bl.block_type == "bullet_list"
+        assert len(bl.items) == 2
+
+    def test_blockquote_model(self):
+        from compiler.schemas import BlockQuoteBlock
+        bq = BlockQuoteBlock(content="Clean code always looks like it was written by someone who cares.", attribution="Robert C. Martin", content_order=3)
+        assert bq.block_type == "blockquote"
+        assert bq.attribution is not None
+
+    def test_section_model_with_heterogeneous_content(self):
+        from compiler.schemas import Section, Paragraph, CodeBlock, BulletListBlock, BulletItem
+        section = Section(
+            title="Overview",
+            level=2,
+            order=1,
+            content=[
+                Paragraph(text_content="Some intro text.", content_order=1),
+                CodeBlock(language="python", content="print('hi')", source_line_start=5, source_line_end=7),
+                BulletListBlock(items=[BulletItem(text="Point A", order=1)], content_order=3),
+            ],
+        )
+        assert len(section.content) == 3
+        assert section.content[0].block_type == "paragraph"
+        assert section.content[1].block_type == "code_block"
+        assert section.content[2].block_type == "bullet_list"
+
+    def test_section_nested_subsections(self):
+        from compiler.schemas import Section, Paragraph
+        parent = Section(
+            title="Tools",
+            level=2,
+            order=1,
+            content=[Paragraph(text_content="Intro.", content_order=1)],
+            subsections=[
+                Section(title="search_skills", level=3, order=1, content=[]),
+                Section(title="get_skill_context", level=3, order=2, content=[]),
+            ],
+        )
+        assert len(parent.subsections) == 2
+        assert parent.subsections[0].level == 3
+
+    def test_content_extraction_with_sections_and_flat_lists(self):
+        from compiler.schemas import ContentExtraction, Section, Paragraph, CodeBlock
+        ce = ContentExtraction(
+            sections=[
+                Section(title="Intro", level=2, order=1, content=[
+                    Paragraph(text_content="Hello.", content_order=1),
+                    CodeBlock(language="python", content="x=1", source_line_start=3, source_line_end=3),
+                ]),
+            ],
+            code_blocks=[CodeBlock(language="python", content="x=1", source_line_start=3, source_line_end=3)],
+        )
+        assert len(ce.sections) == 1
+        assert len(ce.code_blocks) == 1
