@@ -1412,21 +1412,26 @@ impl Catalog {
             )));
         }
 
-        // Build pre-order index from section titles for stable document-order sorting
-        let section_order: std::collections::HashMap<String, usize> = self
+        // Build pre-order index from section titles for stable document-order sorting.
+        // Key by (title, parent_title) to handle duplicate section titles at different nesting levels.
+        let section_order: std::collections::HashMap<(String, Option<String>), usize> = self
             .get_section_titles(skill_id)
             .unwrap_or_default()
             .into_iter()
             .enumerate()
-            .map(|(i, st)| (st.title, i))
+            .map(|(i, st)| ((st.title, st.parent_title), i))
             .collect();
 
         // Sort rows into document (pre-order) traversal using the title index
         rows.sort_by(|a, b| {
             let a_sec = a.optional_literal("secTitle").unwrap_or_default();
             let b_sec = b.optional_literal("secTitle").unwrap_or_default();
-            let a_idx = section_order.get(&a_sec).copied().unwrap_or(usize::MAX);
-            let b_idx = section_order.get(&b_sec).copied().unwrap_or(usize::MAX);
+            let a_parent = a.optional_literal("secParentTitle");
+            let b_parent = b.optional_literal("secParentTitle");
+            let a_key = (a_sec.clone(), a_parent);
+            let b_key = (b_sec.clone(), b_parent);
+            let a_idx = section_order.get(&a_key).copied().unwrap_or(usize::MAX);
+            let b_idx = section_order.get(&b_key).copied().unwrap_or(usize::MAX);
             let a_content = a.optional_i64("contentOrder").unwrap_or(0);
             let b_content = b.optional_i64("contentOrder").unwrap_or(0);
 

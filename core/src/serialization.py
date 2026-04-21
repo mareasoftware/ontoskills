@@ -491,6 +491,8 @@ def serialize_skill(
             code_node = make_bnode("code", f"{idx}:{code_block.language}")
             graph.add((skill_uri, oc.hasCodeExample, code_node))
             graph.add((code_node, RDF.type, oc.CodeExample))
+            graph.add((code_node, oc.blockType, Literal("code_block")))
+            graph.add((code_node, oc.contentOrder, Literal(idx + 1)))
             graph.add((code_node, oc.codeLanguage, Literal(code_block.language)))
             graph.add((code_node, oc.codeContent, Literal(code_block.content)))
             graph.add((code_node, oc.sourceLocation,
@@ -505,6 +507,8 @@ def serialize_skill(
             table_node = make_bnode("table", f"{idx}:{table.caption or 'untitled'}")
             graph.add((skill_uri, oc.hasTable, table_node))
             graph.add((table_node, RDF.type, oc.Table))
+            graph.add((table_node, oc.blockType, Literal("table")))
+            graph.add((table_node, oc.contentOrder, Literal(idx + 1)))
             graph.add((table_node, oc.tableMarkdown, Literal(table.markdown_source)))
             if table.caption:
                 graph.add((table_node, oc.tableCaption, Literal(table.caption)))
@@ -518,6 +522,8 @@ def serialize_skill(
             flow_node = make_bnode("flow", f"{idx}:{flow.chart_type}")
             graph.add((skill_uri, oc.hasFlowchart, flow_node))
             graph.add((flow_node, RDF.type, oc.Flowchart))
+            graph.add((flow_node, oc.blockType, Literal("flowchart")))
+            graph.add((flow_node, oc.contentOrder, Literal(idx + 1)))
             graph.add((flow_node, oc.flowchartSource, Literal(flow.source)))
             graph.add((flow_node, oc.flowchartType, Literal(flow.chart_type)))
             ann = _find_annotation(skill.flowchart_annotations, idx)
@@ -529,6 +535,8 @@ def serialize_skill(
             tmpl_node = make_bnode("tmpl", f"{idx}:{','.join(tmpl.detected_variables)}")
             graph.add((skill_uri, oc.hasTemplate, tmpl_node))
             graph.add((tmpl_node, RDF.type, oc.Template))
+            graph.add((tmpl_node, oc.blockType, Literal("template")))
+            graph.add((tmpl_node, oc.contentOrder, Literal(idx + 1)))
             graph.add((tmpl_node, oc.templateContent, Literal(tmpl.content)))
             for var in tmpl.detected_variables:
                 graph.add((tmpl_node, oc.templateVariables, Literal(var)))
@@ -541,6 +549,8 @@ def serialize_skill(
             proc_node = make_bnode("proc", f"{idx}")
             graph.add((skill_uri, oc.hasWorkflow, proc_node))
             graph.add((proc_node, RDF.type, oc.Workflow))
+            graph.add((proc_node, oc.blockType, Literal("ordered_procedure")))
+            graph.add((proc_node, oc.contentOrder, Literal(idx + 1)))
             graph.add((proc_node, oc.workflowId, Literal(f"procedure_{idx}")))
             graph.add((proc_node, oc.workflowName, Literal("Ordered Procedure")))
             for step in proc.items:
