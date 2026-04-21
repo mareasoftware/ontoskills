@@ -1059,10 +1059,15 @@ impl Catalog {
             "blockquote" => {
                 let text = row.optional_literal("quoteContent").unwrap_or_default();
                 let attribution = row.optional_literal("quoteAttribution");
-                match attribution {
-                    Some(attr) => format!("> {text}\n> — {attr}"),
-                    None => format!("> {text}"),
+                let mut quoted = text
+                    .split('\n')
+                    .map(|line| format!("> {line}"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if let Some(attr) = attribution {
+                    quoted.push_str(&format!("\n> — {attr}"));
                 }
+                quoted
             }
             "table" => row.optional_literal("tableMarkdown").unwrap_or_default(),
             "flowchart" => {
@@ -1226,7 +1231,39 @@ impl Catalog {
             Err(_) => String::new(),
         }
     }
+}
 
+/// Sort sections into pre-order (document) traversal.
+/// Root sections (no parent) come first ordered by their `order`,
+/// then their children, then the next root, etc.
+fn pre_order_sort(titles: Vec<SectionTitle>) -> Vec<SectionTitle> {
+    use std::collections::HashMap;
+    let mut by_parent: HashMap<Option<String>, Vec<&SectionTitle>> = HashMap::new();
+    for t in &titles {
+        by_parent.entry(t.parent_title.clone()).or_default().push(t);
+    }
+    for children in by_parent.values_mut() {
+        children.sort_by_key(|t| t.order);
+    }
+
+    let mut result = Vec::with_capacity(titles.len());
+    fn walk<'a>(
+        parent: &Option<String>,
+        by_parent: &'a HashMap<Option<String>, Vec<&'a SectionTitle>>,
+        result: &mut Vec<SectionTitle>,
+    ) {
+        if let Some(children) = by_parent.get(parent) {
+            for child in children {
+                result.push((*child).clone());
+                walk(&Some(child.title.clone()), by_parent, result);
+            }
+        }
+    }
+    walk(&None, &by_parent, &mut result);
+    result
+}
+
+impl Catalog {
     pub fn get_section_titles(
         &self,
         skill_id: &str,
@@ -1254,7 +1291,6 @@ impl Catalog {
                      oc:sectionLevel ?level ;
                      oc:sectionOrder ?order .
         }}
-        ORDER BY ?parent_title ?order ?title
         "#
         );
 
@@ -1268,7 +1304,7 @@ impl Catalog {
                 parent_title: if parent.as_deref() == Some("") { None } else { parent },
             });
         }
-        Ok(titles)
+        Ok(pre_order_sort(titles))
     }
 
     pub fn get_section_content(
@@ -1293,6 +1329,9 @@ impl Catalog {
             }
             let mut lines = Vec::new();
             for st in &titles {
+                if st.level < 2 || st.title.trim().is_empty() {
+                    continue;
+                }
                 let prefix = "#".repeat(st.level as usize);
                 let indent = "  ".repeat(st.level.saturating_sub(2) as usize);
                 lines.push(format!("{indent}{prefix} {}", st.title));
@@ -1312,7 +1351,7 @@ impl Catalog {
             r#"
         PREFIX oc: <https://ontoskills.sh/ontology#>
         PREFIX dcterms: <http://purl.org/dc/terms/>
-        SELECT ?secTitle ?secLevel ?secOrder ?block ?blockType ?contentOrder
+        SELECT ?secTitle ?secLevel ?secOrder ?secParentTitle ?block ?blockType ?contentOrder
                ?textContent ?codeContent ?codeLanguage
                ?tableMarkdown ?quoteContent ?quoteAttribution
                ?flowchartSource ?flowchartType
@@ -1324,6 +1363,10 @@ impl Catalog {
             ?section oc:sectionTitle ?secTitle ;
                      oc:sectionLevel ?secLevel .
             OPTIONAL {{ ?section oc:sectionOrder ?secOrder }}
+            OPTIONAL {{
+                ?secParentNode oc:hasSubsection ?section .
+                ?secParentNode oc:sectionTitle ?secParentTitle .
+            }}
             OPTIONAL {{
                 ?section oc:hasContent ?block .
                 ?block oc:blockType ?blockType ;
@@ -1341,11 +1384,10 @@ impl Catalog {
                 OPTIONAL {{ ?block oc:rawYaml ?rawYaml }}
             }}
         }}
-        ORDER BY ?secLevel ?secOrder ?secTitle ?contentOrder
         "#
         );
 
-        let rows = self.select_rows(&query)?;
+        let mut rows = self.select_rows(&query)?;
         if rows.is_empty() {
             let titles = self.get_section_titles(skill_id)?;
             let available: Vec<String> = titles.iter().map(|t| t.title.clone()).collect();
@@ -1355,6 +1397,29 @@ impl Catalog {
                 available.join(", ")
             )));
         }
+
+        // Sort rows into document (pre-order) traversal
+        rows.sort_by(|a, b| {
+            let a_sec = a.optional_literal("secTitle").unwrap_or_default();
+            let b_sec = b.optional_literal("secTitle").unwrap_or_default();
+            let a_parent = a.optional_literal("secParentTitle");
+            let b_parent = b.optional_literal("secParentTitle");
+            let a_order = a.optional_i64("secOrder").unwrap_or(0);
+            let b_order = b.optional_i64("secOrder").unwrap_or(0);
+            let a_content = a.optional_i64("contentOrder").unwrap_or(0);
+            let b_content = b.optional_i64("contentOrder").unwrap_or(0);
+
+            // Root section (no parent) sorts before children
+            // Within same parent, sort by sectionOrder then title then contentOrder
+            match (a_parent.as_deref(), b_parent.as_deref()) {
+                (None, None) => a_order.cmp(&b_order),
+                (Some(_), None) => std::cmp::Ordering::Greater,
+                (None, Some(_)) => std::cmp::Ordering::Less,
+                (Some(ap), Some(bp)) => ap.cmp(bp).then_with(|| a_order.cmp(&b_order)),
+            }
+            .then_with(|| a_sec.cmp(&b_sec))
+            .then_with(|| a_content.cmp(&b_content))
+        });
 
         let mut content_parts: Vec<String> = Vec::new();
         let mut current_section = String::new();

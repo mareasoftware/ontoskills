@@ -9,9 +9,9 @@ The OntoSkills MCP server exposes a knowledge graph of compiled skills. This doc
 
 ## AVAILABLE MCP TOOLS
 
-### 1. search_skills(query: string) -> Vec<SkillSearchResult>
+### 1. search(query: string) -> Vec<SkillSearchResult>
 
-Semantic search across all compiled skills. Returns matching skills with relevance indicators.
+Search across all compiled skills by keyword (BM25), alias, or structured filters. Returns matching skills with relevance indicators.
 
 **When to use:** When you need to find skills that address a user's intent or task requirement.
 
@@ -21,16 +21,15 @@ Semantic search across all compiled skills. Returns matching skills with relevan
 - If results are sparse, try synonyms or broader terms
 - Call this FIRST before any other MCP tool
 
-### 2. get_skill_context(skill_id: string, include_content: bool = false) -> SkillContextResult
+### 2. get_skill_context(skill_id: string, include_inherited_knowledge: bool = true) -> SkillContextResult
 
-Returns full details for a specific skill: metadata, knowledge nodes, state transitions, dependencies, section titles (table of contents), and optionally full content blocks (code, tables, flowcharts, templates).
+Returns full details for a specific skill: metadata, knowledge nodes, state transitions, dependencies, and section titles (table of contents).
 
-**When to use:** After search_skills identified candidate skills, to evaluate fitness and see what sections are available.
+**When to use:** After search identified candidate skills, to evaluate fitness and see what sections are available.
 
 **Best practices:**
-- Start with include_content=false (default) to get summaries
-- Only set include_content=true when you've decided to USE the skill and need the actual code/templates
-- Check the `sections` field to see what sections the skill contains — use these titles with get_skill_content
+- The `sections` field lists all section titles — use these with get_skill_content to read specific sections
+- Set `include_inherited_knowledge=false` to exclude knowledge from extended skills
 - Always check requiresState before attempting execution
 - Read ALL knowledge nodes with severity CRITICAL or HIGH before proceeding
 

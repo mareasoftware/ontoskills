@@ -111,6 +111,5 @@ python benchmark/docgraph_coverage.py --target 90
 
 ### Skill directories
 
-Auto-detected from `~/.claude/plugins/cache/`. Override with env vars:
-- `DOCGRAPH_SUP_DIR` — superpowers skills directory
-- `DOCGRAPH_ANT_DIR` — Anthropic document-skills directory
+By default, `benchmark/docgraph_coverage.py` reads skills from `./.agents/skills/`. Override with:
+- `DOCGRAPH_SKILLS_DIR` — path to the skills directory to analyze
