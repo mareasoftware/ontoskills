@@ -93,30 +93,30 @@ Queries knowledge rules across all skills, optionally filtered by type and sever
 ## WORKFLOW
 
 ### Discovery Phase
-1. Call `search_skills` with the user's intent
-2. For each match (up to 5), call `get_skill_context(skill_id)` with include_content=false
+1. Call `search` with the user's intent
+2. For each match (up to 5), call `get_skill_context(skill_id)` to see sections and requirements
 3. Evaluate: check intents alignment, requiresState preconditions, category relevance
 4. Select the best 1-3 candidates
 
 ### Planning Phase
 5. Build an execution plan with selected skills
 6. Call `evaluate_execution_plan` to validate
-7. If `applicable=false`: address missing_states, resolve warnings, re-evaluate
+7. If `executable=false`: address missing_states, resolve warnings, re-evaluate
 8. For CRITICAL/HIGH knowledge nodes: internalize the rules before proceeding
 
 ### Execution Phase
-9. Call `get_skill_context(skill_id, include_content=true)` for skills you'll execute
+9. Call `get_skill_content(skill_id, section)` for the sections you'll execute
 10. Follow ordered procedures (stepOrder) if present
 11. Respect all knowledge nodes — especially AntiPatterns and Constraints
 12. After execution, verify yieldsState matches expected outcomes
 
 ## COMMON MISTAKES TO AVOID
 
-- **Skipping search_skills:** Don't guess skill names. Always search first.
+- **Skipping search:** Don't guess skill names. Always search first.
 - **Ignoring requiresState:** Executing a skill without its preconditions leads to failures.
 - **Overlooking CRITICAL knowledge nodes:** These are hard constraints, not suggestions.
 - **Not validating plans:** Multi-skill workflows can have broken state chains.
-- **Requesting full content too early:** Only request include_content=true when you're committed to using a skill.
+- **Loading full content too early:** Use get_skill_context first, then get_skill_content only for sections you need.
 - **Assuming skill availability:** Search results only include compiled and enabled skills.
 
 ## STATE TRANSITION SEMANTICS
@@ -131,7 +131,7 @@ If evaluate_execution_plan reports `missing_states`, you need to find or ensure 
 
 ## CONTENT BLOCK TYPES
 
-When include_content=true, responses may contain:
+When using get_skill_content, responses may contain:
 - **CodeExample**: Inline code with language, purpose, and usage context
 - **Table**: Markdown tables with raw source (can be reconstructed)
 - **Flowchart**: Graphviz or Mermaid diagrams encoding decision flows

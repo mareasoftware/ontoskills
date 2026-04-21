@@ -1147,7 +1147,12 @@ impl Catalog {
                                 lines.push(format!("  ```"));
                             }
                             "blockquote" => {
-                                lines.push(indented);
+                                let quoted = child_content
+                                    .lines()
+                                    .map(|l| if l.is_empty() { "  >".to_string() } else { format!("  > {l}") })
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                lines.push(quoted);
                             }
                             _ => {
                                 lines.push(indented);
@@ -1218,7 +1223,12 @@ impl Catalog {
                                 lines.push(format!("   ```"));
                             }
                             "blockquote" => {
-                                lines.push(indented);
+                                let quoted = child_content
+                                    .lines()
+                                    .map(|l| if l.is_empty() { "   >".to_string() } else { format!("   > {l}") })
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                lines.push(quoted);
                             }
                             _ => {
                                 lines.push(indented);
