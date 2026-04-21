@@ -73,7 +73,8 @@ flowchart LR
 | 工具 | 用途 |
 |------|------|
 | `search` | 通过关键词查询、别名或结构化过滤器搜索技能。按参数分派：`query` → BM25 关键词搜索（可选语义回退），`alias` → 别名解析，否则 → 结构化技能搜索 |
-| `get_skill_context` | 返回技能的完整执行上下文，包括负载和知识节点 |
+| `get_skill_context` | 返回技能的完整执行上下文，包括负载、知识节点和章节标题（目录） |
+| `get_skill_content` | 检索技能章节内容为重建的 markdown。如果省略 `section`，返回目录 |
 | `evaluate_execution_plan` | 评估适用性并为目标意图或技能生成执行计划 |
 | `query_epistemic_rules` | 通过引导过滤器查询本体中的规范化知识节点 |
 
@@ -189,6 +190,8 @@ cargo build --features embeddings
 --ontology-root /path/to/ontology-root
 # 或
 ONTOMCP_ONTOLOGY_ROOT=/path/to/ontology-root
+# 备选环境变量（效果相同）
+ONTOSKILLS_MCP_ONTOLOGY_ROOT=/path/to/ontology-root
 ```
 
 **ONNX Runtime**（可选，用于大规模技能目录）：
@@ -241,6 +244,7 @@ claude mcp add ontomcp -- \
 flowchart LR
     CLAUDE["Claude Code"] -->|"search"| TOOLS["OntoMCP"]
     CLAUDE -->|"get_skill_context"| TOOLS
+    CLAUDE -->|"get_skill_content"| TOOLS
     CLAUDE -->|"evaluate_execution_plan"| TOOLS
     CLAUDE -->|"query_epistemic_rules"| TOOLS
 

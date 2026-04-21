@@ -73,7 +73,8 @@ flowchart LR
 | Tool | Purpose |
 |------|---------|
 | `search` | Search skills by keyword query, alias, or structured filters. Dispatches by parameter: `query` → BM25 keyword search (with optional semantic fallback), `alias` → alias resolution, otherwise → structured skill search |
-| `get_skill_context` | Return the complete execution context for a skill, including payload and knowledge nodes |
+| `get_skill_context` | Return the complete execution context for a skill, including payload, knowledge nodes, and section titles (table of contents) |
+| `get_skill_content` | Retrieve skill section content as reconstructed markdown. If `section` is omitted, returns the table of contents |
 | `evaluate_execution_plan` | Evaluate applicability and generate a plan for a target intent or skill |
 | `query_epistemic_rules` | Query normalized knowledge nodes across the ontology with guided filters |
 
@@ -202,6 +203,8 @@ If nothing is found locally, OntoMCP falls back to:
 --ontology-root /path/to/ontology-root
 # or
 ONTOMCP_ONTOLOGY_ROOT=/path/to/ontology-root
+# alternative env var (same effect)
+ONTOSKILLS_MCP_ONTOLOGY_ROOT=/path/to/ontology-root
 ```
 
 **ONNX Runtime** (optional, for large skill catalogs):
@@ -254,6 +257,7 @@ After registration, Claude Code can call:
 flowchart LR
     CLAUDE["Claude Code"] -->|"search"| TOOLS["OntoMCP"]
     CLAUDE -->|"get_skill_context"| TOOLS
+    CLAUDE -->|"get_skill_content"| TOOLS
     CLAUDE -->|"evaluate_execution_plan"| TOOLS
     CLAUDE -->|"query_epistemic_rules"| TOOLS
 
