@@ -1048,7 +1048,7 @@ impl Catalog {
         Ok(by_uri.into_values().collect())
     }
 
-    fn reconstruct_block(&self, row: &QueryRow, block_type: &str) -> String {
+    fn reconstruct_block(&self, row: &QueryRow, block_type: &str, block_iri: Option<&str>) -> String {
         match block_type {
             "paragraph" => row.optional_literal("textContent").unwrap_or_default(),
             "code_block" => {
@@ -1076,8 +1076,77 @@ impl Catalog {
                 let yaml = row.optional_literal("rawYaml").unwrap_or_default();
                 format!("---\n{yaml}\n---")
             }
-            // bullet_list and ordered_procedure need sub-queries — handled in Task 4
+            "bullet_list" => match block_iri {
+                Some(iri) => self.reconstruct_list_items(iri),
+                None => String::new(),
+            },
+            "ordered_procedure" => match block_iri {
+                Some(iri) => self.reconstruct_workflow_steps(iri),
+                None => String::new(),
+            },
             _ => String::new(),
+        }
+    }
+
+    fn reconstruct_list_items(&self, list_block_ref: &str) -> String {
+        let block_pattern = if list_block_ref.starts_with("_:") {
+            // Blank node: use directly in SPARQL pattern
+            list_block_ref.to_string()
+        } else {
+            // Named node: use IRI syntax
+            format!("<{list_block_ref}>")
+        };
+        let query = format!(
+            r#"
+        PREFIX oc: <https://ontoskills.sh/ontology#>
+        SELECT ?itemText ?itemOrder
+        WHERE {{
+            {block_pattern} oc:hasItem ?item .
+            ?item oc:itemText ?itemText ;
+                  oc:itemOrder ?itemOrder .
+        }}
+        ORDER BY ?itemOrder
+        "#
+        );
+        match self.select_rows(&query) {
+            Ok(rows) => rows
+                .iter()
+                .filter_map(|r| r.optional_literal("itemText"))
+                .map(|text| format!("- {text}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Err(_) => String::new(),
+        }
+    }
+
+    fn reconstruct_workflow_steps(&self, workflow_block_ref: &str) -> String {
+        let block_pattern = if workflow_block_ref.starts_with("_:") {
+            workflow_block_ref.to_string()
+        } else {
+            format!("<{workflow_block_ref}>")
+        };
+        let query = format!(
+            r#"
+        PREFIX oc: <https://ontoskills.sh/ontology#>
+        PREFIX dcterms: <http://purl.org/dc/terms/>
+        SELECT ?stepText ?stepOrder
+        WHERE {{
+            {block_pattern} oc:hasStep ?step .
+            ?step dcterms:description ?stepText ;
+                  oc:stepOrder ?stepOrder .
+        }}
+        ORDER BY ?stepOrder
+        "#
+        );
+        match self.select_rows(&query) {
+            Ok(rows) => rows
+                .iter()
+                .filter_map(|r| r.optional_literal("stepText"))
+                .enumerate()
+                .map(|(i, text)| format!("{}. {text}", i + 1))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Err(_) => String::new(),
         }
     }
 
@@ -1231,7 +1300,8 @@ impl Catalog {
 
             // Reconstruct block content
             if let Some(bt) = row.optional_literal("blockType") {
-                let reconstructed = self.reconstruct_block(row, &bt);
+                let block_iri = row.optional_iri("block");
+                let reconstructed = self.reconstruct_block(row, &bt, block_iri.as_deref());
                 if !reconstructed.is_empty() {
                     content_parts.push(reconstructed);
                 }
@@ -1994,6 +2064,7 @@ fn term_to_literal(term: &Term) -> Option<String> {
 fn term_to_iri(term: &Term) -> Option<String> {
     match term {
         Term::NamedNode(node) => Some(node.as_str().to_string()),
+        Term::BlankNode(bnode) => Some(format!("_:{}", bnode.as_str())),
         _ => None,
     }
 }
@@ -2207,6 +2278,20 @@ _:p1 a oc:Paragraph ;
     oc:blockType "paragraph" ;
     oc:textContent "This skill generates PDF files." ;
     oc:contentOrder 1 .
+
+_:s1 oc:hasContent _:bl1 .
+_:bl1 a oc:BulletList ;
+    oc:blockType "bullet_list" ;
+    oc:contentOrder 2 ;
+    oc:hasItem _:bi1 , _:bi2 .
+_:bi1 a oc:BulletItem ;
+    oc:blockType "bullet_item" ;
+    oc:itemText "First bullet point" ;
+    oc:itemOrder 1 .
+_:bi2 a oc:BulletItem ;
+    oc:blockType "bullet_item" ;
+    oc:itemText "Second bullet point" ;
+    oc:itemOrder 2 .
 
 oc:skill_pdf oc:hasSection _:s2 .
 _:s2 a oc:Section ;
@@ -2590,5 +2675,16 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("not found"));
         assert!(msg.contains("Overview"));
+    }
+
+    #[test]
+    fn get_section_content_reconstructs_bullet_list() {
+        let dir = tempdir().unwrap();
+        write_test_ontology(dir.path());
+        let catalog = Catalog::load(dir.path()).unwrap();
+
+        let result = catalog.get_section_content("pdf-generator", Some("Overview")).unwrap();
+        assert!(result.content.contains("- First bullet point"));
+        assert!(result.content.contains("- Second bullet point"));
     }
 }
