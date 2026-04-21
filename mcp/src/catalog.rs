@@ -1229,22 +1229,24 @@ impl Catalog {
         };
 
         // Section specified — query content blocks with subsections
+        // Match at any nesting depth using hasSection/hasSubsection*
+        let escaped_title = sparql_string(title);
         let query = format!(
             r#"
         PREFIX oc: <https://ontoskills.sh/ontology#>
         PREFIX dcterms: <http://purl.org/dc/terms/>
-        SELECT ?secTitle ?secLevel ?block ?blockType ?contentOrder
+        SELECT ?secTitle ?secLevel ?secOrder ?block ?blockType ?contentOrder
                ?textContent ?codeContent ?codeLanguage
                ?tableMarkdown ?quoteContent ?quoteAttribution
                ?flowchartSource ?flowchartType
                ?templateContent ?htmlContent ?rawYaml
         WHERE {{
-            <{skill_uri}> oc:hasSection ?root_section .
-            ?root_section oc:sectionTitle ?root_title .
-            FILTER(?root_title = "{title}")
+            <{skill_uri}> oc:hasSection/oc:hasSubsection* ?root_section .
+            ?root_section oc:sectionTitle {escaped_title} .
             ?root_section oc:hasSubsection* ?section .
             ?section oc:sectionTitle ?secTitle ;
                      oc:sectionLevel ?secLevel .
+            OPTIONAL {{ ?section oc:sectionOrder ?secOrder }}
             OPTIONAL {{
                 ?section oc:hasContent ?block .
                 ?block oc:blockType ?blockType ;
@@ -1262,7 +1264,7 @@ impl Catalog {
                 OPTIONAL {{ ?block oc:rawYaml ?rawYaml }}
             }}
         }}
-        ORDER BY ?secLevel ?secTitle ?contentOrder
+        ORDER BY ?secLevel ?secOrder ?secTitle ?contentOrder
         "#
         );
 
@@ -1279,21 +1281,19 @@ impl Catalog {
 
         let mut content_parts: Vec<String> = Vec::new();
         let mut current_section = String::new();
-        let mut root_level: Option<i64> = None;
+        let root_level = rows
+            .first()
+            .and_then(|r| r.optional_i64("secLevel"));
 
         for row in &rows {
             let sec_title = row.optional_literal("secTitle").unwrap_or_default();
             let sec_level = row.optional_i64("secLevel").unwrap_or(0);
 
-            if root_level.is_none() {
-                root_level = Some(sec_level);
-            }
-
             // New section header (skip root, render subsections)
             if sec_title != current_section {
                 current_section = sec_title.clone();
                 if root_level != Some(sec_level) {
-                    let hashes = "#".repeat(sec_level as usize);
+                    let hashes = "#".repeat(std::cmp::max(sec_level, 1) as usize);
                     content_parts.push(format!("\n{hashes} {sec_title}\n"));
                 }
             }
@@ -2686,5 +2686,18 @@ oc:skill_xlsx_local a oc:Skill, oc:ExecutableSkill ;
         let result = catalog.get_section_content("pdf-generator", Some("Overview")).unwrap();
         assert!(result.content.contains("- First bullet point"));
         assert!(result.content.contains("- Second bullet point"));
+    }
+
+    #[test]
+    fn get_section_content_finds_nested_subsection_directly() {
+        let dir = tempdir().unwrap();
+        write_test_ontology(dir.path());
+        let catalog = Catalog::load(dir.path()).unwrap();
+
+        // "Advanced Options" is a subsection (level 3) under "Configuration"
+        let result = catalog.get_section_content("pdf-generator", Some("Advanced Options")).unwrap();
+        assert_eq!(result.section, Some("Advanced Options".to_string()));
+        assert_eq!(result.level, Some(3));
+        assert!(result.content.contains("Set page size to A4."));
     }
 }
