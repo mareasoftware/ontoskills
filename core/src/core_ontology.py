@@ -87,8 +87,8 @@ def _add_knowledge_rbox(g: Graph, oc: Namespace) -> None:
     g.add((chain_second, RDF.rest, RDF.nil))
 
 
-def _add_content_block_classes(g: Graph, oc: Namespace) -> None:
-    """Add content block classes and properties for structural content preservation."""
+def _add_extracted_block_classes(g: Graph, oc: Namespace) -> None:
+    """Add LLM-extracted content block classes (CodeExample, Table, Flowchart, Template) and their properties."""
 
     # ========== Content Block Classes ==========
 
@@ -522,8 +522,8 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     # Add RBox axioms for knowledge inheritance
     _add_knowledge_rbox(g, oc)
 
-    # Add content block classes and properties
-    _add_content_block_classes(g, oc)
+    # Add LLM-extracted content block classes and properties
+    _add_extracted_block_classes(g, oc)
 
     # Add content model classes for document structure preservation
     _add_content_model_classes(g, oc)

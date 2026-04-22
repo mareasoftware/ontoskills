@@ -1102,7 +1102,7 @@ impl Catalog {
         let query = format!(
             r#"
         PREFIX oc: <https://ontoskills.sh/ontology#>
-        SELECT ?itemText ?itemOrder ?childType ?childContent ?childLanguage
+        SELECT ?itemText ?itemOrder ?childType ?childContent ?childLanguage ?childOrder ?childAttribution
         WHERE {{
             {block_pattern} oc:hasItem ?item .
             ?item oc:itemText ?itemText ;
@@ -1115,9 +1115,11 @@ impl Catalog {
                 OPTIONAL {{ ?child oc:quoteContent ?childContent . }}
                 OPTIONAL {{ ?child oc:templateContent ?childContent . }}
                 OPTIONAL {{ ?child oc:codeLanguage ?childLanguage . }}
+                OPTIONAL {{ ?child oc:contentOrder ?childOrder . }}
+                OPTIONAL {{ ?child oc:quoteAttribution ?childAttribution . }}
             }}
         }}
-        ORDER BY ?itemOrder
+        ORDER BY ?itemOrder ?childOrder
         "#
         );
         match self.select_rows(&query) {
@@ -1155,6 +1157,9 @@ impl Catalog {
                                     .collect::<Vec<_>>()
                                     .join("\n");
                                 lines.push(quoted);
+                                if let Some(attr) = row.optional_literal("childAttribution") {
+                                    lines.push(format!("  > — {attr}"));
+                                }
                             }
                             _ => {
                                 lines.push(indented);
@@ -1178,7 +1183,7 @@ impl Catalog {
             r#"
         PREFIX oc: <https://ontoskills.sh/ontology#>
         PREFIX dcterms: <http://purl.org/dc/terms/>
-        SELECT ?stepText ?stepOrder ?childType ?childContent ?childLanguage
+        SELECT ?stepText ?stepOrder ?childType ?childContent ?childLanguage ?childOrder ?childAttribution
         WHERE {{
             {block_pattern} oc:hasStep ?step .
             ?step dcterms:description ?stepText ;
@@ -1191,9 +1196,11 @@ impl Catalog {
                 OPTIONAL {{ ?child oc:quoteContent ?childContent . }}
                 OPTIONAL {{ ?child oc:templateContent ?childContent . }}
                 OPTIONAL {{ ?child oc:codeLanguage ?childLanguage . }}
+                OPTIONAL {{ ?child oc:contentOrder ?childOrder . }}
+                OPTIONAL {{ ?child oc:quoteAttribution ?childAttribution . }}
             }}
         }}
-        ORDER BY ?stepOrder
+        ORDER BY ?stepOrder ?childOrder
         "#
         );
         match self.select_rows(&query) {
@@ -1233,6 +1240,9 @@ impl Catalog {
                                     .collect::<Vec<_>>()
                                     .join("\n");
                                 lines.push(quoted);
+                                if let Some(attr) = row.optional_literal("childAttribution") {
+                                    lines.push(format!("   > — {attr}"));
+                                }
                             }
                             _ => {
                                 lines.push(indented);

@@ -461,7 +461,7 @@ def test_serialize_skill_to_module_with_extends(tmp_path):
     assert "brainstorming" in content
 
 
-class TestContentBlockSerialization:
+class TestExtractedBlockSerialization:
     def _make_skill_with_content(self, **overrides):
         defaults = dict(
             id="content-skill",

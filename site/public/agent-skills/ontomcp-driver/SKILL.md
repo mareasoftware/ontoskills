@@ -9,7 +9,7 @@ The OntoSkills MCP server exposes a knowledge graph of compiled skills. This doc
 
 ## AVAILABLE MCP TOOLS
 
-### 1. search(query: string) -> Vec<SkillSearchResult>
+### 1. search({ query: string }) -> Vec<SkillSearchResult>
 
 Search across all compiled skills by keyword (BM25), alias, or structured filters. Returns matching skills with relevance indicators.
 
@@ -21,7 +21,7 @@ Search across all compiled skills by keyword (BM25), alias, or structured filter
 - If results are sparse, try synonyms or broader terms
 - Call this FIRST before any other MCP tool
 
-### 2. get_skill_context(skill_id: string, include_inherited_knowledge: bool = true) -> SkillContextResult
+### 2. get_skill_context({ skill_id: string, include_inherited_knowledge: bool = true }) -> SkillContextResult
 
 Returns full details for a specific skill: metadata, knowledge nodes, state transitions, dependencies, and section titles (table of contents).
 
@@ -40,7 +40,7 @@ Returns full details for a specific skill: metadata, knowledge nodes, state tran
 - `sections`: table of contents — list of section titles with levels and hierarchy
 - `include_inherited_knowledge`: whether inherited knowledge from extended skills was included
 
-### 3. get_skill_content(skill_id: string, section: string = None) -> SkillContentResult
+### 3. get_skill_content({ skill_id: string, section: string = None }) -> SkillContentResult
 
 Retrieves skill section content as reconstructed markdown. If `section` is omitted, returns the table of contents. If `section` is provided, returns the content of that section and all its subsections.
 
@@ -55,7 +55,7 @@ Retrieves skill section content as reconstructed markdown. If `section` is omitt
 **Response (no section):** TOC as markdown headings
 **Response (with section):** Reconstructed markdown with paragraphs, code blocks, bullet lists, ordered procedures, tables, blockquotes, flowcharts, templates
 
-### 4. evaluate_execution_plan(plan: ExecutionPlan) -> ExecutionPlanEvaluation
+### 4. evaluate_execution_plan({ plan: ExecutionPlan }) -> ExecutionPlanEvaluation
 
 Validates a proposed execution plan against the skill knowledge graph. Checks state chains, dependencies, and identifies missing prerequisites.
 
@@ -77,7 +77,7 @@ Validates a proposed execution plan against the skill knowledge graph. Checks st
 }
 ```
 
-### 5. query_epistemic_rules(context: string, kind: string = None, severity: string = None) -> Vec<KnowledgeNodeInfo>
+### 5. query_epistemic_rules({ context: string, kind: string = None, severity: string = None }) -> Vec<KnowledgeNodeInfo>
 
 Queries knowledge rules across all skills, optionally filtered by type and severity.
 
@@ -93,7 +93,7 @@ Queries knowledge rules across all skills, optionally filtered by type and sever
 
 ### Discovery Phase
 1. Call `search` with the user's intent
-2. For each match (up to 5), call `get_skill_context(skill_id)` to see sections and requirements
+2. For each match (up to 5), call `get_skill_context({ skill_id })` to see sections and requirements
 3. Evaluate: check intents alignment, requiresState preconditions, category relevance
 4. Select the best 1-3 candidates
 
@@ -104,7 +104,7 @@ Queries knowledge rules across all skills, optionally filtered by type and sever
 8. For CRITICAL/HIGH knowledge nodes: internalize the rules before proceeding
 
 ### Execution Phase
-9. Call `get_skill_content(skill_id, section)` for the sections you'll execute
+9. Call `get_skill_content({ skill_id, section })` for the sections you'll execute
 10. Follow ordered procedures (stepOrder) if present
 11. Respect all knowledge nodes — especially AntiPatterns and Constraints
 12. After execution, verify yieldsState matches expected outcomes
