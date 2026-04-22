@@ -11,7 +11,7 @@ These tests verify the OntoSkills core ontology (TBox) creation including:
 """
 import pytest
 from pathlib import Path
-from rdflib import Graph, RDF, RDFS, OWL, Namespace, Literal
+from rdflib import Graph, RDF, RDFS, OWL, Namespace, Literal, XSD
 
 from compiler.core_ontology import get_oc_namespace, create_core_ontology
 from compiler.config import BASE_URI, CORE_STATES, FAILURE_STATES
@@ -652,3 +652,31 @@ class TestContentBlockOntology:
         g = create_core_ontology(output_path)
         oc = get_oc_namespace()
         assert (oc.hasChild, RDF.type, OWL.ObjectProperty) in g
+
+
+class TestOperationalNodeOntology:
+    """Tests for operational knowledge node types and properties."""
+
+    def test_operational_node_classes_exist(self, tmp_path):
+        """Procedure, CodePattern, OutputFormat, Command, Prerequisite are KnowledgeNode subclasses."""
+        output_path = tmp_path / "core.ttl"
+        g = create_core_ontology(output_path)
+        oc = get_oc_namespace()
+        for node_type in ["Procedure", "CodePattern", "OutputFormat", "Command", "Prerequisite"]:
+            assert (oc[node_type], RDF.type, OWL.Class) in g, f"Missing class: {node_type}"
+            assert (oc[node_type], RDFS.subClassOf, oc.KnowledgeNode) in g, f"{node_type} not subclass of KnowledgeNode"
+
+    def test_operational_node_properties_exist(self, tmp_path):
+        """codeLanguage, stepOrder, templateVariables exist as DatatypeProperties."""
+        output_path = tmp_path / "core.ttl"
+        g = create_core_ontology(output_path)
+        oc = get_oc_namespace()
+        for prop_name in ["codeLanguage", "stepOrder", "templateVariables"]:
+            assert (oc[prop_name], RDF.type, OWL.DatatypeProperty) in g, f"Missing property: {prop_name}"
+
+    def test_step_order_has_integer_range(self, tmp_path):
+        """stepOrder should have xsd:integer range."""
+        output_path = tmp_path / "core.ttl"
+        g = create_core_ontology(output_path)
+        oc = get_oc_namespace()
+        assert (oc.stepOrder, RDFS.range, XSD.integer) in g

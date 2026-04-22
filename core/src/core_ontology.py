@@ -375,6 +375,38 @@ def _add_content_block_classes(g: Graph, oc: Namespace) -> None:
     )))
 
 
+def _add_operational_node_types(g: Graph, oc: Namespace) -> None:
+    """Add 5 operational knowledge node types and their properties."""
+
+    # ========== Operational Node Type Classes ==========
+
+    for node_type in ["Procedure", "CodePattern", "OutputFormat", "Command", "Prerequisite"]:
+        g.add((oc[node_type], RDF.type, OWL.Class))
+        g.add((oc[node_type], RDFS.subClassOf, oc.KnowledgeNode))
+        g.add((oc[node_type], RDFS.label, Literal(node_type)))
+
+    # ========== Operational Node Properties ==========
+
+    # oc:codeLanguage — programming language of a CodePattern
+    g.add((oc.codeLanguage, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.codeLanguage, RDFS.domain, oc.KnowledgeNode))
+    g.add((oc.codeLanguage, RDFS.label, Literal("code language")))
+    g.add((oc.codeLanguage, RDFS.comment, Literal("Programming language of a CodePattern node")))
+
+    # oc:stepOrder — position of a Procedure in sequence
+    g.add((oc.stepOrder, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.stepOrder, RDFS.domain, oc.KnowledgeNode))
+    g.add((oc.stepOrder, RDFS.range, XSD.integer))
+    g.add((oc.stepOrder, RDFS.label, Literal("step order")))
+    g.add((oc.stepOrder, RDFS.comment, Literal("Position of a Procedure node in sequence")))
+
+    # oc:templateVariables — variable placeholders in an OutputFormat
+    g.add((oc.templateVariables, RDF.type, OWL.DatatypeProperty))
+    g.add((oc.templateVariables, RDFS.domain, oc.KnowledgeNode))
+    g.add((oc.templateVariables, RDFS.label, Literal("template variables")))
+    g.add((oc.templateVariables, RDFS.comment, Literal("Variable placeholders in an OutputFormat node")))
+
+
 def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     """
     Create the core OntoSkills ontology (TBox) with state transition system.
@@ -521,6 +553,9 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # Add RBox axioms for knowledge inheritance
     _add_knowledge_rbox(g, oc)
+
+    # Add operational knowledge node types and properties
+    _add_operational_node_types(g, oc)
 
     # Add LLM-extracted content block classes and properties
     _add_extracted_block_classes(g, oc)
