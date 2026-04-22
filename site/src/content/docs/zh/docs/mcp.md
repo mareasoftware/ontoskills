@@ -55,7 +55,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 工具参考
 
-OntoMCP 暴露 **5 个工具** 用于技能发现和推理。
+OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
 
 ### `search`
 
@@ -236,64 +236,19 @@ cargo build --features embeddings
 
 ---
 
-### `get_skill_content`
-
-检索技能章节内容为重建的 markdown 文本。这是阅读技能指令的主要工具 — 代理仅加载所需的章节，而非读取整个 SKILL.md。
-
-```json
-{
-  "skill_id": "writing-plans",
-  "section": "File Structure"
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `skill_id` | string | **必需。** 短 id 或限定 id |
-| `section` | string | 要检索的章节标题。如果省略，返回目录 |
-
-**目录**（无 `section` 参数）：
-
-```json
-{
-  "skill_id": "writing-plans",
-  "content": "## Overview\n## File Structure\n## Bite-Sized Task Granularity\n  ### Red Flags\n## Checklist"
-}
-```
-
-**章节内容**（带 `section` 参数）：
-
-```json
-{
-  "skill_id": "writing-plans",
-  "section": "Checklist",
-  "level": 2,
-  "content": "You MUST create a task for each of these items...\n\n### Red Flags\n\nThese thoughts mean STOP..."
-}
-```
-
-当请求章节时，响应包含该章节**及其所有子章节**。代理无需为子章节单独请求。
-
-**支持的内容类型：** 段落、代码块、项目列表、有序步骤、表格、引用、流程图、模板、HTML 块和 frontmatter — 全部重建为 markdown。
-
-**未找到章节：** 返回错误并列出可用的章节标题。
-
----
-
 ### 代理工作流
 
-5 个工具构成完整的工作流，替代读取原始 SKILL.md 文件：
+4 个工具构成完整的工作流，替代读取原始 SKILL.md 文件：
 
 ```
-search → get_skill_context → get_skill_content → evaluate_execution_plan → query_epistemic_rules
-发现       理解需求             执行                 计划验证                 合规检查
+search → get_skill_context → evaluate_execution_plan → query_epistemic_rules
+发现       理解需求             计划验证                 合规检查
 ```
 
 1. **`search`** — 通过意图、关键词或别名找到正确的技能
-2. **`get_skill_context`** — 了解需求、依赖关系并查看目录
-3. **`get_skill_content`** — 逐节阅读实际指令
-4. **`evaluate_execution_plan`** — 验证计划是否可行（状态、依赖）
-5. **`query_epistemic_rules`** — 在执行期间检查特定规则和约束
+2. **`get_skill_context`** — 获取完整上下文，包括知识节点、需求、依赖和执行负载
+3. **`evaluate_execution_plan`** — 验证计划是否可行（状态、依赖）
+4. **`query_epistemic_rules`** — 在执行期间检查特定规则和约束
 
 每个工具仅加载所需的数据。代理从不读取完整的 SKILL.md — 它通过 SPARQL 查询本体存储，并在亚毫秒时间内获得确定性的结构化结果。
 

@@ -41,10 +41,10 @@ flowchart LR
 
 ## Content model
 
-OntoCore transforms markdown into a three-layer content model that OntoMCP queries via SPARQL.
+OntoCore transforms markdown into a three-layer compilation pipeline. The final output that agents consume is compact **knowledge nodes** — the section tree and content blocks are intermediate compilation artifacts used during extraction.
 
 ```
-FlatBlock → Section tree → ContentExtraction
+FlatBlock → Section tree → Knowledge nodes
 ```
 
 **FlatBlock** — Every markdown element becomes a typed block (paragraph, code_block, table, etc.) with line range and content-specific properties. This is the raw, flat extraction from the parser.
@@ -61,9 +61,9 @@ FlatBlock → Section tree → ContentExtraction
 | `oc:sectionLevel` | Heading level (1-6) |
 | `oc:contentOrder` | Ordering within a section |
 
-**ContentExtraction** — The aggregated result containing all sections, code blocks, tables, flowcharts, procedures, and templates. This is what the LLM annotates during extraction.
+**Knowledge nodes** — The compact, agent-ready output that OntoMCP serves to LLM agents. Rather than reconstructing raw markdown, the compiler produces structured knowledge nodes (heuristics, anti-patterns, procedures, etc.) that agents consume directly.
 
-In the TTL output, sections and content blocks are represented as blank nodes with `rdf:type` assertions (e.g., `oc:Paragraph`, `oc:CodeBlock`). The `get_skill_content` MCP tool queries these triples and reconstructs readable markdown from them — so agents can follow a skill's instructions step-by-step via SPARQL without reading the raw markdown.
+In the TTL output, sections and content blocks are represented as blank nodes with `rdf:type` assertions (e.g., `oc:Paragraph`, `oc:CodeBlock`). These are intermediate compilation artifacts — the primary output for agents is the set of knowledge nodes extracted from the content.
 
 ---
 

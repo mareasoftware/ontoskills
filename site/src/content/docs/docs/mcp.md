@@ -55,7 +55,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tool reference
 
-OntoMCP exposes **5 tools** for skill discovery, context retrieval, and reasoning.
+OntoMCP exposes **4 tools** for skill discovery, context retrieval, and reasoning.
 
 ### `search`
 
@@ -252,64 +252,19 @@ Fetch the full execution context for a skill, including requirements, transition
 
 ---
 
-### `get_skill_content`
-
-Retrieve skill section content as reconstructed markdown text. This is the primary tool for reading a skill's instructions — the agent loads only the sections it needs instead of reading the entire SKILL.md.
-
-```json
-{
-  "skill_id": "writing-plans",
-  "section": "File Structure"
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `skill_id` | string | **Required.** Short id or qualified id |
-| `section` | string | Section title to retrieve. If omitted, returns the table of contents |
-
-**Table of contents** (no `section` param):
-
-```json
-{
-  "skill_id": "writing-plans",
-  "content": "## Overview\n## File Structure\n## Bite-Sized Task Granularity\n  ### Red Flags\n## Checklist"
-}
-```
-
-**Section content** (with `section` param):
-
-```json
-{
-  "skill_id": "writing-plans",
-  "section": "Checklist",
-  "level": 2,
-  "content": "You MUST create a task for each of these items...\n\n### Red Flags\n\nThese thoughts mean STOP..."
-}
-```
-
-When a section is requested, the response includes that section **and all its subsections**. The agent never needs to make separate requests for subsections.
-
-**Supported content types:** paragraphs, code blocks, bullet lists, ordered procedures, tables, blockquotes, flowcharts, templates, HTML blocks, and frontmatter — all reconstructed as markdown.
-
-**Section not found:** returns an error listing available section titles.
-
----
-
 ### Agent workflow
 
-The 5 tools form a complete workflow that replaces reading raw SKILL.md files:
+The 4 tools form a complete workflow that replaces reading raw SKILL.md files:
 
 ```
-search → get_skill_context → get_skill_content → evaluate_execution_plan → query_epistemic_rules
-discovery   understanding     execution             plan validation        compliance
+search → get_skill_context → evaluate_execution_plan → query_epistemic_rules
+discovery   understanding     plan validation          compliance
 ```
 
 1. **`search`** — Find the right skill by intent, keyword, or alias
-2. **`get_skill_context`** — Understand requirements, dependencies, and see the table of contents
-3. **`get_skill_content`** — Read the actual instructions, section by section
-4. **`evaluate_execution_plan`** — Validate that the plan is feasible (states, dependencies)
-5. **`query_epistemic_rules`** — Check specific rules and constraints during execution
+2. **`get_skill_context`** — Get the full context including knowledge nodes, requirements, dependencies, and execution payload
+3. **`evaluate_execution_plan`** — Validate that the plan is feasible (states, dependencies)
+4. **`query_epistemic_rules`** — Check specific rules and constraints during execution
 
 Each tool loads only the data it needs. The agent never reads the full SKILL.md — it queries the ontology store via SPARQL and gets deterministic, structured results in sub-millisecond time.
 

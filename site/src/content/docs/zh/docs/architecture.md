@@ -41,10 +41,10 @@ flowchart LR
 
 ## 内容模型
 
-OntoCore 将 Markdown 转换为三层内容模型，OntoMCP 通过 SPARQL 查询。
+OntoCore 将 Markdown 转换为三层编译管道。代理消费的最终输出是紧凑的**知识节点** — 节树和内容块是提取过程中使用的中间编译产物。
 
 ```
-FlatBlock → 节树 → ContentExtraction
+FlatBlock → 节树 → 知识节点
 ```
 
 **FlatBlock** — 每个 Markdown 元素成为类型化块（paragraph、code_block、table 等），带有行范围和内容特定属性。这是解析器的原始平坦提取。
@@ -61,9 +61,9 @@ FlatBlock → 节树 → ContentExtraction
 | `oc:sectionLevel` | 标题级别（1-6）|
 | `oc:contentOrder` | 节内的排序 |
 
-**ContentExtraction** — 聚合结果，包含所有节、代码块、表格、流程图、过程和模板。这是 LLM 在提取期间注释的内容。
+**知识节点** — OntoMCP 提供给 LLM 代理的紧凑、即用型输出。编译器不重建原始 Markdown，而是生成结构化的知识节点（启发式、反模式、过程等），代理直接消费这些节点。
 
-在 TTL 输出中，节和内容块表示为带有 `rdf:type` 断言的空白节点（如 `oc:Paragraph`、`oc:CodeBlock`）。`get_skill_content` MCP 工具查询这些三元组并从中重建可读的 Markdown — 因此代理可以通过 SPARQL 逐步遵循技能的指令，而无需读取原始 Markdown。
+在 TTL 输出中，节和内容块表示为带有 `rdf:type` 断言的空白节点（如 `oc:Paragraph`、`oc:CodeBlock`）。这些是中间编译产物 — 代理的主要输出是从内容中提取的知识节点集合。
 
 ---
 

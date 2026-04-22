@@ -45,7 +45,7 @@ SKILL.md → [Extract] → [Security] → [Serialize] → [SHACL] → [Embed (op
 
 | Stage | What Happens |
 |-------|--------------|
-| **Extract** | Structural content extraction + LLM knowledge extraction |
+| **Extract** | Structural content extraction + LLM knowledge extraction → compact knowledge nodes |
 | **Security** | Regex + LLM review for malicious content |
 | **Serialize** | Pydantic models → RDF triples |
 | **Validate** | SHACL shapes check logical validity |
@@ -56,10 +56,10 @@ If any stage fails, the skill is **not written**. The SHACL gatekeeper enforces 
 
 ### Content extraction
 
-The **Extract** stage is the core of OntoCore. It transforms your markdown into a structured section tree with typed content blocks — the data model that OntoMCP queries via SPARQL.
+The **Extract** stage is the core of OntoCore. It transforms your markdown into compact knowledge nodes — the primary output that agents consume. Internally, this happens through an intermediate pipeline of structured content blocks and section trees.
 
 ```
-SKILL.md → flat blocks → section tree → typed RDF triples
+SKILL.md → flat blocks → section tree → knowledge nodes
 ```
 
 1. **Flat block extraction** — The parser tokenizes markdown into typed blocks: paragraphs, code blocks, tables, bullet lists, ordered procedures, blockquotes, flowcharts, templates, HTML blocks, frontmatter, and headings
@@ -68,7 +68,7 @@ SKILL.md → flat blocks → section tree → typed RDF triples
 
 ### Content block types
 
-Every element in your SKILL.md becomes a typed RDF node. The 11 block types:
+Every element in your SKILL.md becomes a typed RDF node during the intermediate extraction pipeline. The 11 block types:
 
 | Block Type | What It Captures | Key Properties |
 |------------|-----------------|----------------|
