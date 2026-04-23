@@ -15,6 +15,7 @@ import atexit
 import json
 import logging
 import os
+import select
 import subprocess
 import threading
 from typing import Any
@@ -76,7 +77,11 @@ class MCPClient:
         ontology_root: str | None = None,
     ) -> None:
         self._bin = _resolve_binary(ontomcp_bin)
-        self._ontology_root = os.path.abspath(ontology_root) if ontology_root else ""
+        if not ontology_root:
+            raise ValueError(
+                "ontology_root is required and must be a non-empty path"
+            )
+        self._ontology_root = os.path.abspath(ontology_root)
         self._proc: subprocess.Popen | None = None
         self._next_id = 1
         self._lock = threading.Lock()
@@ -130,6 +135,13 @@ class MCPClient:
         proc = self._proc
         self._proc = None
 
+        # Explicitly close stdin before terminating to flush pending writes.
+        if proc.stdin is not None:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+
         try:
             proc.terminate()
             try:
@@ -145,6 +157,21 @@ class MCPClient:
     # ------------------------------------------------------------------
     # JSON-RPC helpers
     # ------------------------------------------------------------------
+    def _readline_with_timeout(self, timeout: float = 30.0) -> bytes:
+        """Read one line from stdout with a timeout.
+
+        Uses ``select.select`` to avoid blocking indefinitely if the
+        server hangs.  Raises ``TimeoutError`` if no data arrives within
+        *timeout* seconds.  Linux-only is acceptable for benchmarks.
+        """
+        assert self._proc is not None and self._proc.stdout is not None
+        ready, _, _ = select.select([self._proc.stdout], [], [], timeout)
+        if not ready:
+            raise TimeoutError(
+                f"ontomcp did not respond within {timeout:.0f}s"
+            )
+        return self._proc.stdout.readline()
+
     def _send_request(
         self,
         method: str,
@@ -153,6 +180,7 @@ class MCPClient:
         """Send a JSON-RPC request and return the parsed response dict.
 
         Raises ``RuntimeError`` on JSON-RPC errors or transport failures.
+        Raises ``TimeoutError`` if the server does not respond in time.
         """
         if self._proc is None or self._proc.stdin is None or self._proc.stdout is None:
             raise RuntimeError("ontomcp subprocess is not running")
@@ -161,26 +189,33 @@ class MCPClient:
             msg_id = self._next_id
             self._next_id += 1
 
-        request: dict[str, Any] = {
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "method": method,
-        }
-        if params is not None:
-            request["params"] = params
+            request: dict[str, Any] = {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "method": method,
+            }
+            if params is not None:
+                request["params"] = params
 
-        line = json.dumps(request, separators=(",", ":")) + "\n"
-        self._proc.stdin.write(line.encode("utf-8"))
-        self._proc.stdin.flush()
+            line = json.dumps(request, separators=(",", ":")) + "\n"
+            self._proc.stdin.write(line.encode("utf-8"))
+            self._proc.stdin.flush()
 
-        # Read one line back (blocking).
-        raw = self._proc.stdout.readline()
-        if not raw:
+            # Read one line back with a timeout.
+            raw = self._readline_with_timeout(timeout=30.0)
+            if not raw:
+                raise RuntimeError(
+                    "ontomcp closed stdout unexpectedly (process may have crashed)"
+                )
+
+            response = json.loads(raw)
+
+        # Validate response ID matches request ID.
+        if response.get("id") != msg_id:
             raise RuntimeError(
-                "ontomcp closed stdout unexpectedly (process may have crashed)"
+                f"JSON-RPC response ID mismatch: expected {msg_id}, "
+                f"got {response.get('id')}"
             )
-
-        response = json.loads(raw)
 
         # Check for JSON-RPC error.
         if "error" in response:
@@ -208,8 +243,9 @@ class MCPClient:
             notification["params"] = params
 
         line = json.dumps(notification, separators=(",", ":")) + "\n"
-        self._proc.stdin.write(line.encode("utf-8"))
-        self._proc.stdin.flush()
+        with self._lock:
+            self._proc.stdin.write(line.encode("utf-8"))
+            self._proc.stdin.flush()
 
     # ------------------------------------------------------------------
     # Public API
