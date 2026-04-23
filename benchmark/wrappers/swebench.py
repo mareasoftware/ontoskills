@@ -399,10 +399,16 @@ class SWEBenchWrapper:
         agent.run_turn = _patched_run_turn  # type: ignore[assignment]
 
         try:
-            # Use the agent's own run() which calls run_turn in a loop.
-            # For agents that override run() (like OntoSkillsAgent), we need
-            # to call the BaseAgent.run() directly so our patched run_turn
-            # is used instead of MCP tool execution.
+            # If the agent is an OntoSkillsAgent, start its MCP subprocess
+            # lifecycle manually (we bypass its run() override below).
+            _mcp_started = False
+            if hasattr(agent, "_mcp_client"):
+                agent._mcp_client.__enter__()
+                agent._mcp_client.initialize()
+                _mcp_started = True
+
+            # Use BaseAgent.run() directly so our patched run_turn
+            # is used instead of the agent's normal tool execution.
             result: AgentResult = BaseAgent.run(agent, prompt, max_turns=15)
         except Exception as exc:
             logger.warning(
@@ -421,6 +427,12 @@ class SWEBenchWrapper:
             # Restore original methods.
             agent.get_tools = original_get_tools  # type: ignore[assignment]
             agent.run_turn = original_run_turn  # type: ignore[assignment]
+            # Clean up MCP subprocess if we started it.
+            if _mcp_started:
+                try:
+                    agent._mcp_client.__exit__(None, None, None)
+                except Exception:
+                    pass
 
         # -- Extract / build the patch ------------------------------------
         patch = self.extract_patch_from_answer(result.answer)

@@ -191,11 +191,31 @@ class TraditionalAgent(BaseAgent):
         return assistant_msg, metrics
 
     # ------------------------------------------------------------------
-    # Override run() to propagate context_overflow
+    # Override run() — single call, no tool-use loop
     # ------------------------------------------------------------------
 
     def run(self, task_prompt: str, max_turns: int = 10) -> AgentResult:
-        result = super().run(task_prompt, max_turns=1)
-        # Propagate the flag set during run_turn
-        result.context_overflow = self._context_overflow
-        return result
+        """Execute a single API call. Ignores any tool_use blocks in response."""
+        messages: list[dict] = [{"role": "user", "content": task_prompt}]
+        assistant_msg, metrics = self.run_turn(messages)
+
+        # Extract text content, ignoring any tool_use blocks the model
+        # might have generated (TraditionalAgent cannot dispatch tools).
+        content = assistant_msg.get("content", "")
+        if isinstance(content, list):
+            answer = "\n".join(
+                b.get("text", "") for b in content
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+        else:
+            answer = str(content)
+
+        return AgentResult(
+            answer=answer,
+            input_tokens=metrics["input_tokens"],
+            output_tokens=metrics["output_tokens"],
+            total_latency_ms=metrics["latency_ms"],
+            tool_calls=0,
+            turns=1,
+            context_overflow=self._context_overflow,
+        )
