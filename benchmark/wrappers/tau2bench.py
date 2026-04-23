@@ -345,7 +345,6 @@ class Tau2BenchWrapper:
 
             # Append tool_result messages when tool calls were made.
             if tool_result_blocks:
-                messages.append(assistant_msg)
                 messages.append({
                     "role": "user",
                     "content": tool_result_blocks,
@@ -474,7 +473,6 @@ class Tau2BenchWrapper:
 
             # Append tool_result messages when tool calls were made.
             if tool_result_blocks:
-                messages.append(assistant_msg)
                 messages.append({
                     "role": "user",
                     "content": tool_result_blocks,
@@ -717,10 +715,11 @@ def _check_match(
     output string (or vice-versa for shorter expected strings).
     """
     a = answer
+    if strip_whitespace:
+        a = a.strip()
     for exp in expected_list:
         e = exp
         if strip_whitespace:
-            a = a.strip()
             e = e.strip()
         if case_insensitive:
             a_cmp = a.lower()
