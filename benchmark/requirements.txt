@@ -1,3 +1,4 @@
 anthropic>=0.40.0
 datasets
+rdflib>=6.0.0
 swebench
