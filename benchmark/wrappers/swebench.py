@@ -19,6 +19,7 @@ import logging
 import re
 import subprocess
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -170,6 +171,20 @@ class SWEBenchWrapper:
                 check=True,
                 capture_output=True,
             )
+
+        # Ensure a clean state even after interrupted runs.
+        subprocess.run(
+            ["git", "reset", "--hard", "HEAD"],
+            cwd=str(clone_path),
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "clean", "-fd"],
+            cwd=str(clone_path),
+            check=True,
+            capture_output=True,
+        )
 
         # Fetch and checkout the target commit.
         subprocess.run(
@@ -414,7 +429,7 @@ class SWEBenchWrapper:
         # build a patch from them.
         if not patch.strip() and recorded_edits:
             patch = self._build_patch_from_edits(
-                recorded_edits, instance["repo"]
+                recorded_edits, checkout
             )
 
         return {
@@ -538,18 +553,31 @@ class SWEBenchWrapper:
     @staticmethod
     def _build_patch_from_edits(
         edits: list[tuple[str, str, str]],
-        repo: str,
+        checkout_dir: Path,
     ) -> str:
         """Build a unified diff patch from the recorded file edits.
 
         Each edit is a tuple of ``(path, old_content, new_content)``.
-        The old/new content is used as-is to generate a simple replacement
-        diff.
+        Edits to the same file are grouped and applied sequentially to an
+        in-memory copy of the file, then a single diff is generated from the
+        original to the final state.
         """
-        patches: list[str] = []
+        edits_by_file: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for rel_path, old, new in edits:
-            old_lines = old.splitlines(keepends=True)
-            new_lines = new.splitlines(keepends=True)
+            edits_by_file[rel_path].append((old, new))
+
+        patches: list[str] = []
+        for rel_path, replacements in edits_by_file.items():
+            abs_path = checkout_dir / rel_path
+            try:
+                original = abs_path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                continue
+            current = original
+            for old, new in replacements:
+                current = current.replace(old, new, 1)
+            old_lines = original.splitlines(keepends=True)
+            new_lines = current.splitlines(keepends=True)
             diff = difflib.unified_diff(
                 old_lines,
                 new_lines,
