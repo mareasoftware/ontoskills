@@ -501,7 +501,7 @@ class DirectoryScan(BaseModel):
     files: list[FileInfo]
     skill_md_content: str
     file_tree: str  # Formatted string for LLM context
-    content_extraction: ContentExtraction
+    content_extraction: ContentExtraction | None = None
 
 
 # =============================================================================
@@ -512,16 +512,6 @@ class ReferenceFile(BaseModel):
     """Reference file identified by LLM for progressive disclosure."""
     relative_path: str
     purpose: Literal["api-reference", "examples", "guide", "domain-specific", "other"]
-
-
-class ExecutableScript(BaseModel):
-    """Executable script identified by LLM."""
-    relative_path: str
-    executor: Literal["python", "bash", "node", "other"]
-    execution_intent: Literal["execute", "read_only"] = "execute"
-    command_template: str | None = None
-    requirements: list[str] = Field(default_factory=list)  # Plain tool names: ["pypdf", "pdfplumber"]
-    produces_output: str | None = None
 
 
 class Example(BaseModel):
@@ -557,7 +547,7 @@ class CompiledSkill(ExtractedSkill):
 
     Includes:
     - Phase 1 data: frontmatter, files (from loader.py)
-    - Phase 2 data: reference_files, executable_scripts, examples, workflows
+    - Phase 2 data: reference_files, examples, workflows
     """
     # From Phase 1
     frontmatter: Frontmatter | None = None
@@ -565,6 +555,5 @@ class CompiledSkill(ExtractedSkill):
 
     # From Phase 2
     reference_files: list[ReferenceFile] = Field(default_factory=list)
-    executable_scripts: list[ExecutableScript] = Field(default_factory=list)
     examples: list[Example] = Field(default_factory=list)
     content_extraction: ContentExtraction | None = None

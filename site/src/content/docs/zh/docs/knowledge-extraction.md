@@ -18,7 +18,7 @@ sidebar:
 | **身份** | `oc:nature`、`oc:genus`、`oc:differentia` | "A 是一个做了 C 的 B" 定义 |
 | **意图** | `oc:resolvesIntent` | 此技能解决的用户意图 |
 | **需求** | `oc:hasRequirement` | 依赖项（EnvVar、Tool、Hardware、API、Knowledge）|
-| **知识节点** | `oc:impartsKnowledge` | 认知知识（每个技能 8-12 个）|
+| **知识节点** | `oc:impartsKnowledge` | 认知 + 操作知识（每个技能 8-15 个）|
 | **状态转换** | `oc:requiresState`、`oc:yieldsState`、`oc:handlesFailure` | 前置条件、结果、错误处理 |
 | **执行负载** | `oc:hasPayload` | 可选的要执行的代码 |
 | **溯源** | `oc:generatedBy` | 证明（哪个 LLM 编译的，可选）|
@@ -28,7 +28,6 @@ sidebar:
 | 元素 | 属性 | 描述 |
 |------|------|------|
 | **参考文件** | `oc:hasReferenceFile` | 支持 `purpose`（api-reference、examples、guide、domain-specific、other）的文档 |
-| **可执行脚本** | `oc:hasExecutableScript` | 带有 `executor`、`executionIntent`、`requirements` 的脚本 |
 | **工作流** | `oc:hasWorkflow` | 带有 `hasStep` 依赖的多步骤流程 |
 | **示例** | `oc:hasExample` | 用于模式匹配的输入/输出对 |
 
@@ -36,11 +35,11 @@ sidebar:
 
 ## 知识节点
 
-知识提取的核心。每个技能包含 8-12 个**知识节点** — 结构化的认知规则。
+知识提取的核心。每个技能包含 8-15 个**知识节点** — 结构化的认知规则和操作指令。
 
-### 10 个认知维度
+### 认知节点
 
-OntoCore 将知识组织为 **10 个维度**，共 **26 种**节点类型：
+OntoCore 将知识组织为 **10 个维度**，共 **26 种认知节点类型**：
 
 #### 维度 1：NormativeRule（规范性规则）
 定义什么是正确的、错误的或受限制的规则。
@@ -130,9 +129,37 @@ OntoCore 将知识组织为 **10 个维度**，共 **26 种**节点类型：
 
 ---
 
+### 操作节点
+
+除了认知知识，OntoCore 还提取**操作节点** — 紧凑的、可操作的指令，告诉代理要*做什么*。这些将冗长的技能文档压缩为可直接执行的指令。
+
+| 类型 | 描述 | 特殊字段 | 示例 |
+|------|------|----------|------|
+| **Procedure** | 有序步骤序列 | `step_order`（整数）| "1. 写失败测试 → 2. 运行 → 3. 最小代码 → 4. 重构" |
+| **CodePattern** | 可复用代码片段 | `code_language` | `def test_add(): assert add(1,2) == 3` |
+| **OutputFormat** | 预期输出模板 | `template_variables` | "## 总结\n- 发现\n- 建议" |
+| **Command** | 精确的 CLI 命令 | — | `pytest tests/ -v --tb=short` |
+| **Prerequisite** | 必需的前置条件 | — | "必须安装 Python 3.10+" |
+
+每个技能生成 3-8 个操作节点。编译器积极压缩多行指令 — 去除填充词、解释和激励文本，只保留代理*需要做*的内容。
+
+#### 操作节点的价值
+
+| 没有操作节点 | 有操作节点 |
+|---|---|
+| 代理读取完整 SKILL.md（5-20KB）| 代理查询特定指令（~200 字节）|
+| 指令埋藏在叙述中 | 编号步骤、精确命令 |
+| 代码示例混在解释中 | 最小片段带语言上下文 |
+| 输出格式不明确 | 带变量的显式模板 |
+| 前置条件分散 | 单一前置条件检查列表 |
+
+---
+
 ### 知识节点结构
 
 每个知识节点都有：
+
+**认知节点**（关于技能的推理）：
 
 ```turtle
 oc:kn_a1b2c3d4
@@ -143,12 +170,25 @@ oc:kn_a1b2c3d4
   oc:severityLevel "HIGH" .
 ```
 
+**操作节点**（要做什么）：
+
+```turtle
+oc:kn_e5f6g7h8
+  a oc:Procedure ;
+  oc:directiveContent "1. 写失败测试 2. 运行测试 3. 写最小代码 4. 重构" ;
+  oc:stepOrder 1 ;
+  oc:appliesToContext "实现新功能时" .
+```
+
 | 字段 | 描述 |
 |------|------|
-| `directiveContent` | 规则或见解 |
+| `directiveContent` | 规则、见解或指令 |
 | `appliesToContext` | 何时适用 |
-| `hasRationale` | 为什么存在此规则 |
+| `hasRationale` | 为什么存在此规则（仅认知节点）|
 | `severityLevel` | 重要性：`CRITICAL`、`HIGH`、`MEDIUM`、`LOW` |
+| `stepOrder` | Procedure 节点的步骤位置 |
+| `codeLanguage` | CodePattern 节点的编程语言 |
+| `templateVariables` | OutputFormat 节点的占位符名称 |
 
 ---
 

@@ -65,14 +65,23 @@ def skill_uri_for_skill(skill: ExtractedSkill, qualified_id: str | None = None) 
     return skill_uri_for_id(skill.id, qualified_id)
 
 
-def relation_uri_for_value(value: str) -> URIRef:
-    """Convert a skill relation value into a skill URI reference."""
+def relation_uri_for_value(value: str, skill_id_map: dict[str, str] | None = None) -> URIRef:
+    """Convert a skill relation value into a skill URI reference.
+
+    Args:
+        value: Skill reference (bare ID, qualified ID, or URI)
+        skill_id_map: Optional mapping of bare skill ID -> qualified ID,
+                      used to resolve cross-references to the correct URI.
+    """
     raw = value.strip()
     oc = get_oc_namespace()
     if raw.startswith("http://") or raw.startswith("https://"):
         return URIRef(raw)
     if raw.startswith("oc:"):
         return oc[raw.removeprefix("oc:")]
+    # Resolve bare ID to qualified ID if mapping available
+    if skill_id_map and raw in skill_id_map:
+        return skill_uri_for_id(skill_id_map[raw])
     return skill_uri_for_id(raw)
 
 
@@ -233,6 +242,7 @@ def serialize_skill(
     extends_parent: str | None = None,
     extends_parent_qualified: str | None = None,
     content_extraction: "ContentExtraction | None" = None,
+    skill_id_map: dict[str, str] | None = None,
 ) -> None:
     """
     Serialize a skill to RDF triples in the graph.
@@ -244,6 +254,7 @@ def serialize_skill(
         extends_parent: Optional parent skill short ID to inject as extends relationship
         extends_parent_qualified: Optional parent qualified ID for extends URI
         content_extraction: Optional ContentExtraction with code blocks, tables, flowcharts, templates
+        skill_id_map: Optional mapping of bare skill ID -> qualified ID for resolving cross-references
     """
     oc = get_oc_namespace()
 
@@ -287,7 +298,7 @@ def serialize_skill(
     for dep in skill.depends_on:
         if dep == skill.id:
             continue
-        graph.add((skill_uri, oc.dependsOnSkill, relation_uri_for_value(dep)))
+        graph.add((skill_uri, oc.dependsOnSkill, relation_uri_for_value(dep, skill_id_map)))
 
     # Inject deterministic extends if provided (sub-skills)
     parent_uri = None
@@ -298,13 +309,13 @@ def serialize_skill(
 
     # Also include any LLM-extracted extends (for non-sub-skill cases)
     for ext in skill.extends:
-        ext_uri = relation_uri_for_value(ext)
+        ext_uri = relation_uri_for_value(ext, skill_id_map)
         # Avoid duplicate if already injected (compare against actual parent_uri)
         if not parent_uri or str(ext_uri) != str(parent_uri):
             graph.add((skill_uri, oc.extends, ext_uri))
 
     for cont in skill.contradicts:
-        graph.add((skill_uri, oc.contradicts, relation_uri_for_value(cont)))
+        graph.add((skill_uri, oc.contradicts, relation_uri_for_value(cont, skill_id_map)))
 
     # State transitions (new schema feature)
     if skill.state_transitions:
@@ -404,37 +415,6 @@ def serialize_skill(
             graph.add((ref_node, oc.fileHash, Literal(f.content_hash)))
             graph.add((ref_node, oc.fileSize, Literal(f.file_size)))
             graph.add((ref_node, oc.fileMimeType, Literal(f.mime_type)))
-
-    # Executable Scripts
-    for script in getattr(skill, 'executable_scripts', []):
-        script_node = make_bnode("script", script.relative_path)
-        graph.add((skill_uri, oc.hasExecutableScript, script_node))
-        graph.add((script_node, RDF.type, oc.ExecutableScript))
-        graph.add((script_node, oc.filePath, Literal(script.relative_path)))
-        graph.add((script_node, oc.scriptExecutor, Literal(script.executor)))
-        graph.add((script_node, oc.scriptIntent, Literal(script.execution_intent)))
-
-        if script.command_template:
-            graph.add((script_node, oc.scriptCommand, Literal(script.command_template)))
-
-        # Requirements as blank nodes
-        for req in script.requirements:
-            req_node = make_bnode("req", req)
-            graph.add((script_node, oc.scriptHasRequirement, req_node))
-            graph.add((req_node, RDF.type, oc.Requirement))
-            graph.add((req_node, oc.requirementType, Literal("Tool")))
-            graph.add((req_node, oc.requirementValue, Literal(req)))
-            graph.add((req_node, oc.isOptional, Literal(False)))
-
-        if script.produces_output:
-            graph.add((script_node, oc.scriptOutput, Literal(script.produces_output)))
-
-        # O(1) lookup using pre-indexed files
-        if script.relative_path in files_index:
-            f = files_index[script.relative_path]
-            graph.add((script_node, oc.fileHash, Literal(f.content_hash)))
-            graph.add((script_node, oc.fileSize, Literal(f.file_size)))
-            graph.add((script_node, oc.fileMimeType, Literal(f.mime_type)))
 
     # Workflows
     for wf in getattr(skill, 'workflows', []):
@@ -612,6 +592,7 @@ def serialize_skill_to_module(
     extends_parent: str | None = None,
     extends_parent_qualified: str | None = None,
     content_extraction: "ContentExtraction | None" = None,
+    skill_id_map: dict[str, str] | None = None,
 ) -> None:
     """
     Serialize a skill to a standalone ontoskill.ttl module file.
@@ -626,6 +607,7 @@ def serialize_skill_to_module(
         qualified_id: Optional qualified ID for URI (prevents collisions across packages)
         extends_parent: Optional parent skill short ID to inject as extends relationship
         extends_parent_qualified: Optional parent qualified ID for extends URI
+        skill_id_map: Optional mapping of bare skill ID -> qualified ID for resolving cross-references
     """
     oc = get_oc_namespace()
     g = Graph()
@@ -652,7 +634,8 @@ def serialize_skill_to_module(
     # Serialize the skill with optional extends injection
     serialize_skill(g, skill, qualified_id=qualified_id, extends_parent=extends_parent,
                     extends_parent_qualified=extends_parent_qualified,
-                    content_extraction=content_extraction)
+                    content_extraction=content_extraction,
+                    skill_id_map=skill_id_map)
 
     # VALIDATE BEFORE WRITE
     try:

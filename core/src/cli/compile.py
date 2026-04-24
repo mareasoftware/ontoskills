@@ -558,6 +558,12 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
         len(skill_registry.skills), package_name,
     )
 
+    # Build bare skill ID -> qualified ID mapping for cross-reference resolution
+    skill_id_map: dict[str, str] = {}
+    for scan in dir_scan_cache.values():
+        if scan.qualified_id and scan.skill_id:
+            skill_id_map[scan.skill_id] = scan.qualified_id
+
     # Thread-safe counters and collectors for parallel processing
     _counters_lock = threading.Lock()
     _skills_serialized = [0]
@@ -614,13 +620,19 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
 
         # Phase 2: LLM extraction
         try:
+            # Lazy content extraction: if skipped during scanning, do it now
+            content_extraction = dir_scan.content_extraction
+            if content_extraction is None:
+                from compiler.content_parser import extract_structural_content
+                content_extraction = extract_structural_content(dir_scan.skill_md_content)
+
             extracted = retry_extraction(
                 tool_use_loop, skill_id,
                 skill_dir, skill_hash, skill_id,
                 skill_registry=skill_registry,
                 preloaded_content=dir_scan.skill_md_content,
                 preloaded_file_tree=dir_scan.file_tree,
-                content_extraction=dir_scan.content_extraction,
+                content_extraction=content_extraction,
                 _max_retries=_retries,
             )
             extracted = enrich_extracted_skill(extracted, skill_dir, input_path, skill_parent_map, skill_registry)
@@ -640,7 +652,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                 **extracted.model_dump(),
                 frontmatter=dir_scan.frontmatter,
                 files=dir_scan.files,
-                content_extraction=dir_scan.content_extraction,
+                content_extraction=content_extraction,
             )
 
             # Serialize immediately to disk (unless dry_run)
@@ -652,6 +664,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         compiled, output_skill_path, output_path,
                         qualified_id=qualified_id,
                         content_extraction=compiled.content_extraction,
+                        skill_id_map=skill_id_map,
                     )
                     # Generate per-skill embeddings (optional)
                     if embedding_model is not None:
@@ -752,6 +765,7 @@ def compile_cmd(ctx, skill_name, input_dir, output_dir, dry_run, skip_security, 
                         extends_parent=parent_local_id,
                         extends_parent_qualified=parent_qualified_id,
                         content_extraction=sub_content_extraction,
+                        skill_id_map=skill_id_map,
                     )
                     # Generate per-skill embeddings (optional)
                     if embedding_model is not None:

@@ -92,7 +92,7 @@ Be thorough but concise. Focus on the essential nature of the skill.
 You MUST only extract information that is explicitly present in the skill files.
 - Do NOT invent execution payloads, scripts, or command templates that don't exist in the files
 - Do NOT fabricate file paths, tool names, or configuration values
-- If the skill does NOT contain scripts, leave `executable_scripts` and `execution_payload` empty
+- If the skill does NOT contain an execution payload, leave `execution_payload` empty
 - If you are unsure whether something exists, leave it out rather than guessing
 
 ## EPISTEMIC KNOWLEDGE EXTRACTION (EXPECTED)

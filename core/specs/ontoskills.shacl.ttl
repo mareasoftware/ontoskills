@@ -134,11 +134,12 @@ oc:SkillShape
         sh:message "hasAlias values must be strings" ;
     ] ;
 
-    # Skill-to-skill dependency (replaces ambiguous dependsOn)
+    # Skill-to-skill dependency — warning only (target may not yet be compiled)
     sh:property [
         sh:path oc:dependsOnSkill ;
         sh:class oc:Skill ;
-        sh:message "dependsOnSkill must point to a Skill" ;
+        sh:severity sh:Warning ;
+        sh:message "dependsOnSkill should point to a Skill (may not yet be compiled)" ;
     ] ;
     .
 
@@ -281,18 +282,18 @@ oc:KnowledgeNodeShape
 
     sh:property [
         sh:path oc:appliesToContext ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
         sh:datatype xsd:string ;
-        sh:message "Ogni KnowledgeNode deve avere esattamente un appliesToContext" ;
+        sh:severity sh:Warning ;
+        sh:message "Si raccomanda che ogni KnowledgeNode abbia un appliesToContext" ;
     ] ;
 
     sh:property [
         sh:path oc:hasRationale ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
         sh:datatype xsd:string ;
-        sh:message "Ogni KnowledgeNode deve avere esattamente un hasRationale (spiegazione del perché)" ;
+        sh:severity sh:Warning ;
+        sh:message "Si raccomanda che ogni KnowledgeNode abbia un hasRationale (spiegazione del perché)" ;
     ] ;
 
     sh:property [

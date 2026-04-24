@@ -18,7 +18,6 @@ from typing import Optional
 
 from rdflib import Graph, Namespace, RDF, RDFS, OWL, Literal, URIRef, BNode, XSD
 from rdflib.namespace import DCTERMS, SKOS, PROV
-from rdflib.collection import Collection
 
 from compiler.config import BASE_URI, CORE_ONTOLOGY_FILENAME, CORE_STATES, FAILURE_STATES, OUTPUT_DIR
 
@@ -912,13 +911,8 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     )))
 
     # ========== Phase 2: File Properties ==========
-    # Create union domain class for file properties (ReferenceFile OR ExecutableScript)
-    # Use named URI for deterministic serialization (avoid BNode churn in diffs)
-    file_domain = oc.FileResource
-    g.add((file_domain, RDF.type, OWL.Class))
-    file_union_list = oc.FileResourceUnion
-    Collection(g, file_union_list, [oc.ReferenceFile, oc.ExecutableScript])
-    g.add((file_domain, OWL.unionOf, file_union_list))
+    # File properties apply to ReferenceFile instances
+    file_domain = oc.ReferenceFile
 
     # oc:filePath - Relative path from skill directory
     g.add((oc.filePath, RDF.type, OWL.DatatypeProperty))
@@ -956,77 +950,12 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
     g.add((oc.fileMimeType, RDFS.domain, file_domain))
     g.add((oc.fileMimeType, RDFS.range, XSD.string))
 
-    # ========== Phase 2: Executable Script Classes ==========
-
-    # oc:ExecutableScript - Executable script associated with skill
-    g.add((oc.ExecutableScript, RDF.type, OWL.Class))
-    g.add((oc.ExecutableScript, RDFS.label, Literal("Executable Script")))
-    g.add((oc.ExecutableScript, RDFS.comment, Literal(
-        "An executable script associated with a skill"
-    )))
-
-    # oc:hasExecutableScript (ObjectProperty)
-    g.add((oc.hasExecutableScript, RDF.type, OWL.ObjectProperty))
-    g.add((oc.hasExecutableScript, RDFS.domain, oc.Skill))
-    g.add((oc.hasExecutableScript, RDFS.range, oc.ExecutableScript))
-    g.add((oc.hasExecutableScript, RDFS.label, Literal("has executable script")))
-    g.add((oc.hasExecutableScript, RDFS.comment, Literal(
-        "Links a skill to an executable script"
-    )))
-
     # oc:requirementType (DatatypeProperty)
     g.add((oc.requirementType, RDF.type, OWL.DatatypeProperty))
     g.add((oc.requirementType, RDFS.domain, oc.Requirement))
     g.add((oc.requirementType, RDFS.label, Literal("requirement type")))
     g.add((oc.requirementType, RDFS.comment, Literal(
         "Type of requirement (Tool, EnvVar, Hardware, API, Knowledge)"
-    )))
-
-    # ========== Phase 2: Executable Script Properties ==========
-
-    # oc:scriptExecutor - Executor for script (python, bash, node)
-    g.add((oc.scriptExecutor, RDF.type, OWL.DatatypeProperty))
-    g.add((oc.scriptExecutor, RDFS.domain, oc.ExecutableScript))
-    g.add((oc.scriptExecutor, RDFS.label, Literal("script executor")))
-    g.add((oc.scriptExecutor, RDFS.comment, Literal(
-        "Executor for the script (python, bash, node, etc.)"
-    )))
-    g.add((oc.scriptExecutor, RDFS.range, XSD.string))
-
-    # oc:scriptIntent - Whether script should be executed or read-only
-    g.add((oc.scriptIntent, RDF.type, OWL.DatatypeProperty))
-    g.add((oc.scriptIntent, RDFS.domain, oc.ExecutableScript))
-    g.add((oc.scriptIntent, RDFS.label, Literal("script intent")))
-    g.add((oc.scriptIntent, RDFS.comment, Literal(
-        "Whether script should be executed or is read-only"
-    )))
-    g.add((oc.scriptIntent, RDFS.range, XSD.string))
-
-    # oc:scriptCommand - Command template for executing the script
-    g.add((oc.scriptCommand, RDF.type, OWL.DatatypeProperty))
-    g.add((oc.scriptCommand, RDFS.domain, oc.ExecutableScript))
-    g.add((oc.scriptCommand, RDFS.label, Literal("script command")))
-    g.add((oc.scriptCommand, RDFS.comment, Literal(
-        "Command template for executing the script"
-    )))
-    g.add((oc.scriptCommand, RDFS.range, XSD.string))
-
-    # oc:scriptOutput - Description of script output
-    g.add((oc.scriptOutput, RDF.type, OWL.DatatypeProperty))
-    g.add((oc.scriptOutput, RDFS.domain, oc.ExecutableScript))
-    g.add((oc.scriptOutput, RDFS.label, Literal("script output")))
-    g.add((oc.scriptOutput, RDFS.comment, Literal(
-        "Description of what the script produces"
-    )))
-    g.add((oc.scriptOutput, RDFS.range, XSD.string))
-
-    # oc:scriptHasRequirement - Links script to its requirements
-    g.add((oc.scriptHasRequirement, RDF.type, OWL.ObjectProperty))
-    g.add((oc.scriptHasRequirement, RDFS.domain, oc.ExecutableScript))
-    g.add((oc.scriptHasRequirement, RDFS.range, oc.Requirement))
-    g.add((oc.scriptHasRequirement, RDFS.label, Literal("script has requirement")))
-    g.add((oc.scriptHasRequirement, RDFS.comment, Literal(
-        "Links an executable script to its requirements"
     )))
 
     # ========== Phase 2: Workflow Classes ==========

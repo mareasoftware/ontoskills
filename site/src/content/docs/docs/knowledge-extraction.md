@@ -20,7 +20,7 @@ Every skill is compiled with:
 | **Identity** | `oc:nature`, `oc:genus`, `oc:differentia` | "A is a B that C" definition |
 | **Intents** | `oc:resolvesIntent` | What user intentions this skill resolves |
 | **Requirements** | `oc:hasRequirement` | Dependencies (EnvVar, Tool, Hardware, API, Knowledge) |
-| **Knowledge Nodes** | `oc:impartsKnowledge` | Epistemic knowledge (8-12 per skill) |
+| **Knowledge Nodes** | `oc:impartsKnowledge` | Epistemic + operational knowledge (8-15 per skill) |
 | **State Transitions** | `oc:requiresState`, `oc:yieldsState`, `oc:handlesFailure` | Preconditions, outcomes, error handling |
 | **Execution Payload** | `oc:hasPayload` | Optional code to execute |
 | **Provenance** | `oc:generatedBy` | Attestation (which LLM compiled it) (optional) |
@@ -30,7 +30,6 @@ Every skill is compiled with:
 | Element | Property | Description |
 |----------|-----------|-------------|
 | **Reference Files** | `oc:hasReferenceFile` | Supporting docs with `purpose` (api-reference, examples, guide, domain-specific, other) |
-| **Executable Scripts** | `oc:hasExecutableScript` | Scripts with `executor`, `executionIntent`, `requirements` |
 | **Workflows** | `oc:hasWorkflow` | Multi-step processes with `hasStep` dependencies |
 | **Examples** | `oc:hasExample` | Input/output pairs for pattern matching |
 
@@ -38,11 +37,11 @@ Every skill is compiled with:
 
 ## Knowledge nodes
 
-The heart of knowledge extraction. Each skill contains 8-12 **Knowledge Nodes** — structured epistemic rules.
+The heart of knowledge extraction. Each skill contains 8-15 **Knowledge Nodes** — structured epistemic rules and operational instructions.
 
-### The 10 Epistemic Dimensions
+### Epistemic Nodes
 
-OntoCore organizes knowledge into **10 dimensions** with **26 node types**:
+OntoCore organizes knowledge into **10 dimensions** with **26 epistemic node types**:
 
 #### Dimension 1: NormativeRule
 Rules that define what's correct, incorrect, or constrained.
@@ -132,9 +131,37 @@ Lifecycle hooks.
 
 ---
 
+### Operational Nodes
+
+In addition to epistemic knowledge, OntoCore extracts **operational nodes** — compact, actionable instructions that tell the agent what to *do*. These condense verbose skill documentation into directly executable directives.
+
+| Type | Description | Special Fields | Example |
+|------|-------------|----------------|---------|
+| **Procedure** | Ordered step sequence | `step_order` (integer) | "1. Write failing test → 2. Run → 3. Minimal code → 4. Refactor" |
+| **CodePattern** | Reusable code snippet | `code_language` | `def test_add(): assert add(1,2) == 3` |
+| **OutputFormat** | Expected output template | `template_variables` | "## Summary\n- Finding\n- Recommendation" |
+| **Command** | CLI command with exact syntax | — | `pytest tests/ -v --tb=short` |
+| **Prerequisite** | Required precondition | — | "Python 3.10+ must be installed" |
+
+Each skill generates 3-8 operational nodes. The compiler aggressively compacts multi-line instructions into minimal directives — removing filler words, explanations, and motivational text. Only what the agent *needs to do* is preserved.
+
+#### How operational nodes help
+
+| Without operational nodes | With operational nodes |
+|---|---|
+| Agent reads full SKILL.md (5-20KB) | Agent queries specific directives (~200 bytes) |
+| Instructions buried in prose | Numbered procedures, exact commands |
+| Code examples mixed with explanation | Minimal snippets with language context |
+| Output format implicit | Explicit template with variables |
+| Prerequisites scattered | Single prerequisite check list |
+
+---
+
 ### Knowledge node structure
 
 Each Knowledge Node has:
+
+**Epistemic node** (reasoning about the skill):
 
 ```turtle
 oc:kn_a1b2c3d4
@@ -145,12 +172,25 @@ oc:kn_a1b2c3d4
   oc:severityLevel "HIGH" .
 ```
 
+**Operational node** (what to do):
+
+```turtle
+oc:kn_e5f6g7h8
+  a oc:Procedure ;
+  oc:directiveContent "1. Write failing test 2. Run test 3. Write minimal code 4. Refactor" ;
+  oc:stepOrder 1 ;
+  oc:appliesToContext "When implementing new features" .
+```
+
 | Field | Description |
 |-------|-------------|
-| `directiveContent` | The rule or insight |
+| `directiveContent` | The rule, insight, or instruction |
 | `appliesToContext` | When it applies |
-| `hasRationale` | Why this rule exists |
+| `hasRationale` | Why this rule exists (epistemic only) |
 | `severityLevel` | Importance: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
+| `stepOrder` | Step position for Procedure nodes |
+| `codeLanguage` | Programming language for CodePattern nodes |
+| `templateVariables` | Placeholder names for OutputFormat nodes |
 
 ---
 

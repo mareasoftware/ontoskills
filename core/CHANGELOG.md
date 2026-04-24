@@ -45,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Lazy content extraction** — `scan_skill_directory()` no longer calls LLM during Phase 1; structural content extraction is deferred to Phase 2 compilation, reducing scan time from minutes to milliseconds per skill
+- **SHACL validation relaxed** — `oc:hasRationale` and `oc:appliesToContext` on `KnowledgeNode` changed from required (`sh:minCount 1`) to optional warnings (`sh:severity sh:Warning`); `oc:dependsOnSkill` cross-reference validation also relaxed to warning (target skill may not yet be compiled)
+- **Cross-reference URI normalization** — `depends_on`, `extends`, and `contradicts` skill references now resolve to qualified URIs via `skill_id_map`, ensuring consistent cross-package linking
 - **`workflows` field moved** from `CompiledSkill` to `ExtractedSkill` — fixes bug where LLM prompt asked for workflows but tool schema didn't include them
 - **Phase 1 pipeline** now includes structural content extraction via `content_parser.py`
 - **Serialization** supports content blocks with annotation merge-by-index
@@ -56,6 +59,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Cross-reference URIs** — `dependsOnSkill` in TTL now uses qualified skill URIs (e.g., `oc:skill_anthropics_claude_office_skills_xlsx_manipulation`) instead of bare IDs, resolving correctly at MCP runtime
+- **Compilation performance** — 408 skills compile in ~3h instead of never completing (Phase 1 LLM calls eliminated)
+- **Knowledge node SHACL failures** — 82% of skills no longer rejected by validation due to optional `hasRationale`/`appliesToContext` fields
 - **Workflows dropped by Pydantic** — `ExtractedSkill.model_json_schema()` now includes `workflows` field
 - **Self-referencing dependencies** — `depends_on` filtered to exclude the skill's own ID
 - **Compile error collector** — Cleared per invocation to prevent batch contamination across compilations
@@ -103,6 +109,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Workflow dependency warning** — Log warning when step dependency references non-existent step_id
 - **Reference docs handling** — Exclude `reference/**` from Rule B sub-skill processing (treat as assets)
 - **File read error handling** — Wrap `read_text()` errors in `LoaderError` for graceful per-skill failure handling
+
+### Removed
+
+- **`ExecutableScript`** — Unused schema class, ontology class (`oc:ExecutableScript`), and all associated properties (`oc:hasExecutableScript`, `oc:scriptExecutor`, `oc:scriptIntent`, `oc:scriptCommand`, `oc:scriptOutput`, `oc:scriptHasRequirement`) removed. These were never consumed by the MCP runtime; `ExecutionPayload` remains the sole mechanism for executable skills
 
 ### Security
 

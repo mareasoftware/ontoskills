@@ -208,7 +208,7 @@ def test_skill_with_payload_is_executable():
 
 
 def test_knowledge_node_validation_missing_required():
-    """Test that KnowledgeNode without required properties fails SHACL."""
+    """Test that KnowledgeNode without directiveContent fails SHACL."""
     from compiler.validator import validate_skill_graph
     from rdflib import Graph, RDF, Literal, Namespace
     from compiler.config import BASE_URI
@@ -216,17 +216,14 @@ def test_knowledge_node_validation_missing_required():
     g = Graph()
     oc = Namespace(BASE_URI)
 
-    # Create a KnowledgeNode without required properties
+    # Create a KnowledgeNode without directiveContent (the only mandatory field)
     kn_uri = oc["kn_test123"]
     g.add((kn_uri, RDF.type, oc.KnowledgeNode))
 
-    # Should fail validation
+    # Should fail validation (directiveContent is required)
     result = validate_skill_graph(g)
     assert not result.conforms
-    assert "directiveContent" in result.results_text or "appliesToContext" in result.results_text
-
-
-    assert "hasRationale" in result.results_text
+    assert "directiveContent" in result.results_text
 
 
 def test_knowledge_node_validation_with_all_required():

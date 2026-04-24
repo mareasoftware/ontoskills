@@ -14,6 +14,16 @@ from pathlib import Path
 
 import yaml
 
+# When False (default), skip LLM-based content extraction during scanning.
+# Content extraction is deferred to the compilation phase for better performance.
+_lazy_content_extraction = False
+
+
+def enable_eager_content_extraction():
+    """Re-enable content extraction during scanning (for backwards compatibility)."""
+    global _lazy_content_extraction
+    _lazy_content_extraction = True
+
 from compiler.schemas import Frontmatter, FileInfo, DirectoryScan
 from compiler.extractor import resolve_package_id, generate_qualified_skill_id
 from compiler.content_parser import extract_structural_content
@@ -299,8 +309,11 @@ def scan_skill_directory(skill_dir: Path, package_id: str | None = None) -> Dire
                        for f in files]
     file_tree = "\n".join(file_tree_lines)
 
-    # Phase 1: Extract structural content from markdown
-    content_extraction = extract_structural_content(content)
+    # Phase 1: Structural content extraction deferred to compilation phase
+    # (avoids N LLM calls during directory scanning)
+    content_extraction = None
+    if _lazy_content_extraction:
+        content_extraction = extract_structural_content(content)
 
     return DirectoryScan(
         frontmatter=frontmatter,
