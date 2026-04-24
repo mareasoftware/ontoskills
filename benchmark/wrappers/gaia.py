@@ -79,39 +79,48 @@ class GAIAWrapper:
                 f"Invalid split {split!r}. Choose from {self._VALID_SPLITS}"
             )
 
-        ds = load_dataset("gaia-benchmark/GAIA", level, split=split, trust_remote_code=True)  # type: ignore[call-arg]
+        # Use snapshot_download + local load to handle gated datasets.
+        import os
+        from huggingface_hub import snapshot_download
+
+        token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+        data_dir = snapshot_download(
+            repo_id="gaia-benchmark/GAIA",
+            repo_type="dataset",
+            token=token,
+        )
+        ds = load_dataset(data_dir, level, split=split)
 
         tasks: list[dict] = []
         for row in ds:
             task_id = row["task_id"]
-            question = row["question"]
+            # GAIA uses title-case column names
+            question = row.get("Question", row.get("question", ""))
 
-            # Handle file attachment — GAIA stores it as a dataset File object
+            # Handle file attachment.
             file_path: str | None = None
-            raw_file = row.get("file_name") or row.get("file")
+            raw_file = row.get("file_name") or row.get("file_path") or row.get("file")
             if raw_file:
-                # If it is a dict-like with a "path" key (HF datasets file
-                # feature), resolve to a local path.  Otherwise treat it as a
-                # filename string.
                 if isinstance(raw_file, dict) and "path" in raw_file:
                     attachment_dir = self.data_dir / "attachments" / level
                     attachment_dir.mkdir(parents=True, exist_ok=True)
                     dest = attachment_dir / Path(raw_file["path"]).name
                     if not dest.exists():
                         import shutil
-
                         shutil.copy2(raw_file["path"], dest)
                     file_path = str(dest)
                 elif isinstance(raw_file, str) and raw_file.strip():
-                    # It may be a filename or a local path from HF cache.
                     p = Path(raw_file)
                     if p.exists():
                         file_path = str(p)
                     else:
                         file_path = raw_file
 
-            # The gold answer may or may not be present (gated dataset).
-            gold_answer: str | None = row.get("final_answer", None)
+            # Gold answer (title-case "Final answer" in GAIA).
+            gold_answer: str | None = row.get("Final answer") or row.get("final_answer", None)
+            # Some gold answers are "?" (withheld).
+            if gold_answer and gold_answer.strip() in ("?", ""):
+                gold_answer = None
 
             tasks.append({
                 "task_id": str(task_id),
@@ -145,28 +154,171 @@ class GAIAWrapper:
                 "Use the read_file tool to inspect it if needed.]"
             )
 
-        # Inject read_file into the agent's tools for this run.
+        # Patch get_tools to include read_file.
         original_get_tools = agent.get_tools
+        original_run_turn = agent.run_turn
 
         def _patched_get_tools() -> list[dict] | None:
             base_tools = original_get_tools()
             if base_tools is None:
                 return [READ_FILE_TOOL]
-            # Avoid duplicating if already present.
             names = {t["name"] for t in base_tools}
             if "read_file" not in names:
                 return [*base_tools, READ_FILE_TOOL]
             return base_tools
 
+        def _patched_run_turn(messages: list[dict]) -> tuple[dict, dict]:
+            """Execute one turn with read_file handling.
+
+            Routes read_file calls to local file I/O, delegates MCP tool
+            names to the original agent for MCP routing, and handles all
+            other tool calls by recording them.
+            """
+            import time as _time
+
+            start = _time.perf_counter()
+            response = agent._call_api(messages)
+            latency_ms = (_time.perf_counter() - start) * 1000
+
+            content_blocks: list[dict] = []
+            for block in response.content:
+                if block.type == "text":
+                    content_blocks.append({
+                        "type": "text",
+                        "text": block.text,
+                    })
+                elif block.type == "tool_use":
+                    content_blocks.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    })
+
+            assistant_msg: dict = {
+                "role": "assistant",
+                "content": content_blocks,
+            }
+
+            tool_calls = 0
+            tool_result_blocks: list[dict] = []
+            for block in content_blocks:
+                if block.get("type") != "tool_use":
+                    continue
+                tool_calls += 1
+                tool_name = block["name"]
+                tool_input = block.get("input", {})
+
+                if tool_name == "read_file":
+                    file_path = tool_input.get("path", "")
+                    try:
+                        from pathlib import Path as _P
+                        content = _P(file_path).read_text(encoding="utf-8")
+                        result_text = content
+                        is_error = False
+                    except FileNotFoundError:
+                        result_text = f"Error: file not found: {file_path}"
+                        is_error = True
+                    except Exception as exc:
+                        result_text = f"Error reading {file_path}: {exc}"
+                        is_error = True
+                else:
+                    # Delegate to the original run_turn for MCP tools etc.
+                    # This shouldn't happen normally — only read_file is
+                    # injected. Return an error for unknown tools.
+                    result_text = f"Error: unknown tool {tool_name}"
+                    is_error = True
+
+                tool_result_blocks.append({
+                    "type": "tool_result",
+                    "tool_use_id": block["id"],
+                    "content": result_text,
+                    "is_error": is_error,
+                })
+
+            if tool_result_blocks:
+                messages.append(assistant_msg)
+                messages.append({
+                    "role": "user",
+                    "content": tool_result_blocks,
+                })
+
+            metrics: dict = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+                "latency_ms": latency_ms,
+                "tool_calls": tool_calls,
+            }
+            return assistant_msg, metrics
+
         agent.get_tools = _patched_get_tools  # type: ignore[assignment]
+        agent.run_turn = _patched_run_turn  # type: ignore[assignment]
 
         try:
-            result: AgentResult = agent.run(prompt, max_turns=15)
-        except RuntimeError as exc:
-            # TraditionalAgent cannot execute tool calls — if the model
-            # attempts to call read_file this will raise.  Return the
-            # error message as the answer so the benchmark can continue.
-            logger.warning("Agent RuntimeError on task %s: %s", task["task_id"], exc)
+            # If the agent is an OntoSkillsAgent, start MCP lifecycle.
+            _mcp_started = False
+            if hasattr(agent, "_mcp_client"):
+                agent._mcp_client.__enter__()
+                agent._mcp_client.initialize()
+                _mcp_started = True
+
+            # Custom run-loop (same pattern as SWE-bench to avoid
+            # double-appending when run_turn also appends messages).
+            messages: list[dict] = [{"role": "user", "content": prompt}]
+            total_input = 0
+            total_output = 0
+            total_latency_ms = 0.0
+            total_tool_calls = 0
+            turns = 0
+            context_overflow = False
+
+            for _ in range(15):
+                assistant_msg, metrics = agent.run_turn(messages)
+                turns += 1
+                total_input += metrics["input_tokens"]
+                total_output += metrics["output_tokens"]
+                total_latency_ms += metrics["latency_ms"]
+                total_tool_calls += metrics["tool_calls"]
+
+                tool_use_blocks = [
+                    b for b in (assistant_msg.get("content") or [])
+                    if isinstance(b, dict) and b.get("type") == "tool_use"
+                ]
+
+                if tool_use_blocks:
+                    # run_turn already appended assistant_msg + tool_results.
+                    pass
+                else:
+                    messages.append(assistant_msg)
+                    break
+
+            # Extract final text answer.
+            answer = ""
+            for block in reversed(messages):
+                if isinstance(block, dict) and block.get("role") == "assistant":
+                    content = block.get("content", "")
+                    if isinstance(content, str):
+                        answer = content
+                    elif isinstance(content, list):
+                        texts = [
+                            b["text"]
+                            for b in content
+                            if isinstance(b, dict) and b.get("type") == "text"
+                        ]
+                        answer = "\n".join(texts)
+                    break
+
+            result = AgentResult(
+                answer=answer,
+                input_tokens=total_input,
+                output_tokens=total_output,
+                total_latency_ms=total_latency_ms,
+                tool_calls=total_tool_calls,
+                turns=turns,
+                context_overflow=context_overflow,
+            )
+        except Exception as exc:
+            logger.warning("Agent error on task %s: %s", task["task_id"], exc)
             result = AgentResult(
                 answer=f"[Agent error: {exc}]",
                 input_tokens=0,
@@ -177,8 +329,13 @@ class GAIAWrapper:
                 context_overflow=False,
             )
         finally:
-            # Restore original method.
             agent.get_tools = original_get_tools  # type: ignore[assignment]
+            agent.run_turn = original_run_turn  # type: ignore[assignment]
+            if _mcp_started:
+                try:
+                    agent._mcp_client.__exit__(None, None, None)
+                except Exception:
+                    pass
 
         return {
             "task_id": task["task_id"],

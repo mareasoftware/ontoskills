@@ -64,7 +64,7 @@ class Tau2BenchWrapper:
         Directory to cache downloaded tau2-bench data.
     """
 
-    _VALID_DOMAINS = ("mock", "airline", "retail", "telecom", "banking_knowledge")
+    _VALID_DOMAINS = ("mock", "airline", "retail", "telecom")
 
     def __init__(self, data_dir: str = "benchmark/data/tau2bench") -> None:
         self.data_dir = Path(data_dir)
@@ -79,24 +79,30 @@ class Tau2BenchWrapper:
         domain: str = "airline",
         split: str = "test",
     ) -> list[dict]:
-        """Load tau2-bench tasks.
+        """Load tau2-bench tasks from local JSON files.
 
         Each task dict contains:
         ``task_id``, ``instruction``, ``domain``, ``tools`` (list of tool
         schemas), ``expected_outputs`` (list of expected response strings).
-
-        Raises ``ImportError`` if ``tau2_bench`` is not installed.
         """
-        if not _HAS_TAU2:
-            raise ImportError(
-                "tau2_bench is not installed. Install it with: "
-                "pip install tau2-bench"
-            )
-
         if domain not in self._VALID_DOMAINS:
             raise ValueError(
                 f"Invalid domain {domain!r}. "
                 f"Choose from {self._VALID_DOMAINS}"
+            )
+
+        # Try local JSON files first (downloaded via hf download).
+        tasks_file = self.data_dir / "domains" / domain / "tasks.json"
+        if tasks_file.exists():
+            return self._load_from_local_json(domain, tasks_file)
+
+        # Fallback to tau2_bench package if installed.
+        if not _HAS_TAU2:
+            raise ImportError(
+                "tau2_bench is not installed and no local data found at "
+                f"{tasks_file}. Download with: hf download "
+                "HuggingFaceH4/tau2-bench-data --repo-type dataset "
+                "--local-dir benchmark/data/tau2bench"
             )
 
         tasks_raw = get_tasks(domain=domain, split=split)
@@ -131,6 +137,174 @@ class Tau2BenchWrapper:
             split,
         )
         return tasks
+
+    def _load_from_local_json(
+        self, domain: str, tasks_file: Path,
+    ) -> list[dict]:
+        """Load tasks from local JSON files downloaded via hf download."""
+        with open(tasks_file, encoding="utf-8") as f:
+            tasks_raw = json.load(f)
+
+        # Build tool schemas from the domain's db.json API definitions.
+        domain_tools: list[dict] = self._build_domain_tools(tasks_file)
+
+        tasks: list[dict] = []
+        for i, task in enumerate(tasks_raw):
+            task_id = task.get("id", f"{domain}_{i}")
+
+            # Build a string prompt from the user_scenario dict.
+            instruction = self._serialize_instruction(task, domain)
+
+            # Flatten evaluation_criteria into a list of expected strings.
+            expected = self._flatten_expected_outputs(
+                task.get("evaluation_criteria", {})
+            )
+
+            tasks.append({
+                "task_id": str(task_id),
+                "instruction": instruction,
+                "domain": domain,
+                "tools": domain_tools,
+                "expected_outputs": expected,
+                "metadata": {
+                    k: v
+                    for k, v in task.items()
+                    if k not in ("description", "evaluation_criteria", "user_scenario")
+                },
+            })
+
+        logger.info(
+            "Loaded %d tau2-bench tasks from %s (domain=%s)",
+            len(tasks), tasks_file, domain,
+        )
+        return tasks
+
+    @staticmethod
+    def _serialize_instruction(task: dict, domain: str) -> str:
+        """Convert a tau2 task dict into a string prompt for the agent."""
+        scenario = task.get("user_scenario")
+        if not scenario:
+            desc = task.get("description", "")
+            if isinstance(desc, str):
+                return desc
+            return json.dumps(desc, ensure_ascii=False)
+
+        if isinstance(scenario, str):
+            return scenario
+
+        # scenario is a dict with persona + instructions.
+        parts: list[str] = []
+        instr = scenario.get("instructions", {})
+        if isinstance(instr, dict):
+            task_instr = instr.get("task_instructions", "")
+            if task_instr:
+                parts.append(f"Instructions: {task_instr}")
+            reason = instr.get("reason_for_call", "")
+            if reason:
+                parts.append(f"Reason for call: {reason}")
+            known = instr.get("known_info", "")
+            if known:
+                parts.append(f"Known info: {known}")
+            unknown = instr.get("unknown_info", "")
+            if unknown:
+                parts.append(f"Unknown info: {unknown}")
+
+        persona = scenario.get("persona")
+        if persona:
+            parts.append(f"Persona: {json.dumps(persona, ensure_ascii=False)}")
+
+        return "\n\n".join(parts) if parts else json.dumps(scenario, ensure_ascii=False)
+
+    @staticmethod
+    def _flatten_expected_outputs(criteria: Any) -> list[str]:
+        """Flatten evaluation_criteria into a list of expected strings."""
+        if not criteria:
+            return []
+        if isinstance(criteria, str):
+            return [criteria]
+        if isinstance(criteria, list):
+            return [str(e) for e in criteria if e]
+
+        # criteria is a dict with keys like actions, communicate_info, nl_assertions.
+        parts: list[str] = []
+        for key, value in criteria.items():
+            if isinstance(value, str) and value:
+                parts.append(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str) and item:
+                        parts.append(item)
+                    elif isinstance(item, dict):
+                        # Serialize action dicts as compact JSON.
+                        name = item.get("name", "")
+                        if name:
+                            args = item.get("arguments", {})
+                            parts.append(f"{name}({json.dumps(args, ensure_ascii=False)})")
+        return parts
+
+    @staticmethod
+    def _build_domain_tools(tasks_file: Path) -> list[dict]:
+        """Build tool schemas from db.json API definitions."""
+        db_file = tasks_file.parent / "db.json"
+        if not db_file.exists():
+            return []
+
+        with open(db_file, encoding="utf-8") as f:
+            db = json.load(f)
+
+        tools: list[dict] = []
+        if isinstance(db, dict):
+            # db.json may have "functions" or "apis" key.
+            apis = db.get("functions", db.get("apis", {}))
+            if isinstance(apis, dict):
+                for func_name, func_def in apis.items():
+                    props: dict[str, Any] = {}
+                    required: list[str] = []
+                    params = func_def.get("parameters", {})
+                    if isinstance(params, dict):
+                        for pname, pdef in params.items():
+                            props[pname] = {
+                                "type": pdef.get("type", "string"),
+                                "description": pdef.get("description", ""),
+                            }
+                            if pdef.get("required", False):
+                                required.append(pname)
+
+                    tools.append({
+                        "name": func_name,
+                        "description": func_def.get("description", f"Call {func_name}"),
+                        "input_schema": {
+                            "type": "object",
+                            "properties": props,
+                            "required": required,
+                        },
+                    })
+            elif isinstance(apis, list):
+                for api in apis:
+                    name = api.get("name", "")
+                    if name:
+                        tools.append({
+                            "name": name,
+                            "description": api.get("description", f"Call {name}"),
+                            "input_schema": api.get("input_schema", {
+                                "type": "object",
+                                "properties": {},
+                                "required": [],
+                            }),
+                        })
+        elif isinstance(db, list):
+            for entity_type in db:
+                tools.append({
+                    "name": f"lookup_{entity_type}",
+                    "description": f"Look up {entity_type} information",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {"query": {"type": "string"}},
+                        "required": ["query"],
+                    },
+                })
+
+        return tools
 
     # ------------------------------------------------------------------
     # Fallback dataset loader (for testing without tau2_bench)

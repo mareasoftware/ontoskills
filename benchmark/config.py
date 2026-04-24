@@ -96,7 +96,7 @@ BENCHMARK_CONFIG = {
         "dataset": "princeton-nlp/SWE-bench_Verified",
     },
     "tau2bench": {
-        "environments": ["airline", "retail", "banking"],
+        "environments": ["airline", "retail", "telecom"],
     },
 }
 
