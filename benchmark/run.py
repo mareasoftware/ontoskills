@@ -226,6 +226,50 @@ def _run_tau2bench(
     return all_results, accuracy
 
 
+def _run_perpackage(
+    agent,
+    mode: str,
+    max_tasks: int | None,
+    output_dir: Path,
+    *,
+    package: str = "superpowers",
+    skills_dir: str | None = None,
+) -> tuple[list[dict], float | None]:
+    """Run the per-package benchmark for one agent.
+
+    Returns (results_list, keyword_coverage_or_None).
+    """
+    from benchmark.wrappers.perpackage import PerPackageWrapper
+
+    wrapper = PerPackageWrapper(
+        skills_dir=skills_dir or str(BENCHMARK_DIR / "skills"),
+    )
+    tasks = wrapper.load_tasks(package=package)
+    results = wrapper.run_benchmark(agent, package=package, max_tasks=max_tasks)
+
+    # Score.
+    score = PerPackageWrapper.score(results, tasks)
+    logger.info(
+        "Per-package %s (%s): %.1f%% pass rate, %.1f%% keyword coverage (%d/%d)",
+        package, mode, score["pass_rate"] * 100, score["keyword_coverage"] * 100,
+        score["tasks_passed"], score["total_tasks"],
+    )
+
+    # Save results.
+    raw_path = output_dir / "perpackage" / package / mode / "results.json"
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    _save_json(results, raw_path)
+
+    # Save score.
+    score_path = output_dir / "perpackage" / package / mode / "score.json"
+    score_path.write_text(
+        json.dumps(score, indent=2, default=str, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    return results, score["keyword_coverage"]
+
+
 # Map benchmark names to runner functions.
 _BENCHMARK_RUNNERS = {
     "gaia": _run_gaia,
@@ -294,9 +338,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--benchmark",
-        choices=["gaia", "swebench", "tau2bench", "all"],
+        choices=["gaia", "swebench", "tau2bench", "perpackage", "all"],
         default="all",
         help="Which benchmark to run (default: all)",
+    )
+    parser.add_argument(
+        "--package",
+        default="superpowers",
+        help="Skill package for per-package benchmark (default: superpowers)",
     )
     parser.add_argument(
         "--mode",
@@ -390,37 +439,80 @@ def main() -> None:
     ontoskills_accuracies: dict[str, float | None] = {}
 
     for bench_name in benchmarks:
-        runner = _BENCHMARK_RUNNERS[bench_name]
         logger.info("=" * 60)
         logger.info("Benchmark: %s", bench_name)
         logger.info("=" * 60)
 
-        if args.mode in ("traditional", "both"):
-            logger.info("Creating traditional agent (model=%s)...", args.model)
-            trad_agent = _make_traditional_agent(
-                model=args.model,
-                skills_dir=args.skills_dir,
-            )
-            t0 = time.perf_counter()
-            results, accuracy = runner(trad_agent, "traditional", args.max_tasks, output_dir)
-            elapsed = time.perf_counter() - t0
-            logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
-            traditional_results[bench_name] = results
-            traditional_accuracies[bench_name] = accuracy
+        if bench_name == "perpackage":
+            # Per-package benchmark: wrapper handles skill scoping per task.
+            package = args.package
 
-        if args.mode in ("ontoskills", "both"):
-            logger.info("Creating OntoSkills agent (model=%s)...", args.model)
-            os_agent = _make_ontoskills_agent(
-                model=args.model,
-                ttl_dir=args.ttl_dir,
-                ontomcp_bin=args.ontomcp_bin,
-            )
-            t0 = time.perf_counter()
-            results, accuracy = runner(os_agent, "ontoskills", args.max_tasks, output_dir)
-            elapsed = time.perf_counter() - t0
-            logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)
-            ontoskills_results[bench_name] = results
-            ontoskills_accuracies[bench_name] = accuracy
+            if args.mode in ("traditional", "both"):
+                logger.info(
+                    "Creating traditional agent (model=%s, per-task skill scoping)...",
+                    args.model,
+                )
+                # Pass skills_dir so the wrapper can find SKILL.md files.
+                trad_agent = _make_traditional_agent(
+                    model=args.model,
+                    skills_dir=args.skills_dir,
+                )
+                t0 = time.perf_counter()
+                results, accuracy = _run_perpackage(
+                    trad_agent, "traditional", args.max_tasks, output_dir,
+                    package=package, skills_dir=args.skills_dir,
+                )
+                elapsed = time.perf_counter() - t0
+                logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
+                traditional_results[bench_name] = results
+                traditional_accuracies[bench_name] = accuracy
+
+            if args.mode in ("ontoskills", "both"):
+                logger.info("Creating OntoSkills agent (model=%s)...", args.model)
+                os_agent = _make_ontoskills_agent(
+                    model=args.model,
+                    ttl_dir=args.ttl_dir,
+                    ontomcp_bin=args.ontomcp_bin,
+                )
+                t0 = time.perf_counter()
+                results, accuracy = _run_perpackage(
+                    os_agent, "ontoskills", args.max_tasks, output_dir,
+                    package=package,
+                )
+                elapsed = time.perf_counter() - t0
+                logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)
+                ontoskills_results[bench_name] = results
+                ontoskills_accuracies[bench_name] = accuracy
+
+        else:
+            runner = _BENCHMARK_RUNNERS[bench_name]
+
+            if args.mode in ("traditional", "both"):
+                logger.info("Creating traditional agent (model=%s)...", args.model)
+                trad_agent = _make_traditional_agent(
+                    model=args.model,
+                    skills_dir=args.skills_dir,
+                )
+                t0 = time.perf_counter()
+                results, accuracy = runner(trad_agent, "traditional", args.max_tasks, output_dir)
+                elapsed = time.perf_counter() - t0
+                logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
+                traditional_results[bench_name] = results
+                traditional_accuracies[bench_name] = accuracy
+
+            if args.mode in ("ontoskills", "both"):
+                logger.info("Creating OntoSkills agent (model=%s)...", args.model)
+                os_agent = _make_ontoskills_agent(
+                    model=args.model,
+                    ttl_dir=args.ttl_dir,
+                    ontomcp_bin=args.ontomcp_bin,
+                )
+                t0 = time.perf_counter()
+                results, accuracy = runner(os_agent, "ontoskills", args.max_tasks, output_dir)
+                elapsed = time.perf_counter() - t0
+                logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)
+                ontoskills_results[bench_name] = results
+                ontoskills_accuracies[bench_name] = accuracy
 
     # Generate comparison report if both modes ran.
     if args.mode == "both" and traditional_results and ontoskills_results:
