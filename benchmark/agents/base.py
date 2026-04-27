@@ -6,12 +6,15 @@ Subclasses implement ``get_system_prompt``, ``get_tools``, and ``run_turn``.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import anthropic
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -113,24 +116,24 @@ class BaseAgent(ABC):
             try:
                 response = self.client.messages.create(**kwargs)
                 if getattr(response, "stop_reason", None) == "max_tokens":
-                    print(
-                        "  WARNING: API response truncated (stop_reason='max_tokens'). "
+                    logger.warning(
+                        "API response truncated (stop_reason='max_tokens'). "
                         "Consider increasing _RESERVED_OUTPUT_TOKENS."
                     )
                 return response
             except anthropic.RateLimitError:
                 wait = 2**attempt
-                print(
-                    f"  Rate limited (attempt {attempt + 1}/{max_retries}), "
-                    f"waiting {wait}s..."
+                logger.warning(
+                    "Rate limited (attempt %d/%d), waiting %ds...",
+                    attempt + 1, max_retries, wait,
                 )
                 time.sleep(wait)
             except anthropic.APIStatusError as exc:
                 if exc.status_code >= 500 and attempt < max_retries - 1:
                     wait = 2**attempt
-                    print(
-                        f"  Server error {exc.status_code} (attempt {attempt + 1}/{max_retries}), "
-                        f"retrying in {wait}s..."
+                    logger.warning(
+                        "Server error %d (attempt %d/%d), retrying in %ds...",
+                        exc.status_code, attempt + 1, max_retries, wait,
                     )
                     time.sleep(wait)
                 else:
@@ -138,9 +141,9 @@ class BaseAgent(ABC):
             except anthropic.APIConnectionError:
                 if attempt < max_retries - 1:
                     wait = 2**attempt
-                    print(
-                        f"  Connection error (attempt {attempt + 1}/{max_retries}), "
-                        f"retrying in {wait}s..."
+                    logger.warning(
+                        "Connection error (attempt %d/%d), retrying in %ds...",
+                        attempt + 1, max_retries, wait,
                     )
                     time.sleep(wait)
                 else:
