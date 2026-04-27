@@ -88,15 +88,23 @@ pub struct SkillSummary {
     pub qualified_id: String,
     pub package_id: String,
     pub trust_tier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     pub skill_type: SkillType,
     pub nature: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub intents: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requires_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub yields_state: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_user_invocable: Option<bool>,
 }
 
@@ -106,15 +114,23 @@ pub struct SkillSearchResult {
     pub qualified_id: String,
     pub package_id: String,
     pub trust_tier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     pub skill_type: SkillType,
     pub nature: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub intents: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requires_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub yields_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub matched_by: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_user_invocable: Option<bool>,
 }
 
@@ -131,22 +147,37 @@ pub struct SkillDetails {
     pub qualified_id: String,
     pub package_id: String,
     pub trust_tier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<String>,
+    #[serde(skip)]
     pub uri: String,
     pub skill_type: SkillType,
     pub nature: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub genus: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub differentia: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub intents: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requirements: Vec<RequirementInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub depends_on: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub extends: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub contradicts: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requires_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub yields_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub handles_failure: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub generated_by: Option<String>,
 }
 
@@ -154,26 +185,42 @@ pub struct SkillDetails {
 pub struct PayloadInfo {
     pub skill_id: String,
     pub available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub executor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<i64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub safety_notes: Vec<String>,
+}
+
+impl PayloadInfo {
+    pub fn is_unavailable(&self) -> bool {
+        !self.available
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KnowledgeNodeInfo {
+    #[serde(skip)]
     pub uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dimension: Option<String>,
     pub directive_content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rationale: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub applies_to_context: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub severity_level: Option<String>,
     pub source_skill_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_qualified_id: Option<String>,
     pub inherited: bool,
-    // Operational fields
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_language: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -185,7 +232,9 @@ pub struct KnowledgeNodeInfo {
 #[derive(Debug, Clone, Serialize)]
 pub struct SkillContextResult {
     pub skill: SkillDetails,
+    #[serde(skip_serializing_if = "PayloadInfo::is_unavailable")]
     pub payload: PayloadInfo,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub knowledge_nodes: Vec<KnowledgeNodeInfo>,
     pub include_inherited_knowledge: bool,
 }
@@ -194,22 +243,34 @@ pub struct SkillContextResult {
 pub struct PlanStep {
     pub skill_id: String,
     pub purpose: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requires_state: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub yields_state: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ExecutionPlanEvaluation {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub intent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requested_skill: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub matching_skills: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recommended_skill: Option<String>,
     pub applicable: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub current_states: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub required_states: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub missing_states: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub dependency_warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub conflict_warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub plan_steps: Vec<PlanStep>,
     pub reasoning_summary: String,
 }
