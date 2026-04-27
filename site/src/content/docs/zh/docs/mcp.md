@@ -55,7 +55,9 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 工具参考
 
-OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
+OntoMCP 暴露 **4 个工具** 用于技能发现、上下文检索和推理。
+
+> **稀疏序列化**：响应中省略空值和空数组。仅包含有实际值的字段。这使响应保持紧凑，避免用空数据填充上下文窗口。
 
 ### `search`
 
@@ -97,6 +99,8 @@ OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
     {
       "id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
       "nature": "创建 PDF 文档的技能",
       "intents": ["create_pdf", "export_pdf"],
       "requires_state": ["oc:ContentReady"],
@@ -108,6 +112,8 @@ OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
 ```
 
 #### 意图搜索
+
+当提供 `query` 参数时，搜索工具使用 **BM25** 作为默认搜索引擎。BM25 是一种内存关键词排序算法，直接在 Catalog 数据上运行 — 始终可用，无需额外依赖。
 
 ```json
 {
@@ -121,37 +127,53 @@ OntoMCP 暴露 **4 个工具** 用于技能发现和推理。
 | `query` | string | **必需。** 自然语言查询 |
 | `top_k` | integer | 返回结果数（默认 5）|
 
-**BM25 是默认搜索引擎**，始终可用。它从 Catalog 数据（意图、别名、描述）在启动时构建内存索引，无需额外文件。
-
-**BM25 响应示例：**
+**BM25 响应示例**（默认模式）：
 
 ```json
 {
-  "mode": "bm25",
   "query": "创建 pdf 文档",
+  "mode": "bm25",
   "results": [
     {
       "skill_id": "pdf",
-      "qualified_id": "marea/office/pdf",
-      "score": 0.87,
-      "matched_by": "keyword",
-      "intents": ["create pdf document", "export to pdf"],
-      "aliases": ["pdf-generator"],
-      "trust_tier": "official"
+      "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
+      "score": 0.92,
+      "matched_by": "intent",
+      "intents": ["create_pdf", "export_pdf"],
+      "aliases": ["pdf"]
     }
   ]
 }
 ```
 
-结果使用**混合评分**（BM25 分数 x 信任层级质量乘数），使高信任技能在原始分数略低的情况下也能排在社区贡献之上。
+**语义回退**（可选，用于大规模技能目录）：
 
-**语义搜索（可选）** — 对于拥有大量技能的场景，关键词匹配可能无法捕获细微的查询意图。OntoMCP 可回退到 ONNX 语义搜索。需使用 `--features embeddings` 编译并提供预计算的嵌入文件：
+语义搜索是大规模技能目录的可选增强功能，仅靠关键词匹配可能无法捕获细微的查询意图。需使用 `--features embeddings` 编译并提供嵌入文件（`ontoskills export-embeddings`）。
 
-```bash
-cargo build --features embeddings
+当 BM25 置信度低于回退阈值（0.4）且嵌入可用时，服务器自动回退到语义搜索：
+
+```json
+{
+  "query": "生成带图表的报告并导出",
+  "mode": "semantic",
+  "results": [
+    {
+      "skill_id": "pdf",
+      "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
+      "score": 0.88,
+      "matched_by": "embedding_similarity",
+      "intents": ["create_pdf", "export_pdf"],
+      "aliases": ["pdf"]
+    }
+  ]
+}
 ```
 
-当 BM25 置信度低于 0.4 且嵌入可用时，自动回退到语义搜索，响应包含 `"mode": "semantic"` 及意图级别的匹配结果。
+语义结果使用**混合评分**（余弦相似度 x 信任层级质量乘数），使高信任技能在原始相似度略低的情况下也能排在社区贡献之上。
 
 #### 别名解析
 
@@ -233,6 +255,8 @@ cargo build --features embeddings
   ]
 }
 ```
+
+> `payload` 部分仅在技能具有可执行负载（`available: true`）时出现。大多数声明式技能完全省略此部分。
 
 ---
 
@@ -370,17 +394,20 @@ search → get_skill_context → evaluate_execution_plan → query_epistemic_rul
 ┌─────────────────────────────────────────────────────────────┐
 │                       OntoMCP                                │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   目录       │  │  嵌入（可选） │  │   SPARQL 引擎       │  │
-│  │   (Rust)    │  │(ONNX/Intents)│  │   (Oxigraph)        │  │
+│  │   目录       │  │  BM25 引擎  │  │   SPARQL 引擎       │  │
+│  │   (Rust)    │  │  (内存)     │  │   (Oxigraph)        │  │
 │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-│         │                │                      │            │
-│  ┌──────┴──────┐         │                      │            │
-│  │  BM25 引擎  │         │                      │            │
-│  │  (内存)     │         │                      │            │
-│  └─────────────┘         │                      │            │
-└─────────┼────────────────┼──────────────────────┼───────────┘
-          │                │                      │
-          ▼                ▼                      ▼
+│         └─────────┐      │                    │             │
+│                   ▼      │                    │             │
+│          ┌─────────────┐ │                    │             │
+│          │   嵌入      │ │                    │             │
+│          │ (ONNX/Intents│ │                   │             │
+│          │  可选，      │ │                    │             │
+│          │ 大规模目录)  │ │                    │             │
+│          └─────────────┘ │                    │             │
+└─────────────────────────┼────────────────────┼─────────────┘
+                          │                    │
+                          ▼                    ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    ontologies/                               │
 │  ├── index.ttl                                              │
@@ -439,24 +466,18 @@ ontoskills compile
 
 ### "Embeddings not available"
 
-BM25 关键词搜索始终可用，无需嵌入文件。语义搜索是可选的，仅用于大规模技能目录。
+搜索始终使用 **BM25**（关键词搜索）。语义搜索是可选的，仅在使用 `--features embeddings` 编译且嵌入文件存在时可用。
 
-如果需要语义搜索功能，安装包含嵌入支持的技能：
-
-```bash
-ontoskills install obra/superpowers/test-driven-development
-```
-
-如果安装后嵌入仍然未找到，重建索引：
-
-```bash
-ontoskills rebuild-index
-```
-
-如果 ONNX Runtime 共享库缺失，设置 `ORT_DYLIB_PATH`（仅语义搜索需要）：
+如果需要语义搜索且 ONNX Runtime 共享库缺失，设置 `ORT_DYLIB_PATH`：
 
 ```bash
 export ORT_DYLIB_PATH=/path/to/libonnxruntime.so
+```
+
+生成嵌入文件：
+
+```bash
+ontoskills export-embeddings
 ```
 
 ### "Server not initialized"

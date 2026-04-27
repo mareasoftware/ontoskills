@@ -57,6 +57,8 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 OntoMCP exposes **4 tools** for skill discovery, context retrieval, and reasoning.
 
+> **Sparse serialization**: null values and empty arrays are omitted from responses. Only fields with actual values are included. This keeps responses compact and avoids cluttering the context window with empty data.
+
 ### `search`
 
 Search skills by semantic query, alias, or structured filters. The tool dispatches based on the parameters provided:
@@ -97,6 +99,8 @@ Search skills by semantic query, alias, or structured filters. The tool dispatch
     {
       "id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
       "nature": "A skill for test-driven development",
       "intents": ["write tests first", "practice TDD"],
       "requires_state": ["oc:CodeReady"],
@@ -133,11 +137,12 @@ When the `query` parameter is provided, the search tool uses **BM25** as the def
     {
       "skill_id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
       "score": 0.92,
       "matched_by": "intent",
       "intents": ["create_pdf", "export_to_pdf"],
-      "aliases": ["pdf"],
-      "trust_tier": "core"
+      "aliases": ["pdf"]
     }
   ]
 }
@@ -157,11 +162,12 @@ When BM25 confidence is below the fallback threshold (0.4) and embeddings are av
     {
       "skill_id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
+      "package_id": "superpowers",
+      "trust_tier": "core",
       "score": 0.88,
       "matched_by": "embedding_similarity",
       "intents": ["create_pdf", "export_to_pdf"],
-      "aliases": ["pdf"],
-      "trust_tier": "core"
+      "aliases": ["pdf"]
     }
   ]
 }
@@ -221,6 +227,8 @@ Fetch the full execution context for a skill, including requirements, transition
 {
   "id": "test-driven-development",
   "qualified_id": "obra/superpowers/test-driven-development",
+  "package_id": "superpowers",
+  "trust_tier": "core",
   "nature": "A skill for test-driven development",
   "genus": "Development",
   "differentia": "writes tests first",
@@ -233,7 +241,8 @@ Fetch the full execution context for a skill, including requirements, transition
   ],
   "depends_on": ["content-processor"],
   "extends": ["document-base"],
-  "execution_payload": {
+  "payload": {
+    "available": true,
     "executor": "shell",
     "code": "wkhtmltopdf $INPUT $OUTPUT.pdf",
     "timeout": 30000
@@ -249,6 +258,8 @@ Fetch the full execution context for a skill, including requirements, transition
   ]
 }
 ```
+
+> The `payload` section is only present when the skill has an executable payload (`available: true`). Most declarative skills omit it entirely.
 
 ---
 
