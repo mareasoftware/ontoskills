@@ -184,33 +184,43 @@ Two modes:
 
 Key files: `benchmark/agents/claudecode.py`, `benchmark/agents/utils.py`
 
-## Current benchmark results (2026-04-28, SkillsBench redesign)
+## Current benchmark results (2026-04-28, SkillsBench 10-task)
 
-### SkillsBench (Claude Code CLI, seed=7, glm-5.1)
+### SkillsBench (Claude Code CLI, seed=7, glm-5.1, 10 tasks)
 
-#### Traditional (skills in .claude/skills/)
+#### Traditional (skills in .claude/skills/) — 4/10 (40%), avg_reward=0.40
 | Task | Result |
 |------|--------|
-| reserves-at-risk-calc (financial) | PASS (5/5 tests) |
+| reserves-at-risk-calc (financial) | FAIL (0/5 tests) |
 | offer-letter-generator (docx) | PASS (4/4 tests) |
 | lab-unit-harmonization (healthcare) | FAIL (0/8 tests) |
-| travel-planning | FAIL (0/11 tests) |
-| paper-anonymizer (PDF) | FAIL (no solution) |
+| travel-planning | PASS (11/11 tests) |
+| paper-anonymizer (PDF) | FAIL (0/6 tests) |
+| flood-risk-analysis (data) | FAIL (0/2 tests) |
+| 3d-scan-calc (engineering) | PASS (2/2 tests) |
+| exceltable-in-ppt (Office) | PASS (8/8 tests) |
+| fix-visual-stability (web) | FAIL (0/2 tests) |
+| gh-repo-analytics (devops) | FAIL (0/8 tests) |
 
-**Traditional: 2/5 (40%), avg_reward=0.40**
-
-#### OntoSkills MCP (ontomcp-driver skill + MCP tools)
+#### OntoSkills MCP (ontomcp-driver skill + MCP tools) — 5/10 (50%), avg_reward=0.52
 | Task | Result |
 |------|--------|
-| reserves-at-risk-calc (financial) | PASS (5/5 tests) |
+| reserves-at-risk-calc (financial) | PARTIAL (1/5 tests) |
 | offer-letter-generator (docx) | PASS (4/4 tests) |
-| lab-unit-harmonization (healthcare) | PARTIAL (7/8 tests) |
-| travel-planning | FAIL (0/11 tests) |
+| lab-unit-harmonization (healthcare) | FAIL (0/8 tests) |
+| travel-planning | PASS (11/11 tests) |
 | paper-anonymizer (PDF) | PASS (6/6 tests) |
+| flood-risk-analysis (data) | FAIL (0/2 tests) |
+| 3d-scan-calc (engineering) | PASS (2/2 tests) |
+| exceltable-in-ppt (Office) | PASS (8/8 tests) |
+| fix-visual-stability (web) | FAIL (0/2 tests) |
+| gh-repo-analytics (devops) | FAIL (0/8 tests) |
 
-**OntoSkills MCP: 3/5 (60%), avg_reward=0.775**
+**Delta: +25% pass rate (50% vs 40%), +30% avg reward (0.52 vs 0.40)**
 
-**Delta: +50% pass rate, +93.75% avg reward**
+Key MCP wins: paper-anonymizer 0→6/6, reserves-at-risk-calc 0→1/5.
+Both failed: lab-unit-harmonization (timeout), flood-risk-analysis (HTTP 404),
+fix-visual-stability (timeout), gh-repo-analytics (gh not authenticated).
 
 ### GAIA
 _Results pending — run with Claude Code mode._
