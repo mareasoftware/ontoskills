@@ -1,112 +1,32 @@
 ---
 name: ontomcp-driver
-description: Protocol for interacting with the OntoSkills MCP server to discover, evaluate, and compose skills from the compiled knowledge graph.
+description: Use OntoSkills MCP tools to discover and apply structured skill knowledge.
 ---
 
-## OVERVIEW
+## Tools
 
-The OntoSkills MCP server exposes a knowledge graph of compiled skills. This document teaches you how to use its 4 tools effectively to find, evaluate, and compose skills for any task.
+- **prefetch_knowledge** — One call: search + fetch context + compact. **Use this first.**
+- **search** — Find skills by keyword, alias, or structured filters.
+- **get_skill_context** — Full skill context with knowledge nodes (procedures, constraints, anti-patterns).
+- **evaluate_execution_plan** — Validate a multi-skill plan against state chains.
+- **query_epistemic_rules** — Cross-skill knowledge rules filtered by kind/severity.
 
-## AVAILABLE MCP TOOLS
+Responses are compact by default. Use `format: "raw"` for full JSON.
 
-### 1. search({ query: string }) -> Vec<SkillSearchResult>
+## Workflow
 
-Search across all compiled skills by keyword (BM25), alias, or structured filters. Returns matching skills with relevance indicators.
+1. Call `prefetch_knowledge` with a query describing the task goal.
+2. Read the returned knowledge nodes — they contain procedures, constraints, and anti-patterns.
+3. For multi-skill plans: call `evaluate_execution_plan` to validate state chains.
+4. Write code following the knowledge nodes.
 
-**When to use:** When you need to find skills that address a user's intent or task requirement.
+## Critical rules
 
-**Best practices:**
-- Use natural language queries that describe the GOAL, not the tool name
-- Example: "create a presentation from data" is better than "pptx"
-- If results are sparse, try synonyms or broader terms
-- Call this FIRST before any other MCP tool
+- **Always prefetch first** — don't guess skill names.
+- **CRITICAL/HIGH severity nodes are hard constraints** — never skip them.
+- **Check requiresState** — skills fail without their preconditions.
 
-### 2. get_skill_context({ skill_id: string, include_inherited_knowledge: bool = true }) -> SkillContextResult
+## State semantics
 
-Returns full details for a specific skill: metadata, all operational knowledge (procedures, code patterns, constraints, heuristics, anti-patterns, etc.), state transitions, dependencies, and section titles (table of contents).
-
-**When to use:** After search identified candidate skills, to evaluate fitness and access all the knowledge needed to execute the skill.
-
-**Best practices:**
-- The response includes all operational knowledge nodes — read them carefully before executing
-- Set `include_inherited_knowledge=false` to exclude knowledge from extended skills
-- Always check requiresState before attempting execution
-- Read ALL knowledge nodes with severity CRITICAL or HIGH before proceeding
-
-**Response structure:**
-- `skill`: skill metadata (name, description, category, intents, aliases)
-- `payload`: executor type and code (for executable skills)
-- `knowledge_nodes`: epistemic rules — all operational knowledge including standards, anti-patterns, constraints, heuristics, procedures, code patterns, etc.
-- `sections`: table of contents — list of section titles with levels and hierarchy
-- `include_inherited_knowledge`: whether inherited knowledge from extended skills was included
-
-### 3. evaluate_execution_plan({ plan: ExecutionPlan }) -> ExecutionPlanEvaluation
-
-Validates a proposed execution plan against the skill knowledge graph. Checks state chains, dependencies, and identifies missing prerequisites.
-
-**When to use:** Before executing a multi-skill workflow, to verify the plan is sound.
-
-**Best practices:**
-- Include ALL skills in the plan, even "obvious" ones
-- Check the `applicable` field — if false, review `missing_states` and `warnings`
-- Pay attention to `recommended_skill` — the graph may suggest a better alternative
-- Review `plan_steps` for the correct execution order
-
-**Plan structure:**
-```json
-{
-  "steps": [
-    {"skill_id": "skill-name", "description": "what this step accomplishes"},
-    ...
-  ]
-}
-```
-
-### 4. query_epistemic_rules({ context: string, kind: string = None, severity: string = None }) -> Vec<KnowledgeNodeInfo>
-
-Queries knowledge rules across all skills, optionally filtered by type and severity.
-
-**When to use:** When you need best practices, constraints, or warnings for a specific domain/context.
-
-**Best practices:**
-- Use specific context strings: "when modifying Excel files" is better than "excel"
-- Filter by severity="CRITICAL" first to catch hard constraints
-- Filter by kind to get specific rule types: "AntiPattern", "Constraint", "SecurityImplication"
-- This tool searches ACROSS skills — it finds rules from any skill that matches the context
-
-## WORKFLOW
-
-### Discovery Phase
-1. Call `search` with the user's intent
-2. For each match (up to 5), call `get_skill_context({ skill_id })` to see knowledge nodes and requirements
-3. Evaluate: check intents alignment, requiresState preconditions, category relevance
-4. Select the best 1-3 candidates
-
-### Planning Phase
-5. Build an execution plan with selected skills
-6. Call `evaluate_execution_plan` to validate
-7. If `executable=false`: address missing_states, resolve warnings, re-evaluate
-8. For CRITICAL/HIGH knowledge nodes: internalize the rules before proceeding
-
-### Execution Phase
-9. Follow ordered procedures (stepOrder) if present
-10. Respect all knowledge nodes — especially AntiPatterns and Constraints
-11. After execution, verify yieldsState matches expected outcomes
-
-## COMMON MISTAKES TO AVOID
-
-- **Skipping search:** Don't guess skill names. Always search first.
-- **Ignoring requiresState:** Executing a skill without its preconditions leads to failures.
-- **Overlooking CRITICAL knowledge nodes:** These are hard constraints, not suggestions.
-- **Not validating plans:** Multi-skill workflows can have broken state chains.
-- **Assuming skill availability:** Search results only include compiled and enabled skills.
-
-## STATE TRANSITION SEMANTICS
-
-Skills form a state machine via requiresState/yieldsState:
-- `requiresState`: What MUST be true before execution (preconditions)
-- `yieldsState`: What BECOMES true after successful execution (outcomes)
-- `handlesFailure`: What states indicate execution failure
-
-State chaining: Skill A's yieldsState should match Skill B's requiresState for valid sequencing.
-If evaluate_execution_plan reports `missing_states`, you need to find or ensure skills that yield those states.
+Skills form a state machine: `requiresState` (preconditions) / `yieldsState` (outcomes).
+Skill A's yieldsState must match Skill B's requiresState for valid chaining.
