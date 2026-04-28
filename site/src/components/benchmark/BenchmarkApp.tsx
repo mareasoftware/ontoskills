@@ -89,13 +89,13 @@ const MODELS: Record<string, ModelPrice> = {
   "gpt-5.4-mini":   { label: "GPT-5.4 mini",      input: 0.75, output: 4.50, used: false },
 };
 
-const TOTAL_INPUT = DATA.traditional.total_tasks * DATA.traditional.avg_input_tokens;
+const TOTAL_INPUT_TRAD = DATA.traditional.total_tasks * DATA.traditional.avg_input_tokens;
 const TOTAL_OUTPUT_TRAD = DATA.traditional.total_tasks * DATA.traditional.avg_output_tokens;
-const TOTAL_OUTPUT_ONT0 = DATA.ontoskills.total_tasks * DATA.ontoskills.avg_output_tokens;
 const TOTAL_INPUT_ONT0 = DATA.ontoskills.total_tasks * DATA.ontoskills.avg_input_tokens;
+const TOTAL_OUTPUT_ONT0 = DATA.ontoskills.total_tasks * DATA.ontoskills.avg_output_tokens;
 
 function modelCost(m: ModelPrice, mode: 'traditional' | 'ontoskills'): number {
-  const inp = mode === 'traditional' ? TOTAL_INPUT : TOTAL_INPUT_ONT0;
+  const inp = mode === 'traditional' ? TOTAL_INPUT_TRAD : TOTAL_INPUT_ONT0;
   const out = mode === 'traditional' ? TOTAL_OUTPUT_TRAD : TOTAL_OUTPUT_ONT0;
   return (inp * m.input + out * m.output) / 1_000_000;
 }
@@ -113,7 +113,13 @@ const FAIL = '#6b7280';
 function rewardCell(v: number) {
   if (v >= 1.0) return <span style={{ color: PASS, fontWeight: 700, fontSize: 13 }}>PASS</span>;
   if (v > 0) return <span style={{ color: PARTIAL, fontWeight: 700, fontSize: 13 }}>{(v * 100).toFixed(0)}%</span>;
-  return <span style={{ color: FAIL, fontSize: 13 }}>—</span>;
+  return <span style={{ color: FAIL, fontSize: 13 }}>-</span>;
+}
+
+function fmtTok(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 /* ------------------------------------------------------------------ */
@@ -146,7 +152,7 @@ function Section({ title, children, note }: { title: string; children: React.Rea
 
 function RewardChart() {
   const chartData = DATA.per_task.map(t => ({
-    name: t.task_id.length > 16 ? t.task_id.slice(0, 14) + '…' : t.task_id,
+    name: t.task_id.length > 16 ? t.task_id.slice(0, 14) + '...' : t.task_id,
     Traditional: t.traditional_reward,
     OntoSkills: t.ontoskills_reward,
   }));
@@ -210,18 +216,43 @@ export default function BenchmarkApp() {
   const t = DATA.traditional;
   const o = DATA.ontoskills;
   const deltaReward = o.avg_reward - t.avg_reward;
-  const deltaCost = ((o.total_cost_usd - t.total_cost_usd) / t.total_cost_usd * 100);
+  const deltaTokenPct = (((t.avg_input_tokens + t.avg_output_tokens) - (o.avg_input_tokens + o.avg_output_tokens)) / (t.avg_input_tokens + t.avg_output_tokens) * 100);
+
+  const totalTasks = t.total_tasks;
+  const tradPassed = DATA.per_task.filter(x => x.traditional_passed).length;
+  const ontoPassed = DATA.per_task.filter(x => x.ontoskills_passed).length;
+  const ontoOnly = DATA.per_task.filter(x => x.ontoskills_passed && !x.traditional_passed).length;
 
   return (
     <div style={{ width: '100%', minWidth: 0 }}>
 
-      {/* ── Headline metrics ── */}
+      {/* -- Headline metrics -- */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 28 }}>
         {[
-          { label: 'Pass Rate', trad: `${(t.pass_rate * 100).toFixed(0)}%`, onto: `${(o.pass_rate * 100).toFixed(0)}%` },
-          { label: 'Avg Reward', trad: t.avg_reward.toFixed(2), onto: o.avg_reward.toFixed(2) },
-          { label: 'Tasks Passed', trad: `${t.tasks_passed}/${t.total_tasks}`, onto: `${o.tasks_passed}/${o.total_tasks}` },
-          { label: 'Cost (GLM-5.1)', trad: `$${t.total_cost_usd.toFixed(2)}`, onto: `$${o.total_cost_usd.toFixed(2)}` },
+          {
+            label: 'Avg Score',
+            trad: `${(t.avg_reward * 100).toFixed(0)}%`,
+            onto: `${(o.avg_reward * 100).toFixed(0)}%`,
+            delta: deltaReward > 0 ? `+${(deltaReward * 100).toFixed(0)}pp` : undefined,
+          },
+          {
+            label: 'Pass Rate',
+            trad: `${(t.pass_rate * 100).toFixed(0)}%`,
+            onto: `${(o.pass_rate * 100).toFixed(0)}%`,
+            delta: o.pass_rate > t.pass_rate ? `+${((o.pass_rate - t.pass_rate) * 100).toFixed(0)}pp` : undefined,
+          },
+          {
+            label: 'Tokens / Task',
+            trad: fmtTok(t.avg_input_tokens + t.avg_output_tokens),
+            onto: fmtTok(o.avg_input_tokens + o.avg_output_tokens),
+            delta: deltaTokenPct > 0 ? `-${deltaTokenPct.toFixed(0)}%` : undefined,
+          },
+          {
+            label: `Cost (${DATA.model})`,
+            trad: `$${t.total_cost_usd.toFixed(2)}`,
+            onto: `$${o.total_cost_usd.toFixed(2)}`,
+            delta: t.total_cost_usd > 0 ? `-${((t.total_cost_usd - o.total_cost_usd) / t.total_cost_usd * 100).toFixed(0)}%` : undefined,
+          },
         ].map(m => (
           <div key={m.label} style={{
             padding: '14px 16px', borderRadius: 10,
@@ -234,23 +265,69 @@ export default function BenchmarkApp() {
               <span style={{ fontSize: 20, fontWeight: 700, color: TRAD, fontFamily: "'JetBrains Mono', monospace" }}>{m.trad}</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>vs</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: ONTO, fontFamily: "'JetBrains Mono', monospace" }}>{m.onto}</span>
+              {m.delta && (
+                <span style={{ fontSize: 11, color: PASS, fontWeight: 600, marginLeft: 2 }}>{m.delta}</span>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Per-task chart ── */}
+      {/* -- Insight banner -- */}
+      {ontoOnly > 0 && (
+        <div style={{
+          padding: '12px 20px', borderRadius: 10, marginBottom: 24,
+          background: 'rgba(82,199,232,0.06)',
+          border: '1px solid rgba(82,199,232,0.15)',
+          fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6,
+        }}>
+          OntoSkills solved <strong style={{ color: ONTO }}>{ontoOnly} task{ontoOnly > 1 ? 's' : ''}</strong> that Traditional failed
+          ({DATA.per_task.filter(x => x.ontoskills_passed && !x.traditional_passed).map(x => x.task_id).join(', ')}).
+          {ontoPassed > tradPassed && ` Overall, OntoSkills passed ${ontoPassed}/${totalTasks} vs ${tradPassed}/${totalTasks}.`}
+        </div>
+      )}
+
+      {/* -- Per-task chart -- */}
       <Section title="Per-Task Score" note="Score = tests passed / tests total. Evaluated via Docker + pytest (deterministic).">
         <RewardChart />
       </Section>
 
-      {/* ── Cost comparison table ── */}
+      {/* -- Token usage -- */}
+      <Section title="Token Usage" note={`Per-task averages measured from ${DATA.model} benchmark (${totalTasks} tasks, seed=7). OntoSkills uses MCP tool calls instead of reading full markdown files.`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          {[
+            { label: 'Input Tokens / Task', trad: t.avg_input_tokens, onto: o.avg_input_tokens },
+            { label: 'Output Tokens / Task', trad: t.avg_output_tokens, onto: o.avg_output_tokens },
+            { label: 'Total Tokens / Task', trad: t.avg_input_tokens + t.avg_output_tokens, onto: o.avg_input_tokens + o.avg_output_tokens },
+          ].map(row => {
+            const diff = ((row.trad - row.onto) / row.trad * 100);
+            return (
+              <div key={row.label} style={{
+                padding: '12px 16px', borderRadius: 8,
+                border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)',
+              }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>
+                  {row.label}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 14, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ color: TRAD, fontWeight: 600 }}>{fmtTok(row.trad)}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>vs</span>
+                  <span style={{ color: ONTO, fontWeight: 600 }}>{fmtTok(row.onto)}</span>
+                  {diff > 0 && <span style={{ color: PASS, fontSize: 11, fontWeight: 600 }}>-{diff.toFixed(0)}%</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* -- Cost comparison table -- */}
       <Section
         title="Estimated Cost by Model"
-        note={`Token usage measured from glm-5.1 benchmark (${t.total_tasks} tasks, seed=7). Costs for other models are extrapolated from the same token counts — they did not run the benchmark.`}
+        note={`Token usage measured from ${DATA.model} benchmark (${totalTasks} tasks, seed=7). Costs for other models are extrapolated from the same token counts — they did not run the benchmark. Savings = (Traditional cost - OntoSkills cost) / Traditional cost.`}
       >
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={{ textAlign: 'left', padding: '8px 8px', fontWeight: 600 }}>Model</th>
@@ -302,9 +379,10 @@ export default function BenchmarkApp() {
         </div>
       </Section>
 
-      {/* ── Per-task detail table ── */}
+      {/* -- Per-task detail table -- */}
       <Section title="Task Results">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 420 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={{ textAlign: 'left', padding: '8px 8px', fontWeight: 600 }}>Task</th>
@@ -327,13 +405,14 @@ export default function BenchmarkApp() {
                     color: delta > 0 ? PASS : delta < 0 ? '#f87171' : 'var(--text-muted)',
                     fontWeight: delta !== 0 ? 600 : 400,
                   }}>
-                    {delta > 0 ? '+' : ''}{delta > 0 ? `${(delta * 100).toFixed(0)}%` : delta < 0 ? `${(delta * 100).toFixed(0)}%` : '—'}
+                    {delta > 0 ? '+' : ''}{delta > 0 ? `${(delta * 100).toFixed(0)}%` : delta < 0 ? `${(delta * 100).toFixed(0)}%` : '-'}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       </Section>
     </div>
   );
