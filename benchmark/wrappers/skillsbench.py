@@ -823,6 +823,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         )
 
         results: list[dict] = []
+        incremental_path = os.environ.get("BENCHMARK_INCREMENTAL_PATH")
         try:
             # Phase 1: Generate solutions via Claude Code CLI.
             for i, task in enumerate(tasks, 1):
@@ -834,6 +835,17 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                     cc_agent, task, timeout=timeout, max_budget=max_budget,
                 )
                 results.append(result)
+
+                # Save incrementally after each task so progress isn't lost on crash.
+                if incremental_path:
+                    import json as _json
+                    _path = Path(incremental_path)
+                    _path.parent.mkdir(parents=True, exist_ok=True)
+                    _path.write_text(
+                        _json.dumps(results, indent=2, default=str, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
+                    logger.info("Incremental save: %d results -> %s", len(results), _path)
 
             # Phase 2: Docker verification (deterministic scoring, parallel).
             logger.info("=== Docker verification phase (%d workers) ===", workers)
