@@ -329,6 +329,9 @@ class ClaudeCodeAgent(BaseAgent):
         if not work_dir:
             raise RuntimeError("Call setup_task_env() first")
 
+        test_content = self._test_content
+        self._test_content = ""  # Reset to prevent stale state between tasks.
+
         instruction = task.get("instruction", "")
         skill_ids = task.get("skill_ids", [])
 
@@ -345,10 +348,10 @@ class ClaudeCodeAgent(BaseAgent):
             ) if skill_ids else ""
 
         test_section = ""
-        if self._test_content:
+        if test_content:
             test_section = (
                 "\n\n### Test Specification (your solution must pass these tests):\n"
-                "```python\n" + self._test_content + "\n```\n"
+                "```python\n" + test_content + "\n```\n"
                 "Your solution.py must produce output that passes ALL tests above.\n"
             )
 

@@ -103,7 +103,19 @@ def main() -> int:
                 print(f"  get_skill_context('{skill_id}'): {json.dumps(ctx_result, indent=2)[:500]}")
                 print("  OK: got skill context")
             else:
-                print(f"  SKIP: could not extract skill_id from search results")
+                # Compact responses are text, not JSON — extract skill_id from compact text.
+                text = content[0].get("text", "") if content else ""
+                for line in text.split("\n"):
+                    if line.startswith("- "):
+                        # Compact format: "- skill_id [tier]: ..."
+                        skill_id = line.split("- ")[1].split()[0]
+                        break
+                if skill_id:
+                    ctx_result = client.call_tool("get_skill_context", {"skill_id": skill_id})
+                    print(f"  get_skill_context('{skill_id}') from compact text")
+                    print("  OK: got skill context")
+                else:
+                    print(f"  SKIP: could not extract skill_id from search results")
             print()
 
             # Step 6: Query epistemic rules

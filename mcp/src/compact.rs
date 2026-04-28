@@ -57,18 +57,20 @@ pub fn compact_search(data: &Value) -> String {
         }
     }
 
-    // Structured results
-    if let Some(skills) = data.get("skills").and_then(Value::as_array) {
-        for s in skills.iter().take(5) {
-            let sid = s.get("id").and_then(Value::as_str).unwrap_or("");
-            let nature = s.get("nature").and_then(Value::as_str).unwrap_or("");
-            lines.push(format!("- {} ({})", sid, nature));
+    // Structured results (not for alias/bm25 which use different keys)
+    if mode != "alias" && mode != "bm25" {
+        if let Some(skills) = data.get("skills").and_then(Value::as_array) {
+            for s in skills.iter().take(5) {
+                let sid = s.get("id").and_then(Value::as_str).unwrap_or("");
+                let nature = s.get("nature").and_then(Value::as_str).unwrap_or("");
+                lines.push(format!("- {} ({})", sid, nature));
+            }
         }
     }
 
     // Alias results
-    if let Some(skills) = data.get("skills").and_then(Value::as_array) {
-        if mode == "alias" {
+    if mode == "alias" {
+        if let Some(skills) = data.get("skills").and_then(Value::as_array) {
             for s in skills.iter().take(5) {
                 let sid = s.get("id").or_else(|| s.get("skill_id")).and_then(Value::as_str).unwrap_or("");
                 let tier = s.get("trust_tier").and_then(Value::as_str).unwrap_or("");
@@ -78,7 +80,7 @@ pub fn compact_search(data: &Value) -> String {
     }
 
     if lines.len() <= 1 {
-        return serde_json::to_string(data).unwrap_or_default();
+        return "No results found.".to_string();
     }
 
     lines.join("\n")

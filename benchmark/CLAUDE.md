@@ -39,7 +39,7 @@ benchmark/
 │   ├── base.py             # BaseAgent with Anthropic API, run-loop, retry
 │   ├── claudecode.py       # ClaudeCodeAgent: CLI-based agent (--print --bare mode)
 │   ├── traditional.py      # Skill registry + read_skill tool (like Claude Code)
-│   ├── ontoskills.py       # 4 MCP tools (search, get_skill_context, etc.)
+│   ├── ontoskills.py       # 5 MCP tools (search, get_skill_context, prefetch_knowledge, etc.)
 │   └── utils.py            # Shared utilities (extract_python_code)
 ├── wrappers/
 │   ├── gaia.py             # GAIA: Q&A with file attachments
@@ -54,7 +54,7 @@ benchmark/
 ├── mcp_client/
 │   └── client.py           # JSON-RPC MCP client for ontomcp subprocess
 ├── tests/                  # Unit tests for benchmark framework
-├── data/                   # Downloaded datasets (currently empty)
+├── data/                   # Downloaded datasets
 └── results/                # Benchmark output (JSON + comparison.md)
 ```
 
@@ -153,23 +153,25 @@ Result: OntoSkills at **0.86x tokens** vs Traditional (input is 0.40x), with bet
 
 ## MCP response compaction
 
-All MCP tool responses are compacted in real-time to minimize token usage:
+All MCP tool responses use compact format by default (88% token reduction):
 
 - **search**: 90% reduction — keeps only skill_id, intents, trust_tier
 - **get_skill_context**: 79% reduction — formatted as markdown with knowledge nodes sorted by priority
 - **evaluate_execution_plan**: 96% reduction — plan steps + warnings only
 - **query_epistemic_rules**: 79% reduction — directive content with context and severity
 
-Compaction is applied in `OntoSkillsAgent.run_turn()` via `_compact_tool_result()` which dispatches
-to tool-specific compactors (`_compact_search`, `_compact_epistemic_rules`, `_compact_plan`).
+Compaction happens server-side in the Rust MCP server (`mcp/src/compact.rs`). The `content[0].text`
+field contains compact markdown text. Full JSON is preserved in `structuredContent` (zero knowledge
+loss). Use `format: "raw"` parameter to get verbose JSON instead.
 
-Additionally, the ontomcp server (Rust) strips null fields, empty Vecs, URIs, and unavailable
-payloads from JSON responses via `#[serde(skip_serializing_if)]` annotations in `catalog.rs`.
+The Python agent (`ontoskills.py`) also has compactors as a secondary layer for API-based agents.
+
+Tools accept a `format` parameter: `"compact"` (default) or `"raw"`.
 
 ## Traditional agent design
 
 The TraditionalAgent works like Claude Code:
-- System prompt contains a **skill registry** with all 425 skill names + descriptions (~28K tokens)
+- System prompt contains a **skill registry** with all 425 skill names + descriptions (~27K tokens)
 - Model has a `read_skill` tool to load full SKILL.md content on demand
 - Multi-turn loop: model reads relevant skills then answers
 - Both GAIA and SWE-bench wrappers delegate `read_skill` to `agent._resolve_skill()`
@@ -184,43 +186,22 @@ Two modes:
 
 Key files: `benchmark/agents/claudecode.py`, `benchmark/agents/utils.py`
 
-## Current benchmark results (2026-04-28, SkillsBench 10-task)
+## Current benchmark results (2026-04-28, SkillsBench 25-task)
 
-### SkillsBench (Claude Code CLI, seed=7, glm-5.1, 10 tasks)
+_25-task benchmark in progress with compact MCP + test-first prompting + task.toml timeouts._
 
-#### Traditional (skills in .claude/skills/) — 4/10 (40%), avg_reward=0.40
-| Task | Result |
-|------|--------|
-| reserves-at-risk-calc (financial) | FAIL (0/5 tests) |
-| offer-letter-generator (docx) | PASS (4/4 tests) |
-| lab-unit-harmonization (healthcare) | FAIL (0/8 tests) |
-| travel-planning | PASS (11/11 tests) |
-| paper-anonymizer (PDF) | FAIL (0/6 tests) |
-| flood-risk-analysis (data) | FAIL (0/2 tests) |
-| 3d-scan-calc (engineering) | PASS (2/2 tests) |
-| exceltable-in-ppt (Office) | PASS (8/8 tests) |
-| fix-visual-stability (web) | FAIL (0/2 tests) |
-| gh-repo-analytics (devops) | FAIL (0/8 tests) |
+### SkillsBench (Claude Code CLI, seed=7, glm-5.1, 25 tasks)
 
-#### OntoSkills MCP (ontomcp-driver skill + MCP tools) — 5/10 (50%), avg_reward=0.52
-| Task | Result |
-|------|--------|
-| reserves-at-risk-calc (financial) | PARTIAL (1/5 tests) |
-| offer-letter-generator (docx) | PASS (4/4 tests) |
-| lab-unit-harmonization (healthcare) | FAIL (0/8 tests) |
-| travel-planning | PASS (11/11 tests) |
-| paper-anonymizer (PDF) | PASS (6/6 tests) |
-| flood-risk-analysis (data) | FAIL (0/2 tests) |
-| 3d-scan-calc (engineering) | PASS (2/2 tests) |
-| exceltable-in-ppt (Office) | PASS (8/8 tests) |
-| fix-visual-stability (web) | FAIL (0/2 tests) |
-| gh-repo-analytics (devops) | FAIL (0/8 tests) |
+Previous 10-task results (compact MCP, before test-first prompting):
+- Traditional: 4/10 (40%), avg_reward=0.40
+- OntoSkills MCP: 5/10 (50%), avg_reward=0.52 (+25% pass rate, +30% avg reward)
 
-**Delta: +25% pass rate (50% vs 40%), +30% avg reward (0.52 vs 0.40)**
-
-Key MCP wins: paper-anonymizer 0→6/6, reserves-at-risk-calc 0→1/5.
-Both failed: lab-unit-harmonization (timeout), flood-risk-analysis (HTTP 404),
-fix-visual-stability (timeout), gh-repo-analytics (gh not authenticated).
+Key improvements since 10-task run:
+- Compact responses in Rust MCP server (88% token reduction)
+- `prefetch_knowledge` tool (search + context in one call)
+- Test-first prompting (test spec injected into prompt)
+- task.toml timeouts respected (was hardcoded 900s)
+- Docker image pre-build (Phase 0)
 
 ### GAIA
 _Results pending — run with Claude Code mode._
