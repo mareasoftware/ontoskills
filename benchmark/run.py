@@ -818,11 +818,15 @@ def main() -> None:
                     skills_dir=args.skills_dir,
                 )
                 t0 = time.perf_counter()
-                results, accuracy = runner(
-                    trad_agent, "traditional", args.max_tasks, output_dir,
+                kwargs = dict(
                     skills_dir=args.skills_dir, model=args.model,
                     shuffle=args.shuffle, seed=args.seed,
-                    gaia_level=args.gaia_level,
+                )
+                if bench_name == "gaia":
+                    kwargs["gaia_level"] = args.gaia_level
+                results, accuracy = runner(
+                    trad_agent, "traditional", args.max_tasks, output_dir,
+                    **kwargs,
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
@@ -837,10 +841,14 @@ def main() -> None:
                     ontomcp_bin=args.ontomcp_bin,
                 )
                 t0 = time.perf_counter()
+                kwargs = dict(
+                    shuffle=args.shuffle, seed=args.seed,
+                )
+                if bench_name == "gaia":
+                    kwargs["gaia_level"] = args.gaia_level
                 results, accuracy = runner(
                     os_agent, "ontoskills", args.max_tasks, output_dir,
-                    shuffle=args.shuffle, seed=args.seed,
-                    gaia_level=args.gaia_level,
+                    **kwargs,
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)

@@ -235,8 +235,6 @@ class SkillsBenchWrapper:
             random.Random(seed).shuffle(tasks)
         if skip_first > 0:
             tasks = tasks[skip_first:]
-            if max_tasks is not None:
-                max_tasks = max(0, max_tasks - skip_first)
         if max_tasks is not None:
             tasks = tasks[:max_tasks]
 
@@ -883,6 +881,9 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         # Phase 0: Pre-warm cache and build images before spending agent time.
         self._prepull_base_images()
         tasks = self.prebuild_images(tasks, workers=workers)
+        if not tasks:
+            logger.error("Phase 0: All tasks failed to build. Check podman/docker.")
+            return []
 
         results: list[dict] = []
         incremental_path = os.environ.get("BENCHMARK_INCREMENTAL_PATH")
@@ -1010,6 +1011,13 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
             max_tasks=max_tasks, shuffle=shuffle, seed=seed,
             packages_root=packages_root, skip_first=skip_first,
         )
+
+        # Phase 0: Pre-warm cache and build images before spending agent time.
+        self._prepull_base_images()
+        tasks = self.prebuild_images(tasks, workers=workers)
+        if not tasks:
+            logger.error("Phase 0: All tasks failed to build. Check podman/docker.")
+            return []
 
         from benchmark.agents.traditional import TraditionalAgent
         is_traditional = isinstance(agent, TraditionalAgent)
