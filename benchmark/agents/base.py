@@ -27,7 +27,6 @@ class AgentResult:
     total_latency_ms: float
     tool_calls: int
     turns: int
-    context_overflow: bool
 
 
 class BaseAgent(ABC):
@@ -168,7 +167,6 @@ class BaseAgent(ABC):
         total_output = 0
         total_latency_ms = 0.0
         total_tool_calls = 0
-        context_overflow = False
         turns = 0
 
         for _ in range(max_turns):
@@ -240,5 +238,4 @@ class BaseAgent(ABC):
             total_latency_ms=total_latency_ms,
             tool_calls=total_tool_calls,
             turns=turns,
-            context_overflow=context_overflow,
         )

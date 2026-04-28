@@ -119,7 +119,6 @@ def generate_comparison_report(report: AggregateReport, config: dict | None = No
                         "avg_tool_calls", _float_fmt)
         _add_metric_row(lines, "Avg turns", comp.traditional, comp.ontoskills,
                         "avg_turns", _float_fmt)
-        _add_overflow_row(lines, comp.traditional, comp.ontoskills)
         lines.append("")
 
     # ------------------------------------------------------------------
@@ -237,17 +236,6 @@ def _add_metric_row(
         delta = (os_val - tr_val) / tr_val * 100
         delta_str = f"{delta:+.1f}%"
     lines.append(f"| {label} | {tr_str} | {os_str} | {delta_str} |")
-
-
-def _add_overflow_row(
-    lines: list[str],
-    trad: AgentMetrics | None,
-    os: AgentMetrics | None,
-) -> None:
-    """Append a row for context overflow count."""
-    tr_str = f"{trad.context_overflow_count} ({trad.context_overflow_pct:.0f}%)" if trad else "n/a"
-    os_str = f"{os.context_overflow_count} ({os.context_overflow_pct:.0f}%)" if os else "n/a"
-    lines.append(f"| Context overflows | {tr_str} | {os_str} | |")
 
 
 def _token_fmt(val: float) -> str:

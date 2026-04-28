@@ -644,7 +644,6 @@ class GAIAWrapper:
             total_latency_ms = 0.0
             total_tool_calls = 0
             turns = 0
-            context_overflow = False
 
             for _ in range(25):
                 assistant_msg, metrics = agent.run_turn(messages)
@@ -698,7 +697,6 @@ class GAIAWrapper:
                 total_latency_ms=total_latency_ms,
                 tool_calls=total_tool_calls,
                 turns=turns,
-                context_overflow=context_overflow,
             )
         except Exception as exc:
             logger.warning("Agent error on task %s: %s", task["task_id"], exc)
@@ -709,7 +707,6 @@ class GAIAWrapper:
                 total_latency_ms=0.0,
                 tool_calls=0,
                 turns=0,
-                context_overflow=False,
             )
         finally:
             agent.get_tools = original_get_tools  # type: ignore[assignment]

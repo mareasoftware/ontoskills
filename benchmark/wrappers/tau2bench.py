@@ -531,7 +531,6 @@ class Tau2BenchWrapper:
             total_output = 0
             total_latency_ms = 0.0
             total_tool_calls = 0
-            context_overflow = False
             turns = 0
 
             for _ in range(15):
@@ -577,7 +576,6 @@ class Tau2BenchWrapper:
                 total_latency_ms=total_latency_ms,
                 tool_calls=total_tool_calls,
                 turns=turns,
-                context_overflow=context_overflow,
             )
 
         except Exception as exc:
@@ -591,7 +589,6 @@ class Tau2BenchWrapper:
                 total_latency_ms=0.0,
                 tool_calls=0,
                 turns=0,
-                context_overflow=False,
             )
         finally:
             # Restore original methods.

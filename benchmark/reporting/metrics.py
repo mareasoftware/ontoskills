@@ -29,8 +29,6 @@ class AgentMetrics:
     avg_latency_ms: float
     avg_tool_calls: float
     avg_turns: float
-    context_overflow_count: int
-    context_overflow_pct: float
 
 
 @dataclass
@@ -82,7 +80,6 @@ def _extract_metrics(result: dict) -> dict | None:
         "total_latency_ms": _get("total_latency_ms", 0.0),
         "tool_calls": _get("tool_calls"),
         "turns": _get("turns"),
-        "context_overflow": _get("context_overflow", False),
     }
 
 
@@ -132,8 +129,6 @@ def compute_agent_metrics(
             avg_latency_ms=0.0,
             avg_tool_calls=0.0,
             avg_turns=0.0,
-            context_overflow_count=0,
-            context_overflow_pct=0.0,
         )
 
     input_tokens = [e["input_tokens"] for e in valid]
@@ -141,7 +136,6 @@ def compute_agent_metrics(
     latencies = [e["total_latency_ms"] for e in valid]
     tool_calls_list = [e["tool_calls"] for e in valid]
     turns_list = [e["turns"] for e in valid]
-    overflow_count = sum(1 for e in valid if e["context_overflow"])
 
     total_tokens = [i + o for i, o in zip(input_tokens, output_tokens)]
 
@@ -156,8 +150,6 @@ def compute_agent_metrics(
         avg_latency_ms=statistics.mean(latencies),
         avg_tool_calls=statistics.mean(tool_calls_list),
         avg_turns=statistics.mean(turns_list),
-        context_overflow_count=overflow_count,
-        context_overflow_pct=(overflow_count / num_tasks * 100) if num_tasks > 0 else 0.0,
     )
 
 
