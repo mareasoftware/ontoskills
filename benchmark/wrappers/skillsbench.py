@@ -589,8 +589,8 @@ class SkillsBenchWrapper:
 
         # Inject test specification for test-first prompting.
         test_content = task.get("test_content", "")
-        if len(test_content) > 3000:
-            test_content = test_content[:3000] + "\n# ... (truncated)"
+        if len(test_content) > 10000:
+            test_content = test_content[:10000] + "\n# ... (truncated)"
         test_section = ""
         if test_content:
             test_section = f"""
@@ -654,15 +654,18 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
         # OntoSkills: prefetch skill knowledge via MCP, inject into system prompt.
         # The model gets structured TTL knowledge and generates code in one turn.
+        prefetch_latency_ms = 0.0
         if is_ontoskills and skill_ids and mcp_client._proc is not None:
             try:
-                prefetched = agent.prefetch_skills_by_ids(skill_ids)
+                t_pre_start = time.perf_counter()
+                prefetched = agent.prefetch_skills_by_ids(skill_ids, query=task["instruction"])
+                prefetch_latency_ms = (time.perf_counter() - t_pre_start) * 1000
                 if prefetched and hasattr(agent, "_prefetched_knowledge"):
                     agent._prefetched_knowledge = prefetched
                     logger.info(
-                        "MCP prefetch: %d chars for %s (%s)",
+                        "MCP prefetch: %d chars for %s (%s) in %.2fms",
                         len(prefetched), task["task_id"],
-                        ", ".join(skill_ids),
+                        ", ".join(skill_ids), prefetch_latency_ms
                     )
             except Exception as exc:
                 logger.warning("MCP prefetch failed for %s: %s", task["task_id"], exc)
@@ -697,6 +700,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
             tool_calls = 0
             tool_result_blocks: list[dict] = []
+            t_tool_start = time.perf_counter()
             for block in content_blocks:
                 if block.get("type") != "tool_use":
                     continue
@@ -736,6 +740,11 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                 })
 
             if tool_result_blocks:
+                # Measure time for tool execution and add it to turn latency.
+                t_tool_end = time.perf_counter()
+                tool_latency_ms = (t_tool_end - t_tool_start) * 1000
+                latency_ms += tool_latency_ms
+
                 messages.append(assistant_msg)
                 messages.append({
                     "role": "user",
@@ -762,6 +771,11 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
             for _ in range(6):
                 assistant_msg, metrics = agent.run_turn(messages)
+                
+                # Add pre-fetch latency to the first turn if applicable.
+                if turns == 0 and is_ontoskills:
+                    metrics["latency_ms"] += prefetch_latency_ms
+
                 turns += 1
                 total_input += metrics["input_tokens"]
                 total_output += metrics["output_tokens"]
@@ -956,6 +970,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
             if reward >= 1.0:
                 logger.info("Task %s: PASSED on attempt %d", task_id, attempt + 1)
+                best_result["metrics"] = result.get("metrics", {})
                 return best_result
 
             if attempt < max_attempts - 1:
@@ -1024,7 +1039,10 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                 }
 
         logger.info("Task %s: best reward=%.3f after %d attempts", task_id, best_reward, max_attempts)
-        return best_result or result
+        if best_result:
+            best_result["metrics"] = result.get("metrics", {})
+            return best_result
+        return result
 
     def run_benchmark_claudecode(
         self,
