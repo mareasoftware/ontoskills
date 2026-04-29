@@ -183,7 +183,9 @@ pub fn compact_context_with_query(
         }
     }
 
-    // Section tree content: code examples, tables, paragraphs, bullet lists.
+    // Section tree content: code examples + reference tables only.
+    // Paragraphs and bullet lists are NOT included here because their
+    // content is already captured by knowledge nodes' directive_content.
     let sections = &ctx.sections;
     if !sections.is_empty() {
         let budget = crate::bm25_engine::SECTION_BUDGET_CHARS;
@@ -192,7 +194,6 @@ pub fn compact_context_with_query(
                 engine.rank_within_budget(q, sections, budget)
             }
             _ => {
-                // No query/engine: take sections in order until budget exhausted.
                 let mut indices = Vec::new();
                 let mut used = 0;
                 for (i, s) in sections.iter().enumerate() {
@@ -211,7 +212,7 @@ pub fn compact_context_with_query(
 
         if !selected_indices.is_empty() {
             lines.push(String::new());
-            lines.push("Code & Data:".to_string());
+            lines.push("Examples & Reference Tables:".to_string());
 
             for idx in &selected_indices {
                 let section = &sections[*idx];
@@ -228,7 +229,8 @@ pub fn compact_context_with_query(
                         lines.push(line.to_string());
                     }
                     lines.push("```".to_string());
-                } else {
+                } else if section.content_type == "table" {
+                    // Table markdown is already formatted, render as-is.
                     for line in section.content.lines() {
                         lines.push(line.to_string());
                     }

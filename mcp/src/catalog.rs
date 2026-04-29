@@ -1138,11 +1138,11 @@ impl Catalog {
         Ok(nodes)
     }
 
-    /// Retrieve all content blocks from the skill's section tree.
+    /// Retrieve CodeExample and Table content from the skill's section tree.
     ///
-    /// Traverses `oc:hasSection` / `oc:hasSubsection` to find CodeExample,
-    /// Table, Paragraph, and BulletList blocks. BulletList items are
-    /// aggregated into a single text block.
+    /// Only retrieves CodeExample (code blocks) and Table (reference tables).
+    /// Paragraphs and BulletLists are NOT retrieved because their content is
+    /// already captured by knowledge nodes' `directive_content`.
     fn get_section_content(
         &self,
         skill_id: &str,
@@ -1154,18 +1154,20 @@ impl Catalog {
         let query = format!(
             r#"
             PREFIX oc: <https://ontoskills.sh/ontology#>
-            SELECT DISTINCT ?blockType ?codeContent ?textContent ?language ?sectionTitle ?sectionOrder
+            SELECT DISTINCT ?blockType ?codeContent ?tableMarkdown ?textContent ?language ?tableCaption ?sectionTitle ?sectionOrder
             WHERE {{
                 <{skill_uri}> oc:hasSection ?s1 .
                 ?s1 (oc:hasSubsection)* ?section .
                 ?section oc:hasContent ?block .
                 ?block a ?blockType .
                 OPTIONAL {{ ?block oc:codeContent ?codeContent }}
+                OPTIONAL {{ ?block oc:tableMarkdown ?tableMarkdown }}
+                OPTIONAL {{ ?block oc:tableCaption ?tableCaption }}
                 OPTIONAL {{ ?block oc:textContent ?textContent }}
                 OPTIONAL {{ ?block oc:codeLanguage ?language }}
                 OPTIONAL {{ ?section oc:sectionTitle ?sectionTitle }}
                 OPTIONAL {{ ?section oc:sectionOrder ?sectionOrder }}
-                FILTER (?blockType IN (oc:CodeExample, oc:Table, oc:Paragraph))
+                FILTER (?blockType IN (oc:CodeExample, oc:Table))
             }}
             ORDER BY ?sectionOrder ?blockType
             "#
@@ -1178,10 +1180,12 @@ impl Catalog {
                 .map(|v| compact_fragment(&v))
                 .unwrap_or_default();
 
+            // CodeExample: use codeContent. Table: use tableMarkdown, fallback textContent.
             let content = if block_type == "code_example" {
                 row.optional_literal("codeContent")
             } else {
-                row.optional_literal("textContent")
+                row.optional_literal("tableMarkdown")
+                    .or_else(|| row.optional_literal("textContent"))
             };
 
             let Some(content) = content else { continue };
@@ -1189,60 +1193,30 @@ impl Catalog {
                 continue;
             }
 
+            // For tables, prepend caption if available.
+            let final_content = if block_type == "table" {
+                if let Some(caption) = row.optional_literal("tableCaption") {
+                    if !caption.is_empty() {
+                        format!("{}\n{}", caption, content)
+                    } else {
+                        content
+                    }
+                } else {
+                    content
+                }
+            } else {
+                content
+            };
+
             results.push(SectionContent {
                 content_type: block_type,
                 section_title: row.optional_literal("sectionTitle"),
-                content,
+                content: final_content,
                 language: row.optional_literal("language"),
                 section_order: row.optional_i64("sectionOrder"),
             });
         }
 
-        // Second pass: aggregate BulletList items.
-        let bullet_query = format!(
-            r#"
-            PREFIX oc: <https://ontoskills.sh/ontology#>
-            SELECT DISTINCT ?sectionTitle ?sectionOrder ?itemText
-            WHERE {{
-                <{skill_uri}> oc:hasSection ?s1 .
-                ?s1 (oc:hasSubsection)* ?section .
-                ?section oc:hasContent ?block .
-                ?block a oc:BulletList .
-                ?block oc:hasItem ?item .
-                ?item oc:itemText ?itemText .
-                OPTIONAL {{ ?section oc:sectionTitle ?sectionTitle }}
-                OPTIONAL {{ ?section oc:sectionOrder ?sectionOrder }}
-            }}
-            ORDER BY ?sectionOrder
-            "#
-        );
-
-        let mut bullet_groups: BTreeMap<(Option<String>, Option<i64>), Vec<String>> = BTreeMap::new();
-        for row in self.select_rows(&bullet_query)? {
-            let title = row.optional_literal("sectionTitle");
-            let order = row.optional_i64("sectionOrder");
-            let text = row.optional_literal("itemText").unwrap_or_default();
-            bullet_groups
-                .entry((title, order))
-                .or_default()
-                .push(text);
-        }
-
-        for ((title, order), items) in bullet_groups {
-            let content = items.join("\n");
-            if content.trim().is_empty() {
-                continue;
-            }
-            results.push(SectionContent {
-                content_type: "bullet_list".to_string(),
-                section_title: title,
-                content,
-                language: None,
-                section_order: order,
-            });
-        }
-
-        // Sort all results by section_order for consistent output.
         results.sort_by_key(|s| s.section_order.unwrap_or(999));
 
         Ok(results)
