@@ -80,6 +80,10 @@ _TOOL_DEFINITIONS: list[dict] = [
                     "type": "boolean",
                     "default": True,
                 },
+                "query": {
+                    "type": "string",
+                    "description": "Optional natural language query to filter knowledge nodes.",
+                },
             },
             "required": ["skill_id"],
         },
@@ -198,95 +202,13 @@ class OntoSkillsAgent(BaseAgent):
         )
 
     def get_tools(self) -> list[dict] | None:
-        if self._prefetched_knowledge:
-            return None  # No tools needed when knowledge is pre-loaded
         return _TOOL_DEFINITIONS
 
     # ------------------------------------------------------------------
     # Pre-fetch helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _compact_context(skill_id: str, mcp_result: dict) -> str:
-        """Extract compact text from verbose MCP get_skill_context result.
 
-        Drops URIs, null fields, repeated source identifiers, and the
-        payload section (when unavailable).  Returns a markdown-like
-        string that should be ≤ raw SKILL.md token count.
-        """
-        # Prefer structuredContent (no double-encoding); fall back to
-        # parsing content[0].text.
-        data = mcp_result.get("structuredContent")
-        if not data:
-            content = mcp_result.get("content", [])
-            if content and isinstance(content, list) and content[0].get("text"):
-                try:
-                    data = json.loads(content[0]["text"])
-                except (json.JSONDecodeError, TypeError):
-                    return ""
-        if not data or not isinstance(data, dict):
-            return ""
-
-        lines: list[str] = []
-        lines.append(f"## {skill_id}")
-
-        # Skill metadata.
-        skill = data.get("skill", {})
-        if skill.get("differentia"):
-            genus = skill.get("genus", "")
-            lines.append(f"{genus} — {skill['differentia']}")
-        if skill.get("intents"):
-            lines.append("Intents: " + "; ".join(skill["intents"]))
-        requirements = skill.get("requirements", [])
-        if requirements:
-            reqs = [r["value"] for r in requirements if r.get("value")]
-            if reqs:
-                lines.append("Requires: " + "; ".join(reqs))
-
-        # Knowledge nodes — the core value.
-        nodes = data.get("knowledge_nodes", [])
-        if nodes:
-            lines.append("")
-            # Sort by step_order if present, then by kind priority.
-            kind_order = {
-                "procedure": 0,
-                "constraint": 1,
-                "design_principle": 2,
-                "heuristic": 3,
-                "anti_pattern": 4,
-                "recovery_tactic": 5,
-                "best_practice": 6,
-                "rule": 7,
-            }
-            def _sort_key(n):
-                return (
-                    n.get("step_order", 999) or 999,
-                    kind_order.get(n.get("kind", ""), 99),
-                )
-            nodes_sorted = sorted(nodes, key=_sort_key)
-
-            for node in nodes_sorted:
-                kind = node.get("kind", "")
-                content_text = node.get("directive_content", "")
-                if not content_text:
-                    continue
-
-                ctx = node.get("applies_to_context", "")
-                severity = node.get("severity_level")
-                rationale = node.get("rationale")
-
-                # Compact header: kind + context + severity.
-                parts = [kind.replace("_", " ").upper()]
-                if ctx:
-                    parts.append(f"({ctx})")
-                if severity and severity in ("CRITICAL", "HIGH"):
-                    parts.append(f"[{severity}]")
-                lines.append("  ".join(parts) + ":")
-                lines.append(f"  {content_text}")
-                if severity in ("CRITICAL", "HIGH") and rationale:
-                    lines.append(f"  Why: {rationale}")
-
-        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # Tool result compaction
@@ -324,9 +246,10 @@ class OntoSkillsAgent(BaseAgent):
         if tool_name == "search":
             return OntoSkillsAgent._compact_search(data)
         if tool_name == "get_skill_context":
-            skill_id = tool_input.get("skill_id", "")
-            compact = OntoSkillsAgent._compact_context(skill_id, raw)
-            return compact if compact else json.dumps(raw, ensure_ascii=False)
+            content = raw.get("content", [])
+            if content and isinstance(content, list) and content[0].get("text"):
+                return content[0]["text"]
+            return json.dumps(raw, ensure_ascii=False)
         if tool_name == "query_epistemic_rules":
             return OntoSkillsAgent._compact_epistemic_rules(data)
         if tool_name == "evaluate_execution_plan":
@@ -442,31 +365,20 @@ class OntoSkillsAgent(BaseAgent):
     def prefetch_skills(self, task_prompt: str) -> str:
         """Pre-fetch relevant skill knowledge via MCP.
 
-        Calls search + get_skill_context and returns compact text
-        suitable for injecting into the system prompt.
+        Calls prefetch_knowledge and returns compact text.
         """
-        search_result = self._mcp_client.call_tool(
-            "search", {"query": task_prompt, "top_k": 3},
-        )
-        skill_ids = self._extract_skill_ids(search_result)
-        if not skill_ids:
-            return ""
+        try:
+            mcp_result = self._mcp_client.call_tool(
+                "prefetch_knowledge", {"query": task_prompt, "max_skills": 3},
+            )
+            content = mcp_result.get("content", [])
+            if content and isinstance(content, list) and content[0].get("text"):
+                return content[0]["text"]
+        except Exception as exc:
+            logger.warning("prefetch_knowledge failed: %s", exc)
+        return ""
 
-        parts: list[str] = []
-        for sid in skill_ids[:2]:
-            try:
-                ctx = self._mcp_client.call_tool(
-                    "get_skill_context", {"skill_id": sid},
-                )
-                compact = self._compact_context(sid, ctx)
-                if compact:
-                    parts.append(compact)
-            except Exception as exc:
-                logger.warning("prefetch get_skill_context(%s) failed: %s", sid, exc)
-
-        return "\n\n".join(parts)
-
-    def prefetch_skills_by_ids(self, skill_ids: list[str]) -> str:
+    def prefetch_skills_by_ids(self, skill_ids: list[str], query: str | None = None) -> str:
         """Pre-fetch skill knowledge by known skill IDs (skip search).
 
         Used when skill_ids are already known (e.g. per-package tasks).
@@ -474,12 +386,12 @@ class OntoSkillsAgent(BaseAgent):
         parts: list[str] = []
         for sid in skill_ids:
             try:
-                ctx = self._mcp_client.call_tool(
-                    "get_skill_context", {"skill_id": sid},
+                mcp_res = self._mcp_client.call_tool(
+                    "get_skill_context", {"skill_id": sid, "query": query},
                 )
-                compact = self._compact_context(sid, ctx)
-                if compact:
-                    parts.append(compact)
+                content = mcp_res.get("content", [])
+                if content and isinstance(content, list) and content[0].get("text"):
+                    parts.append(content[0]["text"])
             except Exception as exc:
                 logger.warning("prefetch get_skill_context(%s) failed: %s", sid, exc)
         return "\n\n".join(parts)
@@ -489,7 +401,8 @@ class OntoSkillsAgent(BaseAgent):
         return (
             "You are an AI agent with expert skill knowledge pre-loaded below.\n"
             "Use this knowledge directly to complete the task.\n"
-            "Follow the skill's procedures, constraints, and best practices.\n"
+            "Follow the skill's procedures, constraints, and best practices strictly.\n"
+            "If you need more details or other skills, use your available tools.\n"
             "\n"
             "--- Pre-loaded Skill Knowledge ---\n"
             f"{self._prefetched_knowledge}\n"
@@ -539,6 +452,7 @@ class OntoSkillsAgent(BaseAgent):
         # the corresponding tool_result blocks.
         tool_calls = 0
         tool_result_blocks: list[dict] = []
+        t_tool_start = time.perf_counter()
         for block in content_blocks:
             if block.get("type") != "tool_use":
                 continue
@@ -569,6 +483,10 @@ class OntoSkillsAgent(BaseAgent):
                 "content": result_text,
                 "is_error": is_error,
             })
+
+        if tool_result_blocks:
+            t_tool_end = time.perf_counter()
+            latency_ms += (t_tool_end - t_tool_start) * 1000
 
         # When there are tool results, append both the assistant message
         # and the tool_result user message so that the conversation is
