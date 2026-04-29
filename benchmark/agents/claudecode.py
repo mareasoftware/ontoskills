@@ -136,8 +136,8 @@ class ClaudeCodeAgent(BaseAgent):
 
         # --- Read test file for prompt injection ---
         self._test_content = task.get("test_content", "")
-        if len(self._test_content) > 3000:
-            self._test_content = self._test_content[:3000] + "\n# ... (truncated)"
+        if len(self._test_content) > 10000:
+            self._test_content = self._test_content[:10000] + "\n# ... (truncated)"
 
         # --- Write instruction ---
         instruction = task.get("instruction", "")
@@ -306,6 +306,8 @@ class ClaudeCodeAgent(BaseAgent):
             "## Output\n"
             "Write a `solution.py` script that produces all required output files.\n"
             "The script will be executed inside a Docker container with `python3 solution.py`.\n"
+            "**COMPLIANCE:** Follow the procedures, constraints, and best practices defined in the skills strictly. "
+            "Your code must pass all tests in `tests/test_outputs.py`.\n"
             "**DO NOT reference any `/tmp/sb_cc_...` paths in your code.** "
             "Use the container paths from TASK_INSTRUCTION.md.\n"
         )
