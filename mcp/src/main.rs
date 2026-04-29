@@ -599,6 +599,9 @@ fn handle_prefetch(
         .unwrap_or(3)
         .min(5);
 
+    // Capture the query string (if any) for node-level BM25 ranking.
+    let query_opt: Option<String> = arguments.get("query").and_then(Value::as_str).map(String::from);
+
     // Determine skill IDs: either explicitly provided or via search.
     let skill_ids: Vec<String> = if let Some(ids) = arguments.get("skill_ids").and_then(Value::as_array) {
         ids.iter()
@@ -606,7 +609,7 @@ fn handle_prefetch(
             .map(String::from)
             .take(max_skills)
             .collect()
-    } else if let Some(query) = arguments.get("query").and_then(Value::as_str) {
+    } else if let Some(query) = &query_opt {
         let results = bm25_engine.search(query, max_skills);
         results.into_iter().map(|r| r.skill_id).collect()
     } else {
@@ -627,7 +630,13 @@ fn handle_prefetch(
         match catalog.get_skill_context(sid, true) {
             Ok(ctx) => {
                 structured_skills.push(json!(ctx));
-                sections.push(compact::compact_context(sid, &ctx));
+                let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
+                sections.push(compact::compact_context_with_query(
+                    sid,
+                    &ctx,
+                    query_opt.as_deref(),
+                    Some(&node_engine),
+                ));
             }
             Err(_) => {
                 sections.push(format!("## {}\nSkill not found.", sid));

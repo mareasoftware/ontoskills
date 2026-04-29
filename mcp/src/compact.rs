@@ -89,10 +89,23 @@ pub fn compact_search(data: &Value) -> String {
 /// Compact a `SkillContextResult` into token-efficient markdown-like text.
 /// This is the most important function — it produces the knowledge the model sees.
 pub fn compact_context(skill_id: &str, ctx: &SkillContextResult) -> String {
+    compact_context_with_query(skill_id, ctx, None, None)
+}
+
+/// Compact a `SkillContextResult` with optional BM25-based node filtering.
+///
+/// When `query` and `node_engine` are provided, only the most relevant knowledge
+/// nodes are included (ranked by BM25). Otherwise, all nodes are shown sorted by
+/// step_order and kind priority (original behaviour).
+pub fn compact_context_with_query(
+    skill_id: &str,
+    ctx: &SkillContextResult,
+    query: Option<&str>,
+    node_engine: Option<&crate::bm25_engine::NodeBm25Engine>,
+) -> String {
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("## {}", skill_id));
 
-    // Skill metadata
     let skill = &ctx.skill;
     if let Some(diff) = &skill.differentia {
         let genus = skill.genus.as_deref().unwrap_or("");
@@ -106,20 +119,38 @@ pub fn compact_context(skill_id: &str, ctx: &SkillContextResult) -> String {
         lines.push(format!("Requires: {}", reqs.join("; ")));
     }
 
-    // Knowledge nodes — the core value
     let nodes = &ctx.knowledge_nodes;
     if !nodes.is_empty() {
         lines.push(String::new());
 
-        // Sort by step_order, then by kind priority
-        let mut sorted: Vec<&KnowledgeNodeInfo> = nodes.iter().collect();
-        sorted.sort_by(|a, b| {
-            let order_a = a.step_order.unwrap_or(999);
-            let order_b = b.step_order.unwrap_or(999);
-            order_a.cmp(&order_b).then_with(|| kind_priority(&a.kind).cmp(&kind_priority(&b.kind)))
-        });
+        let indices: Vec<usize> = match (query, node_engine) {
+            (Some(q), Some(engine)) if !q.is_empty() => {
+                let ranked = engine.rank_nodes(q);
+                if ranked.is_empty() {
+                    let mut indexed: Vec<(usize, i64, u8)> = nodes
+                        .iter()
+                        .enumerate()
+                        .map(|(i, n)| (i, n.step_order.unwrap_or(999), kind_priority(&n.kind)))
+                        .collect();
+                    indexed.sort_by_key(|&(_, order, priority)| (order, priority));
+                    indexed.into_iter().map(|(i, _, _)| i).collect()
+                } else {
+                    ranked.into_iter().map(|(idx, _)| idx).collect()
+                }
+            }
+            _ => {
+                let mut indexed: Vec<(usize, i64, u8)> = nodes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, n)| (i, n.step_order.unwrap_or(999), kind_priority(&n.kind)))
+                    .collect();
+                indexed.sort_by_key(|&(_, order, priority)| (order, priority));
+                indexed.into_iter().map(|(i, _, _)| i).collect()
+            }
+        };
 
-        for node in &sorted {
+        for idx in &indices {
+            let node = &nodes[*idx];
             let content_text = node.directive_content.trim();
             if content_text.is_empty() {
                 continue;
@@ -143,7 +174,6 @@ pub fn compact_context(skill_id: &str, ctx: &SkillContextResult) -> String {
             lines.push(format!("  {}:", parts.join(" ")));
             lines.push(format!("  {}", content_text));
 
-            // Include rationale for CRITICAL/HIGH
             if let Some(sev) = &node.severity_level {
                 if sev == "CRITICAL" || sev == "HIGH" {
                     if let Some(why) = &node.rationale {
@@ -453,5 +483,108 @@ mod tests {
         let nodes = vec![make_node("heuristic", "", None, None, None, None)];
         let result = compact_epistemic_rules(&nodes);
         assert_eq!(result, "No knowledge nodes found.");
+    }
+
+    use crate::bm25_engine::NodeBm25Engine;
+
+    #[test]
+    fn test_compact_context_with_query_filters_nodes() {
+        let nodes = vec![
+            make_node("anti_pattern", "Never trust user-provided file paths", Some("CRITICAL"), Some("Prevents path traversal"), Some("file handling"), None),
+            make_node("best_practice", "Use connection pooling for database", None, None, Some("database"), None),
+            make_node("heuristic", "Check file permissions before writing", Some("HIGH"), None, Some("file handling"), None),
+            make_node("heuristic", "Cache repeated API calls", None, None, Some("network"), None),
+        ];
+
+        let ctx = SkillContextResult {
+            skill: SkillDetails {
+                id: "test".to_string(),
+                qualified_id: "pkg/test".to_string(),
+                package_id: "pkg".to_string(),
+                trust_tier: "official".to_string(),
+                version: None,
+                source: None,
+                aliases: vec![],
+                uri: String::new(),
+                skill_type: SkillType::Executable,
+                nature: "tool".to_string(),
+                genus: Some("handler".to_string()),
+                differentia: Some("processes files".to_string()),
+                intents: vec!["process files".to_string()],
+                requirements: vec![],
+                depends_on: vec![],
+                extends: vec![],
+                contradicts: vec![],
+                requires_state: vec![],
+                yields_state: vec![],
+                handles_failure: vec![],
+                generated_by: None,
+            },
+            payload: PayloadInfo {
+                skill_id: "test".to_string(),
+                available: false,
+                executor: None,
+                code: None,
+                timeout: None,
+                safety_notes: vec![],
+            },
+            knowledge_nodes: nodes.clone(),
+            include_inherited_knowledge: true,
+        };
+
+        let engine = NodeBm25Engine::from_nodes("test", &nodes);
+        let result = compact_context_with_query("test", &ctx, Some("file path validation"), Some(&engine));
+
+        assert!(result.contains("file paths"), "Should contain file path node: {}", result);
+        assert!(!result.contains("connection pooling"), "Should NOT contain database node");
+        assert!(!result.contains("Cache repeated"), "Should NOT contain network node");
+    }
+
+    #[test]
+    fn test_compact_context_without_query_returns_all() {
+        let nodes = vec![
+            make_node("heuristic", "Node A content here", None, None, None, None),
+            make_node("constraint", "Node B content here", None, None, None, None),
+        ];
+
+        let ctx = SkillContextResult {
+            skill: SkillDetails {
+                id: "test".to_string(),
+                qualified_id: "pkg/test".to_string(),
+                package_id: "pkg".to_string(),
+                trust_tier: "official".to_string(),
+                version: None,
+                source: None,
+                aliases: vec![],
+                uri: String::new(),
+                skill_type: SkillType::Executable,
+                nature: "tool".to_string(),
+                genus: None,
+                differentia: None,
+                intents: vec![],
+                requirements: vec![],
+                depends_on: vec![],
+                extends: vec![],
+                contradicts: vec![],
+                requires_state: vec![],
+                yields_state: vec![],
+                handles_failure: vec![],
+                generated_by: None,
+            },
+            payload: PayloadInfo {
+                skill_id: "test".to_string(),
+                available: false,
+                executor: None,
+                code: None,
+                timeout: None,
+                safety_notes: vec![],
+            },
+            knowledge_nodes: nodes,
+            include_inherited_knowledge: true,
+        };
+
+        let result = compact_context_with_query("test", &ctx, None, None);
+        assert!(result.contains("Node A content here"));
+        assert!(result.contains("Node B content here"));
     }
 }
