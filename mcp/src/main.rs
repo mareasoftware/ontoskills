@@ -517,12 +517,21 @@ fn handle_tool_call(
             let skill_id = required_string(&arguments, "skill_id")?;
             let include_inherited_knowledge =
                 optional_bool(&arguments, "include_inherited_knowledge").unwrap_or(true);
+            let query = optional_string(&arguments, "query");
+
             let ctx = catalog
                 .get_skill_context(&skill_id, include_inherited_knowledge)
                 .map_err(public_error)?;
             let structured = json!(ctx);
+
             let text = if use_compact {
-                compact::compact_context(&skill_id, &ctx)
+                match query {
+                    Some(q) if !q.is_empty() => {
+                        let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(&skill_id, &ctx.knowledge_nodes);
+                        compact::compact_context_with_query(&skill_id, &ctx, Some(&q), Some(&node_engine))
+                    }
+                    _ => compact::compact_context(&skill_id, &ctx),
+                }
             } else {
                 serde_json::to_string_pretty(&structured).unwrap_or_default()
             };
@@ -848,12 +857,13 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "get_skill_context",
-            "Fetch the full execution context for a skill, including requirements, transitions, payload, dependencies, and knowledge nodes.",
+            "Fetch the full execution context for a skill, including requirements, transitions, payload, dependencies, and knowledge nodes. Optional 'query' filters knowledge nodes by relevance.",
             json!({
                 "type": "object",
                 "properties": {
                     "skill_id": { "type": "string", "description": "Short id like 'xlsx' or qualified id like 'marea/office/xlsx'." },
                     "include_inherited_knowledge": { "type": "boolean", "default": true },
+                    "query": { "type": "string", "description": "Optional natural language query to filter and rank knowledge nodes by relevance." },
                     "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
                 },
                 "required": ["skill_id"]
