@@ -185,22 +185,31 @@ Two modes:
 
 Key files: `benchmark/agents/claudecode.py`, `benchmark/agents/utils.py`
 
-## Current benchmark results (2026-04-28, SkillsBench 25-task)
+## Current benchmark results (2026-04-29, SkillsBench 25-task v2)
 
-_25-task benchmark in progress with compact MCP + test-first prompting + task.toml timeouts._
+### SkillsBench (Claude Code CLI, seed=7, glm-5.1, 24 tasks, multi-turn)
 
-### SkillsBench (Claude Code CLI, seed=7, glm-5.1, 25 tasks)
+**v2 results (with multi-turn feedback + BM25 node ranking + skill_scripts fix):**
+- Traditional: 12/24 passed (50.0%), avg_reward=0.562
+- OntoSkills MCP: 9/24 passed (37.5%), avg_reward=0.489
+- OntoSkills cost: $10.38 vs Traditional $11.53 (-10%)
+- OntoSkills tokens: 11% fewer input tokens
 
-Previous 10-task results (compact MCP, before test-first prompting):
-- Traditional: 4/10 (40%), avg_reward=0.40
-- OntoSkills MCP: 5/10 (50%), avg_reward=0.52 (+25% pass rate, +30% avg reward)
+**v1→v2 improvement (same seed, same tasks):**
+- Traditional: 10/24 (41.7%) → 12/24 (50.0%), avg_reward 0.482 → 0.562 (+17%)
+- MCP: 6/24 (25.0%) → 9/24 (37.5%), avg_reward 0.359 → 0.489 (+36%)
 
-Key improvements since 10-task run:
-- Compact responses in Rust MCP server (88% token reduction)
-- `prefetch_knowledge` tool (search + context in one call)
-- Test-first prompting (test spec injected into prompt)
-- task.toml timeouts respected (was hardcoded 900s)
-- Docker image pre-build (Phase 0)
+**v2 interventions applied:**
+1. `skill_scripts/` copied into Docker container (fixes ModuleNotFoundError)
+2. BM25 node ranking in compact_context() (top-8 knowledge nodes)
+3. Multi-turn execution feedback (3 attempts per task with Docker test results)
+
+**Infrastructure note:** `flink-query` always fails (Java container, no python3). 1 task excluded.
+
+**Honest assessment:** Traditional leads on pass rate (+12.5pp). MCP leads on token efficiency.
+Multi-turn feedback helped both modes, but benefited MCP more in relative terms.
+The gap narrowed from +16.7pp to +12.5pp. Future improvements: test-first prompting,
+task.toml timeouts, Docker pre-build.
 
 ### GAIA
 _Results pending — run with Claude Code mode._

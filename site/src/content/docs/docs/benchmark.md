@@ -39,8 +39,9 @@ This is not LLM-as-judge. The evaluation is fully deterministic and reproducible
 |-----------|-------|
 | Agent | Claude Code CLI (`--print --bare` mode) |
 | Model | glm-5.1 (via API proxy) |
-| Tasks | 10 (seed=7), from a pool of 70+ eligible tasks |
-| Scoring | Docker + pytest CTRF report |
+| Tasks | 24 (seed=7), from a pool of 70+ eligible tasks |
+| Attempts | 3 per task (multi-turn with Docker execution feedback) |
+| Scoring | Docker + pytest CTRF report, best of 3 attempts |
 
 ### Agent modes
 
@@ -56,42 +57,46 @@ Both modes use the same Claude Code agent, the same model, the same prompts. The
 
 ### Key findings
 
-- **OntoSkills MCP passes more tasks**: 50% vs 40% overall, 83% vs 67% on skill-knowledge tasks (excluding infrastructure failures)
-- **OntoSkills uses fewer tokens**: 15% fewer input tokens, 35% fewer output tokens — structured knowledge is more compact
-- **OntoSkills costs less**: $2.92 vs $3.97 total (-26%) due to lower token usage
-- **Biggest win**: paper-anonymizer (PDF processing) — Traditional failed completely, OntoSkills passed all 6 tests
+- **Traditional leads in pass rate**: 50% (12/24) vs 37.5% (9/24) — raw markdown with multi-turn feedback is highly effective
+- **OntoSkills is more efficient**: 11% fewer input tokens, 7% fewer output tokens — structured knowledge is more compact
+- **OntoSkills costs less**: $10.38 vs $11.53 total (-10%) due to lower token usage
+- **Both benefited from multi-turn**: The 3-attempt feedback loop improved results for both modes (Traditional: 41.7%→50%, MCP: 25%→37.5%)
+
+### Honest analysis
+
+Traditional's higher pass rate comes from the agent having full SKILL.md content available from the start — it can read the entire skill documentation in one shot and cross-reference across files. When multi-turn feedback is added (Docker test results fed back for fix attempts), Traditional agents have enough context to self-correct effectively.
+
+OntoSkills' structured knowledge delivery excels at **token efficiency** — the agent receives prioritized, typed knowledge nodes instead of raw text. However, for this benchmark's code-generation tasks, having complete SKILL.md content proved more useful than having structured but potentially filtered knowledge.
+
+The gap narrowed significantly from the initial run (Traditional +16.7pp advantage → +12.5pp), as OntoSkills benefited more from multi-turn feedback in relative terms (+50% improvement vs +20% for Traditional).
 
 ### Infrastructure failures
 
-4 of 10 tasks failed for **both modes** due to infrastructure issues unrelated to skill quality:
-- `gh-repo-analytics` — GitHub CLI not authenticated inside container
-- `flood-risk-analysis` — external HTTP endpoint returned 404
-- `lab-unit-harmonization` / `fix-visual-stability` — agent timeouts
+1 task failed for **both modes** due to infrastructure issues unrelated to skill quality:
+- `flink-query` — Java/Flink container has no Python interpreter; the benchmark always runs `python3 /tmp/agent_solution.py`
 
-These are excluded from the skill-knowledge comparison above.
+## Why structured knowledge still matters
 
-## Why structured knowledge wins
+While Traditional leads on raw pass rate for code-generation tasks, OntoSkills delivers knowledge more efficiently:
 
-Traditional SKILL.md files mix instructions, examples, caveats, and anti-patterns in unstructured text. The agent must parse everything at once, with no indication of what's critical vs. optional.
+- **Typed nodes with severity ratings** let agents prioritize critical rules
+- **Anti-patterns with rationale** explain *why* to avoid specific approaches
+- **Execution plan evaluation** catches mistakes before coding begins
+- **11% fewer input tokens** translates to significant cost savings at scale
 
-OntoSkills delivers knowledge as **typed nodes with severity ratings**:
-- `CRITICAL` rules are highlighted first
-- Anti-patterns come with explicit `rationale` explaining *why* to avoid them
-- Execution plan evaluation catches common mistakes before coding begins
-- The agent gets a curated, prioritized view rather than a wall of text
-
-This is especially valuable for complex domains like PDF processing (paper-anonymizer) where the difference between correct and incorrect output depends on subtle configuration details.
+The token efficiency advantage grows with larger skill catalogs — when an agent must navigate hundreds of skills rather than a handful, structured delivery via MCP becomes increasingly valuable.
 
 ## Limitations
 
-- **Sample size**: 10 tasks from a pool of 70+. Results should be confirmed with larger runs.
 - **Single model**: All results use glm-5.1 via API proxy. Performance may differ with other models.
-- **Single benchmark**: SkillsBench tests code generation. Other benchmarks (GAIA for Q&A, SWE-bench for repo patching) are planned.
+- **Single benchmark**: SkillsBench tests code generation. Other benchmarks (GAIA for Q&A, SWE-bench for repo patching) would test different capabilities.
 - **Seed-dependent**: Task selection varies by seed. We report seed=7 for reproducibility.
+- **BM25 node filtering**: The MCP agent uses BM25-ranked knowledge nodes, which may filter out important context for some tasks.
 
 ## What's next
 
-- **25-task run** in progress for stronger statistical significance
+- **Improved node filtering** — tuning BM25 parameters to retain more relevant knowledge
+- **Test-first prompting** — injecting test specifications into the prompt for higher first-attempt success
 - **GAIA** evaluation (Q&A with file attachments) — requires HuggingFace authentication
 - **SWE-bench** evaluation (repository patching) — planned with updated models
 
