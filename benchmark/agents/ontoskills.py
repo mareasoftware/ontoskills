@@ -208,12 +208,6 @@ class OntoSkillsAgent(BaseAgent):
     # Pre-fetch helpers
     # ------------------------------------------------------------------
 
-
-
-    # ------------------------------------------------------------------
-    # Tool result compaction
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _parse_mcp_result(raw: dict) -> dict | None:
         """Extract the data payload from a raw MCP response."""

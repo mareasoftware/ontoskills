@@ -44,6 +44,12 @@ _SKIP_TASKS = {
     "suricata-custom-exfil",    # jasonish/suricata:7.0.11
     "fix-erlang-ssh-cve",       # needs Erlang, complex setup
     "organize-messy-files",     # BuildKit heredoc RUN <<'EOF' — Podman doesn't support
+    "fix-visual-stability",     # docker-compose: needs API sidecar container
+    "scheduling-email-assistant",  # docker-compose: multi-container
+    "pedestrian-traffic-counting",  # docker-compose: multi-container
+    "pg-essay-to-audiobook",    # docker-compose: multi-container
+    "react-performance-debugging",  # docker-compose: multi-container
+    "mhc-layer-impl",           # docker-compose: multi-container
 }
 
 # Default path to the local SkillsBench repo clone.
@@ -359,11 +365,29 @@ class SkillsBenchWrapper:
             "tests_ran": False,
         }
 
+        # Collect environment variables from task.toml [solution.env] / [verifier.env].
+        task_metadata = {}
+        toml_path = Path(task_dir) / "task.toml"
+        if toml_path.exists():
+            task_metadata = _parse_toml_simple(toml_path.read_text(encoding="utf-8"))
+        env_flags: list[str] = []
+        for section_key in ("solution.env", "verifier.env"):
+            env_section = task_metadata
+            for part in section_key.split("."):
+                env_section = env_section.get(part, {}) if isinstance(env_section, dict) else {}
+            for key, value in env_section.items():
+                if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+                    env_name = value[2:-1]
+                    env_value = os.environ.get(env_name, "")
+                    if env_value:
+                        env_flags.extend(["--env", f"{key}={env_value}"])
+                    else:
+                        logger.warning("Task %s needs env %s but it's not set", task_id, env_name)
+
         try:
-            # Create container.
-            run_result = self._podman_cmd(
-                "run", "-d", "--name", container_name, image_tag, "sleep", "3600",
-            )
+            # Create container with env vars.
+            run_args = ["run", "-d", "--name", container_name] + env_flags + [image_tag, "sleep", "3600"]
+            run_result = self._podman_cmd(*run_args)
             if run_result.returncode != 0:
                 logger.error("Failed to create container for %s: %s", task_id, run_result.stderr)
                 results["build_ok"] = False
@@ -926,9 +950,14 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         task_dir = Path(task["task_dir"])
         task_id = task["task_id"]
 
+        # Compute effective base timeout from task metadata or default.
+        # Scale this base across attempts (not the raw default).
+        task_base_timeout = task.get("agent_timeout_sec", timeout)
+
         # First attempt — standard run with 60% budget.
         budget_1 = max_budget * weights[0]
-        timeout_1 = int(timeout * weights[0])
+        timeout_1 = int(task_base_timeout * weights[0])
+        task["agent_timeout_sec"] = timeout_1
         result = self.run_task_claudecode(
             cc_agent, task, timeout=timeout_1, max_budget=budget_1,
         )
@@ -938,6 +967,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
             image_tag = self._get_image_tag(task_id)
             if not image_tag:
                 logger.warning("No Docker image for %s, skipping verification", task_id)
+                task["agent_timeout_sec"] = task_base_timeout
                 return result
 
             solution_script = result.get("solution_script", "")
@@ -971,6 +1001,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
             if reward >= 1.0:
                 logger.info("Task %s: PASSED on attempt %d", task_id, attempt + 1)
                 best_result["metrics"] = result.get("metrics", {})
+                task["agent_timeout_sec"] = task_base_timeout
                 return best_result
 
             if attempt < max_attempts - 1:
@@ -1005,7 +1036,8 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                 # Asymmetric budget for subsequent attempts.
                 w = weights[attempt + 1] if attempt + 1 < len(weights) else weights[-1]
                 budget_next = max_budget * w
-                timeout_next = int(timeout * w)
+                timeout_next = int(task_base_timeout * w)
+                task["agent_timeout_sec"] = timeout_next
 
                 cli_result = cc_agent.run_with_feedback(
                     task,
@@ -1039,6 +1071,8 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                 }
 
         logger.info("Task %s: best reward=%.3f after %d attempts", task_id, best_reward, max_attempts)
+        # Restore original timeout so it doesn't leak to the next task.
+        task["agent_timeout_sec"] = task_base_timeout
         if best_result:
             best_result["metrics"] = result.get("metrics", {})
             return best_result

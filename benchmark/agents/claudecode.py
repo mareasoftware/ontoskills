@@ -72,6 +72,7 @@ class ClaudeCodeAgent(BaseAgent):
         self._mcp_config_path: str | None = None
         self._ontology_root: str | None = None
         self._test_content: str = ""
+        self._prefetched_skill_knowledge: str = ""
 
     @staticmethod
     def _find_claude_bin() -> str:
@@ -186,7 +187,7 @@ class ClaudeCodeAgent(BaseAgent):
         work_dir: Path,
         skill_ids: list[str],
     ) -> None:
-        """Create MCP config for ontomcp + copy ontomcp-driver skill."""
+        """Create MCP config for ontomcp + prefetch knowledge into CLAUDE.md."""
         ontology_root = self._ontology_root or self._prepare_ontology_root()
         if not ontology_root:
             logger.warning("OntoSkills: no ontology root available, MCP disabled")
@@ -206,13 +207,10 @@ class ClaudeCodeAgent(BaseAgent):
         config_path.write_text(json.dumps(mcp_config, indent=2), encoding="utf-8")
         self._mcp_config_path = str(config_path)
 
-        # Copy ontomcp-driver skill to teach Claude Code how to use MCP tools.
-        driver_src = Path(__file__).resolve().parent.parent.parent / "site" / "public" / "agent-skills" / "ontomcp-driver" / "SKILL.md"
-        if driver_src.exists():
-            driver_dest = work_dir / ".claude" / "skills" / "ontomcp-driver"
-            driver_dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(driver_src, driver_dest / "SKILL.md")
-            logger.debug("Copied ontomcp-driver skill to %s", driver_dest)
+        # Prefetch skill knowledge via MCP and store for CLAUDE.md injection.
+        self._prefetched_skill_knowledge = self._prefetch_knowledge(
+            ontology_root, skill_ids,
+        )
 
         logger.debug(
             "OntoSkills mode: MCP config at %s (ontology_root=%s)",
@@ -246,6 +244,45 @@ class ClaudeCodeAgent(BaseAgent):
         self._ontology_root = str(dst.parent)
         return self._ontology_root
 
+    def _prefetch_knowledge(
+        self,
+        ontology_root: str,
+        skill_ids: list[str],
+    ) -> str:
+        """Prefetch skill knowledge via MCP subprocess.
+
+        Starts ontomcp, calls get_skill_context for each skill_id,
+        returns compact text for injection into CLAUDE.md.
+        """
+        from benchmark.mcp_client.client import MCPClient
+
+        parts: list[str] = []
+        client = MCPClient(ontomcp_bin=self.ontomcp_bin, ontology_root=ontology_root)
+        try:
+            with client:
+                client.initialize()
+                for sid in skill_ids:
+                    try:
+                        result = client.call_tool(
+                            "get_skill_context",
+                            {"skill_id": sid},
+                        )
+                        content = result.get("content", [])
+                        if content and isinstance(content, list) and content[0].get("text"):
+                            parts.append(content[0]["text"])
+                    except Exception as exc:
+                        logger.warning("Prefetch get_skill_context(%s) failed: %s", sid, exc)
+        except Exception as exc:
+            logger.warning("MCP prefetch failed: %s", exc)
+
+        knowledge = "\n\n".join(parts)
+        if knowledge:
+            logger.info(
+                "Prefetched %d chars of skill knowledge for %s",
+                len(knowledge), ", ".join(skill_ids),
+            )
+        return knowledge
+
     def _write_claude_md(self, work_dir: Path) -> None:
         """Write CLAUDE.md with task-specific instructions."""
         skill_section = ""
@@ -255,10 +292,15 @@ class ClaudeCodeAgent(BaseAgent):
                 "**Read the relevant skills BEFORE writing code.**\n"
             )
         else:
-            skill_section = (
-                "- MCP tools — use `prefetch_knowledge` as your FIRST call to load "
-                "structured skill knowledge in one shot.\n"
-            )
+            if self._prefetched_skill_knowledge:
+                skill_section = (
+                    "- Pre-loaded skill knowledge is provided below — use it directly.\n"
+                )
+            else:
+                skill_section = (
+                    "- MCP tools — use `prefetch_knowledge` as your FIRST call to load "
+                    "structured skill knowledge in one shot.\n"
+                )
 
         # Parse WORKDIR and COPY lines from Dockerfile.reference.
         workdir = "/root"
@@ -298,9 +340,9 @@ class ClaudeCodeAgent(BaseAgent):
             "- `tests/test_outputs.py` — **READ THIS FIRST** to understand exactly what output is expected.\n"
             "- `Dockerfile.reference` — packages installed + file layout in container.\n"
             f"{skill_section}"
-            "- `skill_scripts/` — helper scripts from skills. Import with:\n"
+            "- `skill_scripts/` — helper scripts from skills. In your solution.py, import with:\n"
             "  ```python\n"
-            "  import sys; sys.path.insert(0, 'skill_scripts/<skill-id>')\n"
+            "  import sys; sys.path.insert(0, '/tmp/skill_scripts/<skill-id>')\n"
             "  ```\n"
             "- Data files in the root directory — input data for the task.\n\n"
             "## Output\n"
@@ -311,6 +353,15 @@ class ClaudeCodeAgent(BaseAgent):
             "**DO NOT reference any `/tmp/sb_cc_...` paths in your code.** "
             "Use the container paths from TASK_INSTRUCTION.md.\n"
         )
+
+        # Inject pre-fetched skill knowledge (MCP mode with prefetch).
+        if self._prefetched_skill_knowledge:
+            claude_md += (
+                "\n\n--- Pre-loaded Skill Knowledge ---\n"
+                f"{self._prefetched_skill_knowledge}\n"
+                "--- End of Pre-loaded Knowledge ---\n"
+            )
+
         (work_dir / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
 
     # ------------------------------------------------------------------
@@ -355,10 +406,16 @@ class ClaudeCodeAgent(BaseAgent):
                 f"Read them from .claude/skills/ before writing code."
             ) if skill_ids else ""
         else:
-            skill_hint = (
-                f"Relevant skills: {', '.join(skill_ids)}. "
-                f"Call prefetch_knowledge with query describing the task to load skill knowledge."
-            ) if skill_ids else ""
+            if self._prefetched_skill_knowledge:
+                skill_hint = (
+                    f"Skill knowledge for {', '.join(skill_ids)} is pre-loaded in CLAUDE.md. "
+                    f"Use it directly — no need to call MCP tools."
+                ) if skill_ids else ""
+            else:
+                skill_hint = (
+                    f"Relevant skills: {', '.join(skill_ids)}. "
+                    f"Call prefetch_knowledge with query describing the task to load skill knowledge."
+                ) if skill_ids else ""
 
         test_section = ""
         if test_content:
