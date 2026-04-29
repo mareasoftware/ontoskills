@@ -528,7 +528,8 @@ fn handle_tool_call(
                 match query {
                     Some(q) if !q.is_empty() => {
                         let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(&skill_id, &ctx.knowledge_nodes);
-                        compact::compact_context_with_query(&skill_id, &ctx, Some(&q), Some(&node_engine))
+                        let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
+                        compact::compact_context_with_query(&skill_id, &ctx, Some(&q), Some(&node_engine), Some(&section_engine))
                     }
                     _ => compact::compact_context(&skill_id, &ctx),
                 }
@@ -640,11 +641,13 @@ fn handle_prefetch(
             Ok(ctx) => {
                 structured_skills.push(json!(ctx));
                 let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
+                let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
                 sections.push(compact::compact_context_with_query(
                     sid,
                     &ctx,
                     query_opt.as_deref(),
                     Some(&node_engine),
+                    Some(&section_engine),
                 ));
             }
             Err(_) => {

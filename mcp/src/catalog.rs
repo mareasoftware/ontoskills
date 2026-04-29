@@ -229,6 +229,19 @@ pub struct KnowledgeNodeInfo {
     pub template_variables: Option<Vec<String>>,
 }
 
+/// A code example or table extracted from the skill's section tree.
+#[derive(Debug, Clone, Serialize)]
+pub struct SectionContent {
+    pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section_title: Option<String>,
+    pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section_order: Option<i64>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SkillContextResult {
     pub skill: SkillDetails,
@@ -236,6 +249,8 @@ pub struct SkillContextResult {
     pub payload: PayloadInfo,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub knowledge_nodes: Vec<KnowledgeNodeInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<SectionContent>,
     pub include_inherited_knowledge: bool,
 }
 
@@ -545,11 +560,13 @@ impl Catalog {
         let skill = self.get_skill(skill_id)?;
         let payload = self.get_skill_payload(skill_id)?;
         let knowledge_nodes = self.get_knowledge_nodes(skill_id, include_inherited_knowledge)?;
+        let sections = self.get_section_content(skill_id)?;
 
         Ok(SkillContextResult {
             skill,
             payload,
             knowledge_nodes,
+            sections,
             include_inherited_knowledge,
         })
     }
@@ -1119,6 +1136,116 @@ impl Catalog {
         }
 
         Ok(nodes)
+    }
+
+    /// Retrieve all content blocks from the skill's section tree.
+    ///
+    /// Traverses `oc:hasSection` / `oc:hasSubsection` to find CodeExample,
+    /// Table, Paragraph, and BulletList blocks. BulletList items are
+    /// aggregated into a single text block.
+    fn get_section_content(
+        &self,
+        skill_id: &str,
+    ) -> Result<Vec<SectionContent>, CatalogError> {
+        validate_skill_id(skill_id)?;
+        let record = self.resolve_skill_reference(skill_id)?;
+        let skill_uri = record.uri.clone();
+
+        let query = format!(
+            r#"
+            PREFIX oc: <https://ontoskills.sh/ontology#>
+            SELECT DISTINCT ?blockType ?codeContent ?textContent ?language ?sectionTitle ?sectionOrder
+            WHERE {{
+                <{skill_uri}> oc:hasSection ?s1 .
+                ?s1 (oc:hasSubsection)* ?section .
+                ?section oc:hasContent ?block .
+                ?block a ?blockType .
+                OPTIONAL {{ ?block oc:codeContent ?codeContent }}
+                OPTIONAL {{ ?block oc:textContent ?textContent }}
+                OPTIONAL {{ ?block oc:codeLanguage ?language }}
+                OPTIONAL {{ ?section oc:sectionTitle ?sectionTitle }}
+                OPTIONAL {{ ?section oc:sectionOrder ?sectionOrder }}
+                FILTER (?blockType IN (oc:CodeExample, oc:Table, oc:Paragraph))
+            }}
+            ORDER BY ?sectionOrder ?blockType
+            "#
+        );
+
+        let mut results: Vec<SectionContent> = Vec::new();
+        for row in self.select_rows(&query)? {
+            let block_type = row
+                .optional_iri("blockType")
+                .map(|v| compact_fragment(&v))
+                .unwrap_or_default();
+
+            let content = if block_type == "code_example" {
+                row.optional_literal("codeContent")
+            } else {
+                row.optional_literal("textContent")
+            };
+
+            let Some(content) = content else { continue };
+            if content.trim().is_empty() {
+                continue;
+            }
+
+            results.push(SectionContent {
+                content_type: block_type,
+                section_title: row.optional_literal("sectionTitle"),
+                content,
+                language: row.optional_literal("language"),
+                section_order: row.optional_i64("sectionOrder"),
+            });
+        }
+
+        // Second pass: aggregate BulletList items.
+        let bullet_query = format!(
+            r#"
+            PREFIX oc: <https://ontoskills.sh/ontology#>
+            SELECT DISTINCT ?sectionTitle ?sectionOrder ?itemText
+            WHERE {{
+                <{skill_uri}> oc:hasSection ?s1 .
+                ?s1 (oc:hasSubsection)* ?section .
+                ?section oc:hasContent ?block .
+                ?block a oc:BulletList .
+                ?block oc:hasItem ?item .
+                ?item oc:itemText ?itemText .
+                OPTIONAL {{ ?section oc:sectionTitle ?sectionTitle }}
+                OPTIONAL {{ ?section oc:sectionOrder ?sectionOrder }}
+            }}
+            ORDER BY ?sectionOrder
+            "#
+        );
+
+        let mut bullet_groups: BTreeMap<(Option<String>, Option<i64>), Vec<String>> = BTreeMap::new();
+        for row in self.select_rows(&bullet_query)? {
+            let title = row.optional_literal("sectionTitle");
+            let order = row.optional_i64("sectionOrder");
+            let text = row.optional_literal("itemText").unwrap_or_default();
+            bullet_groups
+                .entry((title, order))
+                .or_default()
+                .push(text);
+        }
+
+        for ((title, order), items) in bullet_groups {
+            let content = items.join("\n");
+            if content.trim().is_empty() {
+                continue;
+            }
+            results.push(SectionContent {
+                content_type: "bullet_list".to_string(),
+                section_title: title,
+                content,
+                language: None,
+                section_order: order,
+            });
+        }
+
+        // Sort all results by section_order for consistent output.
+        results.sort_by_key(|s| s.section_order.unwrap_or(999));
+
+        Ok(results)
     }
 }
 

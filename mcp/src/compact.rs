@@ -89,7 +89,7 @@ pub fn compact_search(data: &Value) -> String {
 /// Compact a `SkillContextResult` into token-efficient markdown-like text.
 /// This is the most important function — it produces the knowledge the model sees.
 pub fn compact_context(skill_id: &str, ctx: &SkillContextResult) -> String {
-    compact_context_with_query(skill_id, ctx, None, None)
+    compact_context_with_query(skill_id, ctx, None, None, None)
 }
 
 /// Compact a `SkillContextResult` with optional BM25-based node filtering.
@@ -102,6 +102,7 @@ pub fn compact_context_with_query(
     ctx: &SkillContextResult,
     query: Option<&str>,
     node_engine: Option<&crate::bm25_engine::NodeBm25Engine>,
+    section_engine: Option<&crate::bm25_engine::SectionBm25Engine>,
 ) -> String {
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("## {}", skill_id));
@@ -176,6 +177,60 @@ pub fn compact_context_with_query(
                         if !why.is_empty() {
                             lines.push(format!("  Why: {}", why));
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Section tree content: code examples, tables, paragraphs, bullet lists.
+    let sections = &ctx.sections;
+    if !sections.is_empty() {
+        let budget = crate::bm25_engine::SECTION_BUDGET_CHARS;
+        let selected_indices: Vec<usize> = match (query, section_engine) {
+            (Some(q), Some(engine)) if !q.is_empty() => {
+                engine.rank_within_budget(q, sections, budget)
+            }
+            _ => {
+                // No query/engine: take sections in order until budget exhausted.
+                let mut indices = Vec::new();
+                let mut used = 0;
+                for (i, s) in sections.iter().enumerate() {
+                    if used + s.content.len() > budget {
+                        continue;
+                    }
+                    used += s.content.len();
+                    indices.push(i);
+                    if used >= budget {
+                        break;
+                    }
+                }
+                indices
+            }
+        };
+
+        if !selected_indices.is_empty() {
+            lines.push(String::new());
+            lines.push("Code & Data:".to_string());
+
+            for idx in &selected_indices {
+                let section = &sections[*idx];
+                if let Some(title) = &section.section_title {
+                    if !title.is_empty() {
+                        lines.push(format!("[{}]", title));
+                    }
+                }
+
+                if section.content_type == "code_example" {
+                    let lang = section.language.as_deref().unwrap_or("");
+                    lines.push(format!("```{}", lang));
+                    for line in section.content.lines() {
+                        lines.push(line.to_string());
+                    }
+                    lines.push("```".to_string());
+                } else {
+                    for line in section.content.lines() {
+                        lines.push(line.to_string());
                     }
                 }
             }
@@ -347,6 +402,7 @@ mod tests {
                     Some(2),
                 ),
             ],
+            sections: vec![],
             include_inherited_knowledge: true,
         };
 
@@ -525,11 +581,12 @@ mod tests {
                 safety_notes: vec![],
             },
             knowledge_nodes: nodes.clone(),
+            sections: vec![],
             include_inherited_knowledge: true,
         };
 
         let engine = NodeBm25Engine::from_nodes("test", &nodes);
-        let result = compact_context_with_query("test", &ctx, Some("file path validation"), Some(&engine));
+        let result = compact_context_with_query("test", &ctx, Some("file path validation"), Some(&engine), None);
 
         assert!(result.contains("file paths"), "Should contain file path node: {}", result);
         assert!(!result.contains("connection pooling"), "Should NOT contain database node");
@@ -576,10 +633,11 @@ mod tests {
                 safety_notes: vec![],
             },
             knowledge_nodes: nodes,
+            sections: vec![],
             include_inherited_knowledge: true,
         };
 
-        let result = compact_context_with_query("test", &ctx, None, None);
+        let result = compact_context_with_query("test", &ctx, None, None, None);
         assert!(result.contains("Node A content here"));
         assert!(result.contains("Node B content here"));
     }

@@ -9,7 +9,7 @@ use bm25::{Document, Language, SearchEngineBuilder};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::catalog::{quality_multiplier, Catalog, CatalogError, KnowledgeNodeInfo, SkillSummary};
+use crate::catalog::{quality_multiplier, Catalog, CatalogError, KnowledgeNodeInfo, SectionContent, SkillSummary};
 
 /// A single BM25 search result.
 #[derive(Debug, Serialize, Clone)]
@@ -198,6 +198,120 @@ impl NodeBm25Engine {
         let cutoff = min_keep.max(n_scored - (n_scored as f64 * 0.2).floor() as usize);
         ranked.truncate(cutoff);
         ranked
+    }
+}
+
+/// In-memory BM25 engine for ranking section content blocks within a skill.
+///
+/// Indexes each section's title + content as a document. Used to filter
+/// section tree content to only the most relevant blocks for a query,
+/// avoiding positional bias (sections at the end are not penalized).
+pub struct SectionBm25Engine {
+    engine: bm25::SearchEngine<usize>,
+    total_sections: usize,
+}
+
+/// Maximum total characters of section content to include in compact output.
+pub const SECTION_BUDGET_CHARS: usize = 3000;
+
+impl SectionBm25Engine {
+    /// Build a section-level BM25 engine from a skill's section content.
+    pub fn from_sections(sections: &[SectionContent]) -> Self {
+        let mut documents = Vec::with_capacity(sections.len());
+
+        for (i, section) in sections.iter().enumerate() {
+            let mut parts = Vec::new();
+            if let Some(title) = &section.section_title {
+                if !title.is_empty() {
+                    parts.push(title.clone());
+                }
+            }
+            parts.push(section.content.clone());
+            if let Some(lang) = &section.language {
+                parts.push(lang.clone());
+            }
+
+            documents.push(bm25::Document {
+                id: i,
+                contents: parts.join(" "),
+            });
+        }
+
+        let engine = if documents.is_empty() {
+            SearchEngineBuilder::<usize>::with_avgdl(10.0).build()
+        } else {
+            SearchEngineBuilder::<usize>::with_documents(Language::English, documents).build()
+        };
+
+        Self {
+            engine,
+            total_sections: sections.len(),
+        }
+    }
+
+    /// Rank sections by BM25 relevance and return indices within a character budget.
+    ///
+    /// Returns indices sorted by relevance. The total content of selected
+    /// sections stays within `budget` chars. If there's no query, returns
+    /// sections in original order until the budget is exhausted.
+    pub fn rank_within_budget(
+        &self,
+        query: &str,
+        sections: &[SectionContent],
+        budget: usize,
+    ) -> Vec<usize> {
+        if sections.is_empty() {
+            return vec![];
+        }
+
+        let ranked_indices: Vec<usize> = if query.is_empty() {
+            // No query: return in original order (by section_order).
+            (0..sections.len()).collect()
+        } else {
+            let results = self.engine.search(query, self.total_sections * 2);
+            let mut scored: Vec<(usize, f32)> = results
+                .into_iter()
+                .filter_map(|r| {
+                    if r.score > 0.0 {
+                        Some((r.document.id, r.score))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            // Add unscored sections at the end (they might still be useful).
+            let scored_set: std::collections::HashSet<usize> =
+                scored.iter().map(|(i, _)| *i).collect();
+            let mut all_indices: Vec<usize> = scored.into_iter().map(|(i, _)| i).collect();
+            for i in 0..self.total_sections {
+                if !scored_set.contains(&i) {
+                    all_indices.push(i);
+                }
+            }
+            all_indices
+        };
+
+        // Fill budget greedily.
+        let mut selected = Vec::new();
+        let mut used = 0;
+        for idx in ranked_indices {
+            if idx >= sections.len() {
+                continue;
+            }
+            let len = sections[idx].content.len();
+            if used + len > budget {
+                continue; // Skip oversized, try next.
+            }
+            used += len;
+            selected.push(idx);
+            if used >= budget {
+                break;
+            }
+        }
+
+        selected
     }
 }
 
