@@ -38,7 +38,7 @@ benchmark/
 │   ├── base.py             # BaseAgent with Anthropic API, run-loop, retry
 │   ├── claudecode.py       # ClaudeCodeAgent: CLI-based agent (--print --bare mode)
 │   ├── traditional.py      # Skill registry + read_skill tool (like Claude Code)
-│   ├── ontoskills.py       # 5 MCP tools (search, get_skill_context, prefetch_knowledge, etc.)
+│   ├── ontoskills.py       # Single ontoskill MCP tool (find or load skill by name/query)
 │   └── utils.py            # Shared utilities (extract_python_code)
 ├── wrappers/
 │   ├── gaia.py             # GAIA: Q&A with file attachments
@@ -99,15 +99,28 @@ SkillsBench uses deterministic Docker evaluation:
 
 #### Agent design for SkillsBench
 
-**Traditional agent**: SKILL.md content included directly in the user prompt (raw markdown).
-No tools — the agent sees all skill documentation in one shot and generates code.
+**Traditional agent**: Skill registry in system prompt + `read_skill` tool for on-demand loading.
+Multi-turn: model reads skills, then generates code.
 
-**OntoSkills agent**: Skills loaded via MCP prefetch from compiled TTLs. The user prompt
-contains only the task instruction + Dockerfile metadata (89% smaller). Skill knowledge
-(structured nodes with types, severity, context) is injected into the system prompt via
-`get_skill_context`. No tools needed — single-turn code generation.
+**OntoSkills agent**: Single `ontoskill(q, top_k)` MCP tool. Model discovers or loads skill
+knowledge via tool calls during the conversation. Structured TTL knowledge (types, severity,
+context) is returned in compact format (~52 token schema vs read_skill's ~62).
 
 This tests OntoSkills' core advantage: **structured skill knowledge via MCP vs. raw SKILL.md**.
+
+#### CLI flags
+
+- `--no-skill-hints` — Omit skill names from prompts. Agents must discover skills on their own
+  (tests discovery mechanism vs knowledge quality).
+
+#### Production-realistic benchmark (4 runs)
+
+| Run | Agent       | Hints | Tests            |
+|-----|-------------|-------|------------------|
+| 1   | Traditional | Yes   | Knowledge quality |
+| 2   | MCP         | Yes   | Knowledge quality |
+| 3   | Traditional | No    | Discovery         |
+| 4   | MCP         | No    | Discovery         |
 
 The MCP server uses a SkillsBench-only ontology root (`/tmp/skillsbench_ontology/`) containing
 only the 218 SkillsBench TTLs (vs. 840 total). This reduces MCP startup from 10s to 1.8s and
@@ -142,30 +155,28 @@ python benchmark/smoketest.py
 
 ## Prefetch optimization
 
-OntoSkillsAgent supports `prefetch=True` mode:
-1. Before the first API call, calls MCP `search` + `get_skill_context`
-2. Compacts the verbose MCP JSON into lean markdown-like text
+OntoSkillsAgent supports `prefetch=True` mode (API-mode only):
+1. Before the first API call, calls MCP `ontoskill` for each skill ID
+2. Compacts the MCP response into lean markdown text
 3. Injects into system prompt — model has knowledge from turn 1
 4. Removes tool schemas when knowledge is pre-loaded (no tool calls needed)
 
-Result: OntoSkills at **0.86x tokens** vs Traditional (input is 0.40x), with better quality (4.6/5 vs 3.7/5).
+In CLI mode (production-realistic), the agent uses tool calls directly — no prefetch.
 
 ## MCP response compaction
 
-All MCP tool responses use compact format by default (88% token reduction):
+All MCP tool responses use compact format by default (88% token reduction). The single `ontoskill`
+tool handles both exact skill lookup and semantic search:
 
-- **search**: 90% reduction — keeps only skill_id, intents, trust_tier
-- **get_skill_context**: 79% reduction — formatted as markdown with knowledge nodes sorted by priority
-- **evaluate_execution_plan**: 96% reduction — plan steps + warnings only
-- **query_epistemic_rules**: 79% reduction — directive content with context and severity
+- `ontoskill("geospatial-analysis")` → loads that skill's context (compact markdown)
+- `ontoskill("how to parse PDF files")` → searches for matching skills
 
 Compaction happens server-side in the Rust MCP server (`mcp/src/compact.rs`). The `content[0].text`
 field contains compact markdown text. Full JSON is preserved in `structuredContent` (zero knowledge
-loss). Use `format: "raw"` parameter to get verbose JSON instead.
+loss).
 
-The Python agent (`ontoskills.py`) also has compactors as a secondary layer for API-based agents.
-
-Tools accept a `format` parameter: `"compact"` (default) or `"raw"`.
+Internal tools (search, get_skill_context, etc.) are kept in the handler for backward compatibility
+with `prefetch_knowledge` but are NOT exposed in tool definitions.
 
 ## Traditional agent design
 
