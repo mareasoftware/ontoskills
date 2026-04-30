@@ -619,7 +619,7 @@ class SkillsBenchWrapper:
         # Container path info.
         container_info = f"\n\nCONTAINER ENVIRONMENT:\n- Working directory: {workdir}\n- Solution script runs at: /tmp/agent_solution.py"
         if copy_lines:
-            container_info += "\n- Files copied into container:\n  " + "\n  ".join(copy_lines[:5])
+            container_info += "\n- Files in container (from Dockerfile COPY):\n  " + "\n  ".join(copy_lines[:10])
 
         skill_names = ", ".join(skill_ids) if skill_ids else "none"
         skill_hint_line = (
