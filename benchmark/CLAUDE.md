@@ -228,13 +228,19 @@ _Results pending — run with Claude Code mode._
 ### SWE-bench
 _Results pending — run with Claude Code mode._
 
-### Compiler bug (unrelated to benchmark)
-10 skills across 10 tasks failed to compile to TTL. Root cause: `ontocore compile`
-with `-o` flag resolves `state_dir` incorrectly, creating `/state` instead of
-relative path. The 10 missing skills are:
-civ6lib, map-optimization-strategy, sqlite-map-parser, pymatgen, lean4-memories,
-gemini-video-understanding, senior-data-scientist, gmail-skill, threejs,
-data-reconciliation.
+### Compiler issues (resolved/partial)
+
+**Security regex false positives** — Fixed in `core/src/security.py`. The `--skip-security`
+flag now bypasses the entire pipeline (regex + LLM). Previously it only skipped the LLM
+review, causing regex false positives like `Crystal system:` (pymatgen), `/etc/passwd`
+(pentest skill) to block compilation.
+
+**Remaining uncompileable skills** — 5 skills have no SKILL.md or missing frontmatter
+and cannot be compiled regardless of security settings: ssh-penetration-testing,
+lean4-memories, gemini-video-understanding, senior-data-scientist, gmail-skill.
+
+**Previously fixed:** civ6lib, map-optimization-strategy, sqlite-map-parser (mdit_py_plugins),
+threejs (YAML), pymatgen (security regex), data-reconciliation (no SKILL.md).
 
 ## Chart data output
 
