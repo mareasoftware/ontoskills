@@ -243,7 +243,7 @@ def security_check(content: str, skip_llm: bool = False) -> tuple[list[SecurityT
 
     Args:
         content: Content to check
-        skip_llm: Skip LLM review (for --skip-security flag)
+        skip_llm: Skip all security checks (for --skip-security flag)
 
     Returns:
         Tuple of (threats, passed)
@@ -253,26 +253,27 @@ def security_check(content: str, skip_llm: bool = False) -> tuple[list[SecurityT
     """
     logger.debug("Running security check...")
 
+    # Skip entire pipeline when --skip-security is set
+    if skip_llm:
+        logger.debug("Security check skipped (--skip-security)")
+        return [], True
+
     # Stage 1: Pattern matching
     threats = check_patterns(content)
 
     if threats:
         logger.warning(f"Pattern threats detected: {[t.type for t in threats]}")
 
-        # Stage 2: LLM review (if patterns detected and not skipped)
-        if not skip_llm:
-            logger.info("Running LLM security review...")
-            result = llm_security_review(content, threats)
+        # Stage 2: LLM review (if patterns detected)
+        logger.info("Running LLM security review...")
+        result = llm_security_review(content, threats)
 
-            if not result.safe:
-                logger.error(f"Content blocked by LLM review: {result.reason}")
-                return threats, False
-
-            logger.info("LLM review passed")
-            return threats, True
-        else:
-            # If skipping LLM, pattern matches block the content
+        if not result.safe:
+            logger.error(f"Content blocked by LLM review: {result.reason}")
             return threats, False
+
+        logger.info("LLM review passed")
+        return threats, True
 
     # No threats detected
     logger.debug("Security check passed")
