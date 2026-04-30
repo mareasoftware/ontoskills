@@ -202,6 +202,8 @@ class OntoSkillsAgent(BaseAgent):
         )
 
     def get_tools(self) -> list[dict] | None:
+        if self._prefetched_knowledge:
+            return None
         return _TOOL_DEFINITIONS
 
     # ------------------------------------------------------------------
@@ -376,6 +378,8 @@ class OntoSkillsAgent(BaseAgent):
         """Pre-fetch skill knowledge by known skill IDs (skip search).
 
         Used when skill_ids are already known (e.g. per-package tasks).
+        Falls back to MCP search when direct lookup fails (e.g. directory
+        name doesn't match TTL identifier).
         """
         parts: list[str] = []
         for sid in skill_ids:
@@ -386,17 +390,58 @@ class OntoSkillsAgent(BaseAgent):
                 content = mcp_res.get("content", [])
                 if content and isinstance(content, list) and content[0].get("text"):
                     parts.append(content[0]["text"])
+                    continue
+            except Exception:
+                pass
+
+            # Fallback: try normalized ID (underscore -> hyphen).
+            normalized = sid.replace("_", "-")
+            if normalized != sid:
+                try:
+                    mcp_res = self._mcp_client.call_tool(
+                        "get_skill_context", {"skill_id": normalized, "query": query},
+                    )
+                    content = mcp_res.get("content", [])
+                    if content and isinstance(content, list) and content[0].get("text"):
+                        parts.append(content[0]["text"])
+                        logger.info("prefetch resolved %s via normalized %s", sid, normalized)
+                        continue
+                except Exception:
+                    pass
+
+            # Fallback: search by name and use first match.
+            try:
+                search_res = self._mcp_client.call_tool(
+                    "search", {"query": sid, "top_k": 3},
+                )
+                content = search_res.get("content", [])
+                if content and isinstance(content, list) and content[0].get("text"):
+                    text = content[0]["text"]
+                    # Extract first skill_id from compact search result.
+                    import re
+                    match = re.search(r"\*\*([a-z0-9/-]+)\*\*", text)
+                    if match:
+                        found_id = match.group(1)
+                        logger.info("prefetch resolved %s via search -> %s", sid, found_id)
+                        mcp_res = self._mcp_client.call_tool(
+                            "get_skill_context", {"skill_id": found_id, "query": query},
+                        )
+                        ctx_content = mcp_res.get("content", [])
+                        if ctx_content and isinstance(ctx_content, list) and ctx_content[0].get("text"):
+                            parts.append(ctx_content[0]["text"])
+                            continue
             except Exception as exc:
-                logger.warning("prefetch get_skill_context(%s) failed: %s", sid, exc)
+                logger.warning("prefetch search fallback for %s failed: %s", sid, exc)
+
         return "\n\n".join(parts)
 
     def _build_enriched_system_prompt(self) -> str:
         """Build system prompt with pre-fetched skill knowledge."""
         return (
             "You are an AI agent with expert skill knowledge pre-loaded below.\n"
-            "Use this knowledge directly to complete the task.\n"
+            "You already have ALL the knowledge needed. Do NOT search for more.\n"
+            "Generate the solution code immediately based on the pre-loaded knowledge.\n"
             "Follow the skill's procedures, constraints, and best practices strictly.\n"
-            "If you need more details or other skills, use your available tools.\n"
             "\n"
             "--- Pre-loaded Skill Knowledge ---\n"
             f"{self._prefetched_knowledge}\n"

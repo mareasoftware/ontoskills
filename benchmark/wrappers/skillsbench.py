@@ -862,7 +862,15 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
             "task_id": task["task_id"],
             "model_answer": result.answer,
             "solution_script": solution_script,
-            "metrics": result,
+            "metrics": {
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
+                "total_latency_ms": result.total_latency_ms,
+                "latency_ms": result.total_latency_ms,
+                "tool_calls": result.tool_calls,
+                "turns": result.turns,
+                "num_turns": result.turns,
+            },
         }
 
     # ------------------------------------------------------------------
