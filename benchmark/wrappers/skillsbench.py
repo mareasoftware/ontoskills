@@ -287,7 +287,12 @@ class SkillsBenchWrapper:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(_build_one, t): t for t in tasks}
             for future in as_completed(futures):
-                task, ok = future.result()
+                try:
+                    task, ok = future.result()
+                except Exception as exc:
+                    task = futures[future]
+                    logger.warning("Phase 0: Skipping %s (build error: %s)", task["task_id"], exc)
+                    continue
                 if ok:
                     buildable.append(task)
                 else:
