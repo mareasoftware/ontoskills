@@ -248,8 +248,7 @@ class ClaudeCodeAgent(BaseAgent):
             )
         else:
             skill_section = (
-                "- MCP tools — use `prefetch_knowledge` as your FIRST call to load "
-                "structured skill knowledge in one shot.\n"
+                "- MCP tools — use `ontoskill` to find or load skill knowledge.\n"
             )
 
         # Parse WORKDIR and COPY lines from Dockerfile.reference.
@@ -342,7 +341,10 @@ class ClaudeCodeAgent(BaseAgent):
         skill_ids = task.get("skill_ids", [])
 
         # Build mode-specific skill hint.
-        if self.mode == "traditional":
+        hints_enabled = task.get("skill_hints", True)
+        if not hints_enabled:
+            skill_hint = ""
+        elif self.mode == "traditional":
             skill_hint = (
                 f"Relevant skills: {', '.join(skill_ids)}. "
                 f"Read them from .claude/skills/ before writing code."
@@ -350,7 +352,7 @@ class ClaudeCodeAgent(BaseAgent):
         else:
             skill_hint = (
                 f"Relevant skills: {', '.join(skill_ids)}. "
-                f"Call prefetch_knowledge with query describing the task to load skill knowledge."
+                f"Call ontoskill with query describing the task to load skill knowledge."
             ) if skill_ids else ""
 
         test_section = ""

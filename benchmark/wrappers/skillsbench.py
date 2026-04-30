@@ -547,11 +547,18 @@ class SkillsBenchWrapper:
     # Agent prompt for code generation
     # ------------------------------------------------------------------
 
-    def _build_code_gen_prompt(self, task: dict) -> str:
+    def _build_code_gen_prompt(self, task: dict, skill_hints: bool = True) -> str:
         """Build the prompt that asks the agent to generate a solution script.
 
         Includes WORKDIR and file path info from the Dockerfile so the agent
         knows where files are inside the evaluation container.
+
+        Parameters
+        ----------
+        skill_hints:
+            When True (default), include skill names in the prompt so the agent
+            knows which skills to load.  When False, the agent must discover
+            skills on its own via search/browse tools.
         """
         instruction = task["instruction"]
         dockerfile = task.get("dockerfile", "")
@@ -610,6 +617,10 @@ class SkillsBenchWrapper:
             container_info += "\n- Files copied into container:\n  " + "\n  ".join(copy_lines[:5])
 
         skill_names = ", ".join(skill_ids) if skill_ids else "none"
+        skill_hint_line = (
+            f"8. Load the relevant skills using your available tools BEFORE writing code. Skills for this task: {skill_names}\n"
+            if skill_hints else ""
+        )
 
         # Inject test specification for test-first prompting.
         test_content = task.get("test_content", "")
@@ -635,8 +646,7 @@ IMPORTANT RULES:
 5. Handle errors gracefully — the script should not crash
 6. Output exactly what the task asks for — file paths, formats, and data must match precisely
 7. If skill helper scripts are mentioned below, import them via sys.path.append before importing{syspath_info}
-8. Load the relevant skills using your available tools BEFORE writing code. Skills for this task: {skill_names}
-{packages_info}{container_info}
+{skill_hint_line}{packages_info}{container_info}
 {test_section}
 ---
 
@@ -658,6 +668,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         agent: BaseAgent,
         task: dict,
         mcp_client: Any = None,
+        skill_hints: bool = True,
     ) -> dict:
         """Run a single SkillsBench task: generate code via agent, verify with Docker.
 
@@ -674,7 +685,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
             mcp_client is not None and hasattr(agent, "prefetch_skills_by_ids")
         )
 
-        prompt = self._build_code_gen_prompt(task)
+        prompt = self._build_code_gen_prompt(task, skill_hints=skill_hints)
 
         # OntoSkills: prefetch skill knowledge via MCP, inject into system prompt.
         # The model gets structured TTL knowledge and generates code in one turn.
@@ -1097,6 +1108,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         max_budget: float = 2.00,
         skip_first: int = 0,
         max_attempts: int = 1,
+        skill_hints: bool = True,
     ) -> list[dict]:
         """Run SkillsBench tasks via Claude Code CLI, then verify with Docker.
 
@@ -1126,6 +1138,9 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                     "Claude Code [%d/%d]: %s (%s)",
                     i, len(tasks), task["task_id"], task.get("category", ""),
                 )
+
+                # Pass skill_hints to task dict so ClaudeCode agent can use it.
+                task["skill_hints"] = skill_hints
 
                 if max_attempts > 1:
                     result = self.run_task_claudecode_with_retry(
@@ -1260,6 +1275,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         seed: int = 42,
         workers: int = 3,
         skip_first: int = 0,
+        skill_hints: bool = True,
     ) -> list[dict]:
         """Run SkillsBench tasks: generate solutions, then verify with Docker."""
         packages_root = os.path.expanduser("~/.ontoskills/packages")
@@ -1308,7 +1324,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                     )
 
                 try:
-                    result = self.run_task(task_agent, task, mcp_client=mcp_client)
+                    result = self.run_task(task_agent, task, mcp_client=mcp_client, skill_hints=skill_hints)
                 except Exception:
                     logger.exception("Task %s failed", task["task_id"])
                     result = {

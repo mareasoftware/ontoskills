@@ -371,6 +371,7 @@ def _run_skillsbench(
     skillsbench_repo: str = "/tmp/skillsbench_full",
     workers: int = 3,
     skip_first: int = 0,
+    skill_hints: bool = True,
 ) -> tuple[list[dict], float | None]:
     """Run the SkillsBench benchmark with deterministic Docker-based evaluation.
 
@@ -381,7 +382,7 @@ def _run_skillsbench(
     wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
     results = wrapper.run_benchmark(
         agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        workers=workers, skip_first=skip_first,
+        workers=workers, skip_first=skip_first, skill_hints=skill_hints,
     )
 
     # Score from Docker reward.txt (deterministic).
@@ -427,6 +428,7 @@ def _run_skillsbench_claudecode(
     workers: int = 3,
     skip_first: int = 0,
     max_attempts: int = 1,
+    skill_hints: bool = True,
 ) -> tuple[list[dict], float | None]:
     """Run SkillsBench using the Claude Code CLI for realistic evaluation.
 
@@ -438,6 +440,7 @@ def _run_skillsbench_claudecode(
     results = wrapper.run_benchmark_claudecode(
         agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         workers=workers, skip_first=skip_first, max_attempts=max_attempts,
+        skill_hints=skill_hints,
     )
 
     # Score from Docker reward.txt (deterministic).
@@ -637,6 +640,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--no-skill-hints",
+        action="store_true",
+        help="Omit skill names from prompts (agents discover skills on their own)",
+    )
 
     return parser
 
@@ -759,6 +767,7 @@ def main() -> None:
                     skillsbench_repo=args.skillsbench_repo,
                     workers=args.workers, skip_first=args.skip_first,
                     max_attempts=args.attempts,
+                    skill_hints=not args.no_skill_hints,
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("Claude Code (%s) completed %s in %.1fs", cc_tag, bench_name, elapsed)
@@ -784,6 +793,7 @@ def main() -> None:
                         shuffle=args.shuffle, seed=args.seed,
                         skillsbench_repo=args.skillsbench_repo,
                         workers=args.workers, skip_first=args.skip_first,
+                        skill_hints=not args.no_skill_hints,
                     )
                     elapsed = time.perf_counter() - t0
                     logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
@@ -804,6 +814,7 @@ def main() -> None:
                         shuffle=args.shuffle, seed=args.seed,
                         skillsbench_repo=args.skillsbench_repo,
                         workers=args.workers, skip_first=args.skip_first,
+                        skill_hints=not args.no_skill_hints,
                     )
                     elapsed = time.perf_counter() - t0
                     logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)
