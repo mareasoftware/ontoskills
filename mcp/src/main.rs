@@ -404,6 +404,53 @@ fn ensure_initialized(
     Err("Server not initialized".into())
 }
 
+/// Shared search logic used by both `ontoskill` (fallback) and `search` tool arms.
+fn do_search(
+    query: &str,
+    top_k: usize,
+    bm25_engine: &Bm25Engine,
+    #[cfg(feature = "embeddings")] embedding_engine: Option<&mut EmbeddingEngine>,
+    #[cfg(not(feature = "embeddings"))] _embedding_engine: Option<&mut ()>,
+    use_compact: bool,
+) -> Result<(Value, String), String> {
+    let structured = {
+        #[cfg(feature = "embeddings")]
+        if let Some(engine) = embedding_engine {
+            let matches = engine
+                .search(query, top_k)
+                .map_err(|e| format!("Search failed: {}", e))?;
+            if !matches.is_empty() {
+                json!({
+                    "mode": "semantic",
+                    "query": query,
+                    "matches": matches.iter().map(|m| json!({
+                        "intent": m.intent,
+                        "score": m.score,
+                        "skills": m.skills
+                    })).collect::<Vec<_>>()
+                })
+            } else {
+                let results = bm25_engine.search(query, top_k);
+                json!({"mode": "bm25", "query": query, "results": results})
+            }
+        } else {
+            let results = bm25_engine.search(query, top_k);
+            json!({"mode": "bm25", "query": query, "results": results})
+        }
+        #[cfg(not(feature = "embeddings"))]
+        {
+            let results = bm25_engine.search(query, top_k);
+            json!({"mode": "bm25", "query": query, "results": results})
+        }
+    };
+    let text = if use_compact {
+        compact::compact_search(&structured)
+    } else {
+        serde_json::to_string_pretty(&structured).unwrap_or_default()
+    };
+    Ok((structured, text))
+}
+
 fn handle_tool_call(
     catalog: &Catalog,
     bm25_engine: &Bm25Engine,
@@ -427,12 +474,48 @@ fn handle_tool_call(
         .unwrap_or("compact");
     let use_compact = raw_format != "raw";
 
-    // Handle prefetch_knowledge separately — it combines search + context.
+    // Handle prefetch_knowledge separately — internal tool, not in tool_definitions().
+    // Kept for backward compat with clients that cache tool lists.
     if tool_name == "prefetch_knowledge" {
         return handle_prefetch(catalog, bm25_engine, &arguments, use_compact);
     }
 
     let (structured, compact_text) = match tool_name {
+        "ontoskill" => {
+            let q = required_string(&arguments, "q")?;
+            let top_k = arguments
+                .get("top_k")
+                .and_then(Value::as_u64)
+                .unwrap_or(5) as usize;
+
+            // Try exact skill_id lookup first.
+            let ctx_result = catalog.get_skill_context(q, true);
+            match ctx_result {
+                Ok(ctx) => {
+                    let structured = json!(ctx);
+                    let text = if use_compact {
+                        compact::compact_context(q, &ctx)
+                    } else {
+                        serde_json::to_string_pretty(&structured).unwrap_or_default()
+                    };
+                    (structured, text)
+                }
+                Err(_) => {
+                    // Not a skill_id — treat as search query.
+                    let (structured, text) = do_search(
+                        q, top_k, bm25_engine,
+                        #[cfg(feature = "embeddings")]
+                        embedding_engine,
+                        #[cfg(not(feature = "embeddings"))]
+                        None,
+                        use_compact,
+                    )?;
+                    (structured, text)
+                }
+            }
+        }
+        // Internal tools — not in tool_definitions() but kept for prefetch_knowledge
+        // and backward compatibility with existing clients.
         "search" => {
             let has_query = arguments.get("query").and_then(Value::as_str).is_some();
             let has_alias = arguments.get("alias").and_then(Value::as_str).is_some();
@@ -441,7 +524,7 @@ fn handle_tool_call(
                 return Err("Parameters 'query' and 'alias' are mutually exclusive. Provide one or the other.".to_string());
             }
 
-            let structured = if has_query {
+            let (structured, text) = if has_query {
                 let query = arguments
                     .get("query")
                     .and_then(Value::as_str)
@@ -450,49 +533,24 @@ fn handle_tool_call(
                     .get("top_k")
                     .and_then(Value::as_u64)
                     .unwrap_or(5) as usize;
-
-                #[cfg(feature = "embeddings")]
-                if let Some(engine) = embedding_engine {
-                    let matches = engine
-                        .search(query, top_k)
-                        .map_err(|e| format!("Search failed: {}", e))?;
-                    if !matches.is_empty() {
-                        let val = json!({
-                            "mode": "semantic",
-                            "query": query,
-                            "matches": matches.iter().map(|m| json!({
-                                "intent": m.intent,
-                                "score": m.score,
-                                "skills": m.skills
-                            })).collect::<Vec<_>>()
-                        });
-                        let text = if use_compact {
-                            compact::compact_search(&val)
-                        } else {
-                            serde_json::to_string_pretty(&val).unwrap_or_default()
-                        };
-                        return Ok(build_response(val, text));
-                    }
-                }
-
-                let bm25_results = bm25_engine.search(query, top_k);
-                json!({
-                    "mode": "bm25",
-                    "query": query,
-                    "results": bm25_results.iter().map(|m| json!({
-                        "skill_id": m.skill_id,
-                        "qualified_id": m.qualified_id,
-                        "score": m.score,
-                        "matched_by": m.matched_by,
-                        "intents": m.intents,
-                        "aliases": m.aliases,
-                        "trust_tier": m.trust_tier
-                    })).collect::<Vec<_>>()
-                })
+                do_search(
+                    query, top_k, bm25_engine,
+                    #[cfg(feature = "embeddings")]
+                    embedding_engine,
+                    #[cfg(not(feature = "embeddings"))]
+                    None,
+                    use_compact,
+                )?
             } else if has_alias {
                 let alias = required_string(&arguments, "alias")?;
                 let skills = catalog.resolve_alias(&alias).map_err(public_error)?;
-                json!({ "mode": "alias", "alias": alias, "skills": skills })
+                let structured = json!({ "mode": "alias", "alias": alias, "skills": skills });
+                let text = if use_compact {
+                    compact::compact_search(&structured)
+                } else {
+                    serde_json::to_string_pretty(&structured).unwrap_or_default()
+                };
+                (structured, text)
             } else {
                 let params = SearchSkillsParams {
                     intent: optional_string(&arguments, "intent"),
@@ -503,13 +561,13 @@ fn handle_tool_call(
                     is_user_invocable: optional_bool(&arguments, "is_user_invocable"),
                     limit: optional_usize(&arguments, "limit").unwrap_or(25),
                 };
-                json!({ "mode": "structured", "skills": catalog.search_skills(params).map_err(public_error)? })
-            };
-
-            let text = if use_compact {
-                compact::compact_search(&structured)
-            } else {
-                serde_json::to_string_pretty(&structured).unwrap_or_default()
+                let structured = json!({ "mode": "structured", "skills": catalog.search_skills(params).map_err(public_error)? });
+                let text = if use_compact {
+                    compact::compact_search(&structured)
+                } else {
+                    serde_json::to_string_pretty(&structured).unwrap_or_default()
+                };
+                (structured, text)
             };
             (structured, text)
         }
@@ -839,88 +897,15 @@ fn respond_error(
 fn tool_definitions() -> Vec<Value> {
     vec![
         tool(
-            "search",
-            "Search skills by keyword query, alias, or structured filters. If 'query' is provided, uses semantic search when embeddings are available, otherwise falls back to BM25 keyword search. If 'alias' is provided, resolves the alias to matching skills. Otherwise, filters skills by intent, state, type, category, and user-invocability.",
+            "ontoskill",
+            "Find or load a skill by name or query. If q matches a known skill id, returns that skill's structured context. Otherwise, searches for relevant skills.",
             json!({
                 "type": "object",
                 "properties": {
-                    "query": { "type": "string", "description": "Natural language query for semantic intent search (e.g., 'create a pdf document')" },
-                    "alias": { "type": "string", "description": "Alias to resolve (case-insensitive)" },
-                    "top_k": { "type": "integer", "description": "Number of semantic results (default 5)", "default": 5 },
-                    "intent": { "type": "string", "description": "Filter by resolved intent" },
-                    "requires_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
-                    "yields_state": { "type": "string", "description": "State URI or oc:StateName compact value." },
-                    "skill_type": { "type": "string", "enum": ["executable", "declarative"] },
-                    "category": { "type": "string", "description": "Filter by skill category (e.g., automation, document, marketing)." },
-                    "is_user_invocable": { "type": "boolean", "description": "Filter by whether the skill is directly invocable by users." },
-                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
-                    "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
-                }
-            }),
-        ),
-        tool(
-            "get_skill_context",
-            "Fetch the full execution context for a skill, including requirements, transitions, payload, dependencies, and knowledge nodes. Optional 'query' filters knowledge nodes by relevance.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string", "description": "Short id like 'xlsx' or qualified id like 'marea/office/xlsx'." },
-                    "include_inherited_knowledge": { "type": "boolean", "default": true },
-                    "query": { "type": "string", "description": "Optional natural language query to filter and rank knowledge nodes by relevance." },
-                    "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
+                    "q": { "type": "string", "description": "Skill id (e.g. 'geospatial-analysis') or natural language query (e.g. 'how to parse PDF files')" },
+                    "top_k": { "type": "integer", "description": "Max results for search mode (default 5)", "default": 5 }
                 },
-                "required": ["skill_id"]
-            }),
-        ),
-        tool(
-            "evaluate_execution_plan",
-            "Evaluate whether an intent or skill can be executed from the current states and return the full plan plus warnings.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "intent": { "type": "string" },
-                    "skill_id": { "type": "string", "description": "Short id like 'xlsx' or qualified id like 'marea/office/xlsx'." },
-                    "current_states": {
-                        "type": "array",
-                        "items": { "type": "string" }
-                    },
-                    "max_depth": { "type": "integer", "minimum": 1, "maximum": 10 },
-                    "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
-                }
-            }),
-        ),
-        tool(
-            "query_epistemic_rules",
-            "Query normalized knowledge nodes with guided filters such as kind, dimension, severity, context, and skill.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "skill_id": { "type": "string", "description": "Short id like 'xlsx' or qualified id like 'marea/office/xlsx'." },
-                    "kind": { "type": "string" },
-                    "dimension": { "type": "string" },
-                    "severity_level": { "type": "string" },
-                    "applies_to_context": { "type": "string" },
-                    "include_inherited": { "type": "boolean", "default": true },
-                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
-                    "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
-                }
-            }),
-        ),
-        tool(
-            "prefetch_knowledge",
-            "One-call knowledge retrieval. Searches for skills matching a query (or uses explicit skill_ids), fetches full context for each, and returns compact text ready for the model. Use this instead of calling search + get_skill_context separately.",
-            json!({
-                "type": "object",
-                "properties": {
-                    "query": { "type": "string", "description": "Natural language query to find relevant skills (e.g., 'create an Excel spreadsheet')" },
-                    "skill_ids": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "Explicit skill IDs to fetch (skips search). Use either 'query' or 'skill_ids'."
-                    },
-                    "max_skills": { "type": "integer", "description": "Maximum skills to fetch (default 3, max 5)", "default": 3, "minimum": 1, "maximum": 5 },
-                    "format": { "type": "string", "enum": ["compact", "raw"], "description": "Response format: 'compact' (default, token-efficient) or 'raw' (full JSON)", "default": "compact" }
-                }
+                "required": ["q"]
             }),
         ),
     ]
