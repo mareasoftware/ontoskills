@@ -1,8 +1,7 @@
 """OntoSkills MCP agent for the benchmark.
 
-Uses the 5 MCP tools (search, get_skill_context, evaluate_execution_plan,
-query_epistemic_rules, prefetch_knowledge) via the Anthropic tool-use API to answer questions
-about skills.
+Uses the single ``ontoskill`` MCP tool to find and load skill knowledge
+via the Anthropic tool-use API.
 
 Supports an optional **prefetch** mode that retrieves relevant skill
 knowledge before the first API call and injects it into the system prompt.
@@ -23,127 +22,37 @@ from .base import AgentResult, BaseAgent
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Tool definitions (mirrors ontomcp src/main.rs:720-794)
+# Tool definition (mirrors ontomcp single ontoskill tool)
 # ---------------------------------------------------------------------------
 
 _TOOL_DEFINITIONS: list[dict] = [
     {
-        "name": "search",
+        "name": "ontoskill",
         "description": (
-            "Search skills by keyword query, alias, or structured filters."
+            "Find or load a skill by name or query. "
+            "If q matches a known skill id, returns that skill's context. "
+            "Otherwise, searches for relevant skills."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {
+                "q": {
                     "type": "string",
-                    "description": "Natural language query",
+                    "description": "Skill id or natural language query",
                 },
-                "alias": {"type": "string"},
-                "top_k": {"type": "integer", "default": 5},
-                "intent": {"type": "string"},
-                "requires_state": {"type": "string"},
-                "yields_state": {"type": "string"},
-                "skill_type": {
-                    "type": "string",
-                    "enum": ["executable", "declarative"],
-                },
-                "category": {"type": "string"},
-                "is_user_invocable": {"type": "boolean"},
-                "limit": {
+                "top_k": {
                     "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100,
+                    "default": 5,
                 },
             },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "get_skill_context",
-        "description": (
-            "Fetch the full execution context for a skill, including "
-            "requirements, transitions, payload, dependencies, and "
-            "knowledge nodes."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "skill_id": {
-                    "type": "string",
-                    "description": (
-                        "Short id like 'xlsx' or qualified id like "
-                        "'marea/office/xlsx'."
-                    ),
-                },
-                "include_inherited_knowledge": {
-                    "type": "boolean",
-                    "default": True,
-                },
-                "query": {
-                    "type": "string",
-                    "description": "Optional natural language query to filter knowledge nodes.",
-                },
-            },
-            "required": ["skill_id"],
-        },
-    },
-    {
-        "name": "evaluate_execution_plan",
-        "description": (
-            "Evaluate whether an intent or skill can be executed from the "
-            "current states and return the full plan plus warnings."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "intent": {"type": "string"},
-                "skill_id": {"type": "string"},
-                "current_states": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
-                "max_depth": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 10,
-                },
-            },
-        },
-    },
-    {
-        "name": "query_epistemic_rules",
-        "description": (
-            "Query normalized knowledge nodes with guided filters. "
-            "Returns both epistemic nodes (rules, constraints) and "
-            "operational nodes (procedures, code patterns, output "
-            "formats, commands, prerequisites)."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "skill_id": {"type": "string"},
-                "kind": {"type": "string"},
-                "dimension": {"type": "string"},
-                "severity_level": {"type": "string"},
-                "applies_to_context": {"type": "string"},
-                "include_inherited": {
-                    "type": "boolean",
-                    "default": True,
-                },
-                "limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 100,
-                },
-            },
+            "required": ["q"],
         },
     },
 ]
 
 
 class OntoSkillsAgent(BaseAgent):
-    """Agent that uses 4 MCP tools to query the OntoSkills knowledge base.
+    """Agent that uses the single ontoskill MCP tool to query the OntoSkills knowledge base.
 
     Parameters
     ----------
@@ -187,18 +96,13 @@ class OntoSkillsAgent(BaseAgent):
         if self._prefetched_knowledge:
             return self._build_enriched_system_prompt()
         return (
-            "You are an AI agent with access to a knowledge base of skills "
-            "via 4 tools:\n"
-            "- search: Find skills by intent, keyword, or filters\n"
-            "- get_skill_context: Get full execution context for a specific skill\n"
-            "- evaluate_execution_plan: Check if an intent/skill can execute "
-            "from given states\n"
-            "- query_epistemic_rules: Query knowledge nodes (epistemic rules "
-            "and operational procedures)\n"
-            "\n"
-            "Use these tools to answer questions about skills accurately. "
-            "Call the appropriate tool(s) before answering. "
-            "Be concise and factual."
+            "You are an AI agent with access to OntoSkills — a structured "
+            "skill knowledge base.\n"
+            "Use the `ontoskill` tool to find or load skills:\n"
+            "- ontoskill(q='skill-name') to load a known skill by name\n"
+            "- ontoskill(q='natural language query') to search for skills\n\n"
+            "After loading skill knowledge, follow the procedures and "
+            "constraints strictly.\n"
         )
 
     def get_tools(self) -> list[dict] | None:
@@ -210,20 +114,6 @@ class OntoSkillsAgent(BaseAgent):
     # Pre-fetch helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _parse_mcp_result(raw: dict) -> dict | None:
-        """Extract the data payload from a raw MCP response."""
-        data = raw.get("structuredContent")
-        if data:
-            return data if isinstance(data, dict) else {"result": data}
-        content = raw.get("content", [])
-        if content and isinstance(content, list) and content[0].get("text"):
-            try:
-                return json.loads(content[0]["text"])
-            except (json.JSONDecodeError, TypeError):
-                pass
-        return None
-
     def _compact_tool_result(
         self, tool_name: str, tool_input: dict, raw: dict,
     ) -> str:
@@ -232,207 +122,50 @@ class OntoSkillsAgent(BaseAgent):
 
     @staticmethod
     def _compact_tool_result_static(
-        tool_name: str, tool_input: dict, raw: dict,
+        tool_name: str, tool_input: dict, mcp_result: dict,
     ) -> str:
-        """Static wrapper for use outside the agent (e.g. perpackage wrapper)."""
-        data = OntoSkillsAgent._parse_mcp_result(raw)
-        if data is None:
-            return json.dumps(raw, ensure_ascii=False)
-
-        if tool_name == "search":
-            return OntoSkillsAgent._compact_search(data)
-        if tool_name == "get_skill_context":
-            content = raw.get("content", [])
-            if content and isinstance(content, list) and content[0].get("text"):
-                return content[0]["text"]
-            return json.dumps(raw, ensure_ascii=False)
-        if tool_name == "query_epistemic_rules":
-            return OntoSkillsAgent._compact_epistemic_rules(data)
-        if tool_name == "evaluate_execution_plan":
-            return OntoSkillsAgent._compact_plan(data)
-        return json.dumps(raw, ensure_ascii=False)
-
-    @staticmethod
-    def _compact_search(data: dict) -> str:
-        """Compact search results into concise text."""
-        lines: list[str] = []
-        mode = data.get("mode", "")
-        lines.append(f"Search mode: {mode}")
-
-        # BM25 results
-        results = data.get("results", [])
-        if results:
-            for r in results[:5]:
-                sid = r.get("skill_id", "")
-                intents = "; ".join(r.get("intents", [])[:2])
-                tier = r.get("trust_tier", "")
-                lines.append(f"- {sid} [{tier}]: {intents}")
-
-        # Semantic matches
-        matches = data.get("matches", [])
-        if matches:
-            for m in matches[:3]:
-                intent = m.get("intent", "")
-                score = m.get("score", 0)
-                skills = ", ".join(m.get("skills", [])[:3])
-                lines.append(f"- {intent} (score={score:.2f}): {skills}")
-
-        # Structured results
-        skills = data.get("skills", [])
-        if skills:
-            for s in skills[:5]:
-                sid = s.get("id", "")
-                nature = s.get("nature", "")
-                lines.append(f"- {sid} ({nature})")
-
-        return "\n".join(lines) if len(lines) > 1 else json.dumps(data, ensure_ascii=False)
-
-    @staticmethod
-    def _compact_epistemic_rules(data: dict) -> str:
-        """Compact epistemic rules into concise text."""
-        # Handle multiple response shapes: result (array), nodes, knowledge_nodes
-        nodes = data.get("result", data.get("nodes", data.get("knowledge_nodes", [])))
-        if isinstance(nodes, dict):
-            nodes = nodes.get("nodes", nodes.get("knowledge_nodes", []))
-        if not nodes:
-            return "No knowledge nodes found."
-
-        lines: list[str] = []
-        for node in nodes:
-            kind = node.get("kind", "").replace("_", " ").upper()
-            content = node.get("directive_content", "")
-            if not content:
-                continue
-            ctx = node.get("applies_to_context", "")
-            severity = node.get("severity_level", "")
-            parts = [kind]
-            if ctx:
-                parts.append(f"({ctx})")
-            if severity and severity in ("CRITICAL", "HIGH"):
-                parts.append(f"[{severity}]")
-            lines.append("  ".join(parts) + ":")
-            lines.append(f"  {content}")
-
-        return "\n".join(lines) if lines else json.dumps(data, ensure_ascii=False)
-
-    @staticmethod
-    def _compact_plan(data: dict) -> str:
-        """Compact execution plan evaluation into concise text."""
-        lines: list[str] = []
-        applicable = data.get("applicable", False)
-        lines.append(f"Applicable: {'Yes' if applicable else 'No'}")
-
-        recommended = data.get("recommended_skill")
-        if recommended:
-            lines.append(f"Recommended: {recommended}")
-
-        steps = data.get("plan_steps", [])
-        if steps:
-            lines.append("Plan:")
-            for i, step in enumerate(steps, 1):
-                lines.append(f"  {i}. {step.get('skill_id', '')}: {step.get('purpose', '')}")
-
-        missing = data.get("missing_states", [])
-        if missing:
-            lines.append(f"Missing states: {', '.join(missing)}")
-
-        warnings = data.get("dependency_warnings", [])
-        if warnings:
-            lines.append(f"Warnings: {'; '.join(warnings[:3])}")
-
-        return "\n".join(lines)
-
-    @staticmethod
-    def _extract_skill_ids(search_result: dict) -> list[str]:
-        """Extract skill_id values from an MCP search result."""
-        data = search_result.get("structuredContent")
-        if not data:
-            content = search_result.get("content", [])
-            if content and isinstance(content, list) and content[0].get("text"):
-                try:
-                    data = json.loads(content[0]["text"])
-                except (json.JSONDecodeError, TypeError):
-                    return []
-        if not data:
-            return []
-        results = data.get("results", [])
-        return [r["skill_id"] for r in results if "skill_id" in r]
+        """Compact MCP tool response to reduce token usage."""
+        content = mcp_result.get("content", [])
+        if content and isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return item["text"]
+        return json.dumps(mcp_result, indent=2)
 
     def prefetch_skills(self, task_prompt: str) -> str:
         """Pre-fetch relevant skill knowledge via MCP.
 
-        Calls prefetch_knowledge and returns compact text.
+        Calls ontoskill and returns compact text.
         """
         try:
             mcp_result = self._mcp_client.call_tool(
-                "prefetch_knowledge", {"query": task_prompt, "max_skills": 3},
+                "ontoskill", {"q": task_prompt},
             )
             content = mcp_result.get("content", [])
             if content and isinstance(content, list) and content[0].get("text"):
                 return content[0]["text"]
         except Exception as exc:
-            logger.warning("prefetch_knowledge failed: %s", exc)
+            logger.warning("ontoskill failed: %s", exc)
         return ""
 
     def prefetch_skills_by_ids(self, skill_ids: list[str], query: str | None = None) -> str:
         """Pre-fetch skill knowledge by known skill IDs (skip search).
 
         Used when skill_ids are already known (e.g. per-package tasks).
-        Falls back to MCP search when direct lookup fails (e.g. directory
-        name doesn't match TTL identifier).
+        Calls the single ``ontoskill`` tool for each ID.
         """
         parts: list[str] = []
         for sid in skill_ids:
             try:
                 mcp_res = self._mcp_client.call_tool(
-                    "get_skill_context", {"skill_id": sid, "query": query},
+                    "ontoskill", {"q": sid, **({"top_k": 1} if False else {})},
                 )
                 content = mcp_res.get("content", [])
                 if content and isinstance(content, list) and content[0].get("text"):
                     parts.append(content[0]["text"])
                     continue
-            except Exception:
-                pass
-
-            # Fallback: try normalized ID (underscore -> hyphen).
-            normalized = sid.replace("_", "-")
-            if normalized != sid:
-                try:
-                    mcp_res = self._mcp_client.call_tool(
-                        "get_skill_context", {"skill_id": normalized, "query": query},
-                    )
-                    content = mcp_res.get("content", [])
-                    if content and isinstance(content, list) and content[0].get("text"):
-                        parts.append(content[0]["text"])
-                        logger.info("prefetch resolved %s via normalized %s", sid, normalized)
-                        continue
-                except Exception:
-                    pass
-
-            # Fallback: search by name and use first match.
-            try:
-                search_res = self._mcp_client.call_tool(
-                    "search", {"query": sid, "top_k": 3},
-                )
-                content = search_res.get("content", [])
-                if content and isinstance(content, list) and content[0].get("text"):
-                    text = content[0]["text"]
-                    # Extract first skill_id from compact search result.
-                    import re
-                    match = re.search(r"\*\*([a-z0-9/-]+)\*\*", text)
-                    if match:
-                        found_id = match.group(1)
-                        logger.info("prefetch resolved %s via search -> %s", sid, found_id)
-                        mcp_res = self._mcp_client.call_tool(
-                            "get_skill_context", {"skill_id": found_id, "query": query},
-                        )
-                        ctx_content = mcp_res.get("content", [])
-                        if ctx_content and isinstance(ctx_content, list) and ctx_content[0].get("text"):
-                            parts.append(ctx_content[0]["text"])
-                            continue
             except Exception as exc:
-                logger.warning("prefetch search fallback for %s failed: %s", sid, exc)
-
+                logger.warning("ontoskill(%s) failed: %s", sid, exc)
         return "\n\n".join(parts)
 
     def _build_enriched_system_prompt(self) -> str:
