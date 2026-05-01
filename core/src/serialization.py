@@ -654,6 +654,12 @@ def serialize_skill_to_module(
                     content_extraction=content_extraction,
                     skill_id_map=skill_id_map)
 
+    # Infer intra-skill links (derivedFromSection, correctAlternative, appliesToStep)
+    from compiler.linker import infer_links
+    link_count = infer_links(g)
+    if link_count:
+        logger.debug("Inferred %d intra-skill links for %s", link_count, skill.skill_id)
+
     # VALIDATE BEFORE WRITE
     try:
         validate_and_raise(g)
