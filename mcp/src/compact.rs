@@ -180,6 +180,19 @@ pub fn compact_context_with_query(
                     }
                 }
             }
+
+            // Render links (correctAlternative + appliesToStep)
+            for link in &node.links {
+                match link.property.as_str() {
+                    "correctAlternative" => {
+                        lines.push(format!("  \u{2192} Correct: \"{}\"", link.target_title));
+                    }
+                    "appliesToStep" => {
+                        lines.push(format!("  \u{2192} Applies to: {}", link.target_title));
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -300,6 +313,19 @@ pub fn compact_epistemic_rules(nodes: &[KnowledgeNodeInfo]) -> String {
 
         lines.push(format!("  {}:", parts.join(" ")));
         lines.push(format!("  {}", content_text));
+
+        // Render links (correctAlternative + appliesToStep)
+        for link in &node.links {
+            match link.property.as_str() {
+                "correctAlternative" => {
+                    lines.push(format!("  \u{2192} Correct: \"{}\"", link.target_title));
+                }
+                "appliesToStep" => {
+                    lines.push(format!("  \u{2192} Applies to: {}", link.target_title));
+                }
+                _ => {}
+            }
+        }
     }
 
     if lines.is_empty() {
@@ -337,6 +363,7 @@ mod tests {
             code_language: None,
             step_order,
             template_variables: None,
+            links: vec![],
         }
     }
 

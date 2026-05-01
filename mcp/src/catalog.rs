@@ -201,6 +201,14 @@ impl PayloadInfo {
     }
 }
 
+/// A link from a knowledge node to a related node (correct alternative or applicable step).
+#[derive(Debug, Clone, Serialize)]
+pub struct KnowledgeNodeLink {
+    pub property: String,       // "correctAlternative" or "appliesToStep"
+    pub target_title: String,   // e.g. "Use Formulas, Not Hardcoded Values"
+    pub target_type: String,    // "Section" | "CodeExample" | "WorkflowStep"
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct KnowledgeNodeInfo {
     #[serde(skip)]
@@ -227,6 +235,8 @@ pub struct KnowledgeNodeInfo {
     pub step_order: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_variables: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<KnowledgeNodeLink>,
 }
 
 /// A code example or table extracted from the skill's section tree.
@@ -1049,7 +1059,7 @@ impl Catalog {
             PREFIX oc: <https://ontoskills.sh/ontology#>
             PREFIX dcterms: <http://purl.org/dc/terms/>
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-            SELECT DISTINCT ?sourceSkillId ?node ?nodeType ?nodeLabel ?directiveContent ?rationale ?appliesToContext ?severityLevel ?dimension ?codeLanguage ?stepOrder ?templateVar
+            SELECT DISTINCT ?sourceSkillId ?node ?nodeType ?nodeLabel ?directiveContent ?rationale ?appliesToContext ?severityLevel ?dimension ?codeLanguage ?stepOrder ?templateVar ?corrTitle ?corrType ?stepLabel
             WHERE {{
                 {source_binding}
                 ?node a ?nodeType ;
@@ -1066,6 +1076,15 @@ impl Catalog {
                 OPTIONAL {{ ?node oc:codeLanguage ?codeLanguage }}
                 OPTIONAL {{ ?node oc:stepOrder ?stepOrder }}
                 OPTIONAL {{ ?node oc:templateVariables ?templateVar }}
+                OPTIONAL {{
+                    ?node oc:correctAlternative ?corr .
+                    ?corr oc:sectionTitle ?corrTitle .
+                    ?corr a ?corrType .
+                }}
+                OPTIONAL {{
+                    ?node oc:appliesToStep ?step .
+                    ?step oc:stepLabel ?stepLabel .
+                }}
             }}
             ORDER BY ?sourceSkillId ?node
         "#,
@@ -1079,6 +1098,7 @@ impl Catalog {
 
         let mut by_uri: BTreeMap<String, KnowledgeNodeInfo> = BTreeMap::new();
         let mut template_vars_by_uri: HashMap<String, Vec<String>> = HashMap::new();
+        let mut links_by_uri: HashMap<String, Vec<KnowledgeNodeLink>> = HashMap::new();
 
         for row in self.select_rows(&query)? {
             let uri = row.required_iri("node")?;
@@ -1091,6 +1111,32 @@ impl Catalog {
                     .entry(uri.clone())
                     .or_default()
                     .push(tv);
+            }
+
+            // Accumulate links across duplicate rows
+            if let Some(corr_title) = row.optional_literal("corrTitle") {
+                let corr_type = row
+                    .optional_iri("corrType")
+                    .map(|value| compact_fragment(&value))
+                    .unwrap_or_else(|| "Section".to_string());
+                links_by_uri
+                    .entry(uri.clone())
+                    .or_default()
+                    .push(KnowledgeNodeLink {
+                        property: "correctAlternative".to_string(),
+                        target_title: corr_title,
+                        target_type: corr_type,
+                    });
+            }
+            if let Some(step_label) = row.optional_literal("stepLabel") {
+                links_by_uri
+                    .entry(uri.clone())
+                    .or_default()
+                    .push(KnowledgeNodeLink {
+                        property: "appliesToStep".to_string(),
+                        target_title: step_label,
+                        target_type: "WorkflowStep".to_string(),
+                    });
             }
 
             let candidate = KnowledgeNodeInfo {
@@ -1115,6 +1161,7 @@ impl Catalog {
                 code_language: row.optional_literal("codeLanguage"),
                 step_order: row.optional_i64("stepOrder"),
                 template_variables: None, // Set after deduplication
+                links: vec![],            // Set after deduplication
             };
 
             match by_uri.get(&uri) {
@@ -1125,13 +1172,16 @@ impl Catalog {
             }
         }
 
-        // Attach accumulated template_variables to each node
+        // Attach accumulated template_variables and links to each node
         let mut nodes: Vec<KnowledgeNodeInfo> = by_uri.into_values().collect();
         for node in &mut nodes {
             if let Some(vars) = template_vars_by_uri.remove(&node.uri) {
                 if !vars.is_empty() {
                     node.template_variables = Some(vars);
                 }
+            }
+            if let Some(links) = links_by_uri.remove(&node.uri) {
+                node.links = links;
             }
         }
 

@@ -419,6 +419,7 @@ mod tests {
             code_language: None,
             step_order: None,
             template_variables: None,
+            links: vec![],
         }
     }
 
