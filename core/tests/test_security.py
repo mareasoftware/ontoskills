@@ -7,6 +7,7 @@ from compiler.security import (
     llm_security_review,
     security_check,
     SecurityThreat,
+    LLMSecurityResult,
 )
 
 
@@ -87,11 +88,13 @@ def test_security_check_clean(mock_patterns, mock_llm):
     assert threats == []
 
 
+@patch("compiler.security.llm_security_review")
 @patch("compiler.security.check_patterns")
-def test_security_check_with_threats(mock_patterns):
+def test_security_check_with_threats(mock_patterns, mock_llm):
     """Test full security check with detected threats."""
     mock_patterns.return_value = [SecurityThreat(type="prompt_injection", match="ignore")]
+    mock_llm.return_value = LLMSecurityResult(safe=False, reason="Blocked")
 
-    threats, passed = security_check("Malicious content", skip_llm=True)
+    threats, passed = security_check("Malicious content", skip_llm=False)
     assert passed is False
     assert len(threats) == 1
