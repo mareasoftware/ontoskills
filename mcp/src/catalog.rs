@@ -1078,8 +1078,10 @@ impl Catalog {
                 OPTIONAL {{ ?node oc:templateVariables ?templateVar }}
                 OPTIONAL {{
                     ?node oc:correctAlternative ?corr .
-                    ?corr oc:sectionTitle ?corrTitle .
                     ?corr a ?corrType .
+                    OPTIONAL {{ ?corr oc:sectionTitle ?corrSecTitle . }}
+                    OPTIONAL {{ ?corr oc:codeContent ?corrCodeTitle . }}
+                    BIND(COALESCE(?corrSecTitle, ?corrCodeTitle) AS ?corrTitle)
                 }}
                 OPTIONAL {{
                     ?node oc:appliesToStep ?step .
