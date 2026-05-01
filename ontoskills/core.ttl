@@ -813,10 +813,10 @@ oc:appliesToStep a owl:ObjectProperty ;
     rdfs:comment "Links a KnowledgeNode constraint to the WorkflowStep it constrains" ;
     rdfs:domain oc:KnowledgeNode ;
     rdfs:range oc:WorkflowStep ;
-    owl:inverseOf oc:hasConstraint .
+    owl:inverseOf oc:hasStepConstraint .
 
-oc:hasConstraint a owl:ObjectProperty ;
-    rdfs:label "has constraint" ;
+oc:hasStepConstraint a owl:ObjectProperty ;
+    rdfs:label "has step constraint" ;
     rdfs:comment "Links a WorkflowStep to the KnowledgeNodes that constrain it" ;
     rdfs:domain oc:WorkflowStep ;
     rdfs:range oc:KnowledgeNode ;
