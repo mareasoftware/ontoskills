@@ -71,7 +71,6 @@ class ClaudeCodeAgent(BaseAgent):
         self._work_dir: Path | None = None
         self._mcp_config_path: str | None = None
         self._ontology_root: str | None = None
-        self._test_content: str = ""
 
     @staticmethod
     def _find_claude_bin() -> str:
@@ -133,11 +132,6 @@ class ClaudeCodeAgent(BaseAgent):
         tests_src = task_dir / "tests"
         if tests_src.is_dir():
             shutil.copytree(tests_src, work_dir / "tests")
-
-        # --- Read test file for prompt injection ---
-        self._test_content = task.get("test_content", "")
-        if len(self._test_content) > 10000:
-            self._test_content = self._test_content[:10000] + "\n# ... (truncated)"
 
         # --- Write instruction ---
         instruction = task.get("instruction", "")
@@ -224,14 +218,19 @@ class ClaudeCodeAgent(BaseAgent):
 
         dst = Path(tempfile.gettempdir()) / "skillsbench_ontology" / "skillsbench"
         dst.parent.mkdir(parents=True, exist_ok=True)
-        src_mtime = src.stat().st_mtime if src.exists() else 0
-        dst_mtime = dst.stat().st_mtime if dst.exists() else 0
-        if not dst.exists() or src_mtime > dst_mtime:
+
+        src_ttl_count = sum(1 for _ in src.rglob("ontoskill.ttl"))
+        dst_ttl_count = sum(1 for _ in dst.rglob("ontoskill.ttl")) if dst.exists() else 0
+
+        if not dst.exists() or src_ttl_count != dst_ttl_count:
             if dst.exists():
                 shutil.rmtree(str(dst))
             try:
                 shutil.copytree(str(src), str(dst))
-                logger.info("Prepared SkillsBench ontology root at %s", dst.parent)
+                logger.info(
+                    "Refreshed SkillsBench ontology: %d TTLs (was %d) at %s",
+                    src_ttl_count, dst_ttl_count, dst.parent,
+                )
             except FileExistsError:
                 pass
 
@@ -334,9 +333,6 @@ class ClaudeCodeAgent(BaseAgent):
         if not work_dir:
             raise RuntimeError("Call setup_task_env() first")
 
-        test_content = self._test_content
-        self._test_content = ""  # Reset to prevent stale state between tasks.
-
         instruction = task.get("instruction", "")
         skill_ids = task.get("skill_ids", [])
 
@@ -355,14 +351,6 @@ class ClaudeCodeAgent(BaseAgent):
                 f"Call ontoskill with query describing the task to load skill knowledge."
             ) if skill_ids else ""
 
-        test_section = ""
-        if test_content:
-            test_section = (
-                "\n\n### Test Specification (your solution must pass these tests):\n"
-                "```python\n" + test_content + "\n```\n"
-                "Your solution.py must produce output that passes ALL tests above.\n"
-            )
-
         prompt = (
             "Read TASK_INSTRUCTION.md to understand the task.\n"
             "Write a solution.py script that produces all required output files.\n"
@@ -370,7 +358,6 @@ class ClaudeCodeAgent(BaseAgent):
             "IMPORTANT: Use CONTAINER paths in your code (e.g., /root/data.csv), "
             "NOT host paths (e.g., /tmp/sb_cc_...). Read Dockerfile.reference for the container file layout.\n"
             f"{skill_hint}\n"
-            f"{test_section}\n"
             f"TASK: {instruction}"
         )
 

@@ -588,8 +588,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--attempts",
         type=int,
-        default=1,
-        help="Attempts per task: 1=single (like Harbor), 3=multi-turn with asymmetric budget (default: 1)",
+        default=5,
+        help="Attempts per task: clean retries, best reward wins (default: 5, matches SkillsBench)",
     )
     parser.add_argument(
         "--shuffle",

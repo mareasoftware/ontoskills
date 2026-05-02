@@ -190,6 +190,7 @@ class SkillsBenchWrapper:
         seed: int = 42,
         packages_root: str | None = None,
         skip_first: int = 0,
+        only_tasks: list[str] | None = None,
     ) -> list[dict]:
         """Load SkillsBench tasks from the local repo clone.
 
@@ -202,6 +203,8 @@ class SkillsBenchWrapper:
         skip_first:
             Skip the first N tasks after shuffling. Use to continue from
             a previous run (e.g. ``skip_first=10`` to run tasks 11+).
+        only_tasks:
+            If provided, only load these specific task IDs (no shuffle, no skip).
         """
         if not self.tasks_dir.is_dir():
             raise FileNotFoundError(
@@ -210,12 +213,15 @@ class SkillsBenchWrapper:
             )
 
         pkg_root = Path(packages_root) if packages_root else None
+        only_set = set(only_tasks) if only_tasks else None
         tasks = []
         skipped_missing = 0
         for task_dir in sorted(self.tasks_dir.iterdir()):
             if not task_dir.is_dir():
                 continue
             task_id = task_dir.name
+            if only_set is not None and task_id not in only_set:
+                continue
             if task_id in _SKIP_TASKS:
                 continue
             task = self._load_task_from_repo(task_id)
@@ -945,8 +951,8 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
                 "metrics": {},
             }
 
-    # Asymmetric budget weights for multi-attempt.
-    _ATTEMPT_WEIGHTS = [0.60, 0.25, 0.15]
+    # Default: 5 attempts (matches SkillsBench/BenchFlow n_attempts=5).
+    # Each attempt is independent with full budget (no asymmetric scaling).
 
     def run_task_claudecode_with_retry(
         self,
@@ -954,57 +960,64 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         task: dict,
         timeout: int = 900,
         max_budget: float = 2.00,
-        max_attempts: int = 3,
+        max_attempts: int = 1,
     ) -> dict:
-        """Run a task with multi-turn Docker feedback (up to max_attempts).
+        """Run a task with clean retries (SkillsBench-aligned).
 
-        Flow: agent generates solution -> Docker verifies -> if failed, feed
-        back errors -> agent fixes -> Docker re-verifies. Returns best result.
-
-        Uses asymmetric budget: 60/25/15 across 3 attempts.
+        Each attempt is independent — fresh work_dir, no Docker feedback.
+        Docker verification happens after each attempt. Best reward wins.
+        Matches BenchFlow's n_attempts behavior: retry on error, stop on
+        success or verifier_error, skip timeout retries.
         """
-        weights = self._ATTEMPT_WEIGHTS[:max_attempts]
-        # Normalize if max_attempts < 3
-        wsum = sum(weights)
-        weights = [w / wsum for w in weights]
-
         best_result = None
         best_reward = -1.0
+        cumulative_metrics = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "latency_ms": 0,
+            "tool_calls": 0,
+            "cost_usd": 0,
+        }
 
         task_dir = Path(task["task_dir"])
         task_id = task["task_id"]
-
-        # Compute effective base timeout from task metadata or default.
-        # Scale this base across attempts (not the raw default).
-        task_base_timeout = task.get("agent_timeout_sec", timeout)
-
-        # First attempt — standard run with 60% budget.
-        budget_1 = max_budget * weights[0]
-        timeout_1 = int(task_base_timeout * weights[0])
-        task["agent_timeout_sec"] = timeout_1
-        result = self.run_task_claudecode(
-            cc_agent, task, timeout=timeout_1, max_budget=budget_1,
-        )
+        task_timeout = task.get("agent_timeout_sec", timeout)
 
         for attempt in range(max_attempts):
+            # Backoff between retries (1s, 2s, 4s...).
+            if attempt > 0:
+                delay = min(1.0 * (2 ** (attempt - 1)), 30.0)
+                time.sleep(delay)
+
+            # Each attempt gets full budget and timeout (no asymmetric scaling).
+            result = self.run_task_claudecode(
+                cc_agent, task, timeout=task_timeout, max_budget=max_budget,
+            )
+
+            # Accumulate metrics across attempts.
+            m = result.get("metrics", {})
+            cumulative_metrics["input_tokens"] += m.get("input_tokens", 0)
+            cumulative_metrics["output_tokens"] += m.get("output_tokens", 0)
+            cumulative_metrics["latency_ms"] += m.get("latency_ms", 0)
+            cumulative_metrics["tool_calls"] += m.get("tool_calls", 0)
+            cumulative_metrics["cost_usd"] += m.get("cost_usd", 0)
+
             # Docker verification.
             image_tag = self._get_image_tag(task_id)
-            if not image_tag:
-                logger.warning("No Docker image for %s, skipping verification", task_id)
-                task["agent_timeout_sec"] = task_base_timeout
-                return result
-
             solution_script = result.get("solution_script", "")
 
-            # Skip Docker run if no solution was produced (timeout/error).
-            if not solution_script.strip():
-                logger.info("Task %s: attempt %d produced no solution, skipping verification", task_id, attempt + 1)
-                if attempt == 0:
+            if not image_tag or not solution_script.strip():
+                # No image or no solution — keep result as-is.
+                if best_result is None:
                     best_result = result.copy()
                     best_result["verification"] = {"reward": 0.0, "test_details": []}
                     best_result["reward"] = 0.0
-                    best_result["attempts"] = 1
-                break
+                    best_result["attempts"] = attempt + 1
+                # Timeout = don't retry (matches BenchFlow exclude: timeout).
+                if not solution_script.strip():
+                    logger.info("Task %s: timeout on attempt %d, not retrying", task_id, attempt + 1)
+                    break
+                continue
 
             verification = self._run_solution(
                 image_tag=image_tag,
@@ -1024,82 +1037,24 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
             if reward >= 1.0:
                 logger.info("Task %s: PASSED on attempt %d", task_id, attempt + 1)
-                best_result["metrics"] = result.get("metrics", {})
-                task["agent_timeout_sec"] = task_base_timeout
-                return best_result
+                break
 
-            if attempt < max_attempts - 1:
-                # Build feedback prompt.
-                feedback_parts = []
-                details = verification.get("test_details", [])
-                failed_tests = [t for t in details if t.get("status") == "failed"]
-                if failed_tests:
-                    feedback_parts.append("### Failed Tests")
-                    for t in failed_tests[:5]:
-                        feedback_parts.append(f"- {t.get('name', '?')}: {t.get('message', '')[:200]}")
+            logger.info(
+                "Task %s: attempt %d reward=%.3f, retrying",
+                task_id, attempt + 1, reward,
+            )
 
-                sol_errors = verification.get("solution_errors", "")
-                if sol_errors:
-                    feedback_parts.append(f"### Solution Errors\n{sol_errors[-1000:]}")
+        logger.info(
+            "Task %s: best reward=%.3f after %d attempts",
+            task_id, best_reward, max_attempts,
+        )
 
-                test_output = verification.get("test_output", "")
-                if test_output and "AssertionError" in test_output:
-                    lines = [l for l in test_output.split("\n") if "AssertionError" in l or "assert" in l]
-                    if lines:
-                        feedback_parts.append("### Assertion Failures\n" + "\n".join(lines[:5]))
-
-                feedback = "\n\n".join(feedback_parts)
-                if not feedback.strip():
-                    break
-
-                logger.info(
-                    "Task %s: attempt %d reward=%.3f, retrying with feedback",
-                    task_id, attempt + 1, reward,
-                )
-
-                # Asymmetric budget for subsequent attempts.
-                w = weights[attempt + 1] if attempt + 1 < len(weights) else weights[-1]
-                budget_next = max_budget * w
-                timeout_next = int(task_base_timeout * w)
-                task["agent_timeout_sec"] = timeout_next
-
-                cli_result = cc_agent.run_with_feedback(
-                    task,
-                    feedback=feedback,
-                    max_budget=budget_next,
-                    timeout=timeout_next,
-                )
-
-                solution_path = Path(cli_result["solution_path"])
-                solution_script = ""
-                if solution_path.exists():
-                    solution_script = solution_path.read_text(encoding="utf-8")
-
-                result = {
-                    "task_id": task_id,
-                    "model_answer": cli_result.get("result", ""),
-                    "solution_script": solution_script,
-                    "work_dir": cli_result.get("work_dir", ""),
-                    "metrics": {
-                        "input_tokens": result.get("metrics", {}).get("input_tokens", 0)
-                            + cli_result.get("usage", {}).get("input_tokens", 0),
-                        "output_tokens": result.get("metrics", {}).get("output_tokens", 0)
-                            + cli_result.get("usage", {}).get("output_tokens", 0),
-                        "latency_ms": result.get("metrics", {}).get("latency_ms", 0)
-                            + cli_result.get("duration_ms", 0),
-                        "tool_calls": result.get("metrics", {}).get("tool_calls", 0)
-                            + cli_result.get("num_turns", 0),
-                        "cost_usd": result.get("metrics", {}).get("cost_usd", 0)
-                            + cli_result.get("total_cost_usd", 0),
-                    },
-                }
-
-        logger.info("Task %s: best reward=%.3f after %d attempts", task_id, best_reward, max_attempts)
-        # Restore original timeout so it doesn't leak to the next task.
-        task["agent_timeout_sec"] = task_base_timeout
         if best_result:
-            best_result["metrics"] = result.get("metrics", {})
+            best_result["metrics"] = cumulative_metrics
             return best_result
+
+        # Fallback: return last result.
+        result["metrics"] = cumulative_metrics
         return result
 
     def run_benchmark_claudecode(
@@ -1114,6 +1069,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         skip_first: int = 0,
         max_attempts: int = 1,
         skill_hints: bool = True,
+        only_tasks: list[str] | None = None,
     ) -> list[dict]:
         """Run SkillsBench tasks via Claude Code CLI, then verify with Docker.
 
@@ -1125,6 +1081,7 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
         tasks = self.load_tasks(
             max_tasks=max_tasks, shuffle=shuffle, seed=seed,
             packages_root=packages_root, skip_first=skip_first,
+            only_tasks=only_tasks,
         )
 
         # Phase 0: Pre-warm cache and build images before spending agent time.
@@ -1366,16 +1323,21 @@ Write your solution as a SINGLE Python script. Output ONLY the Python code insid
 
         dst = Path(tempfile.gettempdir()) / "skillsbench_ontology" / "skillsbench"
         dst.parent.mkdir(parents=True, exist_ok=True)
-        src_mtime = src.stat().st_mtime
-        dst_mtime = dst.stat().st_mtime if dst.exists() else 0
-        if dst.is_dir() and src_mtime <= dst_mtime:
+
+        src_ttl_count = sum(1 for _ in src.rglob("ontoskill.ttl"))
+        dst_ttl_count = sum(1 for _ in dst.rglob("ontoskill.ttl")) if dst.exists() else 0
+
+        if dst.is_dir() and src_ttl_count == dst_ttl_count:
             return str(dst.parent)
 
         if dst.exists():
             shutil.rmtree(str(dst))
         try:
             shutil.copytree(str(src), str(dst))
-            logger.info("Prepared SkillsBench ontology root at %s", dst.parent)
+            logger.info(
+                "Refreshed SkillsBench ontology: %d TTLs (was %d) at %s",
+                src_ttl_count, dst_ttl_count, dst.parent,
+            )
             return str(dst.parent)
         except FileExistsError:
             return str(dst.parent)
