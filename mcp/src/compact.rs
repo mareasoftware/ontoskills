@@ -146,12 +146,22 @@ pub fn compact_context_with_query(
             _ => fallback_indices(),
         };
 
+        let node_budget = crate::bm25_engine::NODE_BUDGET_CHARS;
+        let mut node_chars: usize = 0;
+
         for idx in &indices {
             let node = &nodes[*idx];
             let content_text = node.directive_content.trim();
             if content_text.is_empty() {
                 continue;
             }
+
+            // Estimate size of this node's contribution.
+            let estimated = content_text.len() + 80; // kind line + overhead.
+            if node_chars + estimated > node_budget {
+                break;
+            }
+            node_chars += estimated;
 
             let mut parts: Vec<String> = Vec::new();
             parts.push(fmt_kind(&node.kind));
@@ -176,6 +186,7 @@ pub fn compact_context_with_query(
                     if let Some(why) = &node.rationale {
                         if !why.is_empty() {
                             lines.push(format!("  Why: {}", why));
+                            node_chars += why.len();
                         }
                     }
                 }

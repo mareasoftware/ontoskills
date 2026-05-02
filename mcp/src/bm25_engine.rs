@@ -214,6 +214,11 @@ pub struct SectionBm25Engine {
 /// Maximum total characters of section content to include in compact output.
 pub const SECTION_BUDGET_CHARS: usize = 3000;
 
+/// Maximum total characters of knowledge node content in compact output.
+/// ~12K chars ≈ 3K tokens — enough for procedures, constraints, anti-patterns
+/// without overwhelming the agent with low-priority BulletItem/Section nodes.
+pub const NODE_BUDGET_CHARS: usize = 12000;
+
 impl SectionBm25Engine {
     /// Build a section-level BM25 engine from a skill's section content.
     pub fn from_sections(sections: &[SectionContent]) -> Self {

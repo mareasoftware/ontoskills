@@ -429,6 +429,7 @@ def _run_skillsbench_claudecode(
     skip_first: int = 0,
     max_attempts: int = 1,
     skill_hints: bool = True,
+    only_tasks: list[str] | None = None,
 ) -> tuple[list[dict], float | None]:
     """Run SkillsBench using the Claude Code CLI for realistic evaluation.
 
@@ -440,7 +441,7 @@ def _run_skillsbench_claudecode(
     results = wrapper.run_benchmark_claudecode(
         agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         workers=workers, skip_first=skip_first, max_attempts=max_attempts,
-        skill_hints=skill_hints,
+        skill_hints=skill_hints, only_tasks=only_tasks,
     )
 
     # Score from Docker reward.txt (deterministic).
@@ -645,6 +646,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Omit skill names from prompts (agents discover skills on their own)",
     )
+    parser.add_argument(
+        "--only-tasks",
+        default=None,
+        help="Comma-separated task IDs to run (skip all others)",
+    )
 
     return parser
 
@@ -768,6 +774,7 @@ def main() -> None:
                     workers=args.workers, skip_first=args.skip_first,
                     max_attempts=args.attempts,
                     skill_hints=not args.no_skill_hints,
+                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("Claude Code (%s) completed %s in %.1fs", cc_tag, bench_name, elapsed)
