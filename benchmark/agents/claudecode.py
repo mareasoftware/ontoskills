@@ -238,21 +238,15 @@ class ClaudeCodeAgent(BaseAgent):
         return self._ontology_root
 
     def _write_claude_md(self, work_dir: Path) -> None:
-        """Write CLAUDE.md with task-specific instructions."""
-        skill_section = ""
-        if self.mode == "traditional":
-            skill_section = (
-                "- `.claude/skills/` — skill documentation.  "
-                "**Read the relevant skills BEFORE writing code.**\n"
-            )
-        else:
-            skill_section = (
-                "- MCP tools — use `ontoskill` to find or load skill knowledge.\n"
-            )
+        """Write CLAUDE.md — minimal environment context for Claude Code.
 
-        # Parse WORKDIR and COPY lines from Dockerfile.reference.
+        In standard SkillsBench, the agent runs inside the container and
+        discovers everything naturally. Our agent runs on host, so CLAUDE.md
+        provides essential environment context that standard agents get from
+        the container filesystem directly.
+        """
+        # Parse WORKDIR from Dockerfile.reference.
         workdir = "/root"
-        copy_lines: list[str] = []
         dockerfile_path = work_dir / "Dockerfile.reference"
         if dockerfile_path.exists():
             for line in dockerfile_path.read_text(encoding="utf-8").splitlines():
@@ -261,45 +255,28 @@ class ClaudeCodeAgent(BaseAgent):
                     parts = stripped.split(None, 1)
                     if len(parts) > 1:
                         workdir = parts[1].strip()
-                if stripped.upper().startswith("COPY"):
-                    copy_lines.append(stripped)
 
-        copy_section = ""
-        if copy_lines:
-            copy_section = (
-                "### File mapping (from Dockerfile)\n"
-                + "\n".join(f"- `{c}`" for c in copy_lines) + "\n\n"
-            )
+        skill_line = ""
+        if self.mode == "traditional":
+            skill_line = "- `.claude/skills/` — skill documentation\n"
+        else:
+            skill_line = "- MCP tools — use `ontoskill` to find or load skill knowledge\n"
 
         claude_md = (
             "# Task Environment\n\n"
-            "## Your task\n"
-            "Read TASK_INSTRUCTION.md for the task description.\n\n"
-            "## CRITICAL: Container vs Host paths\n"
             "You are working on the HOST machine, but your solution.py will run inside a Docker container.\n"
             f"- Container WORKDIR: `{workdir}`\n"
-            "- Your solution.py runs as `/tmp/agent_solution.py` inside the container.\n"
             "- **ALL paths in solution.py MUST be CONTAINER paths** (e.g., `/root/data.csv`), "
             "NOT host paths (e.g., `/tmp/sb_cc_...`).\n"
-            "- The local files you see are copies of what's inside the container.\n"
-            "- Paths in TASK_INSTRUCTION.md are already container paths — use them directly.\n\n"
-            f"{copy_section}"
+            "- Paths in the task instruction are already container paths — use them directly.\n\n"
             "## Key files\n"
-            "- `tests/test_outputs.py` — **READ THIS FIRST** to understand exactly what output is expected.\n"
-            "- `Dockerfile.reference` — packages installed + file layout in container.\n"
-            f"{skill_section}"
-            "- `skill_scripts/` — helper scripts from skills. In your solution.py, import with:\n"
-            "  ```python\n"
-            "  import sys; sys.path.insert(0, '/tmp/skill_scripts/<skill-id>')\n"
-            "  ```\n"
-            "- Data files in the root directory — input data for the task.\n\n"
+            "- `TASK_INSTRUCTION.md` — the task description\n"
+            "- `Dockerfile.reference` — packages installed + file layout in container\n"
+            f"{skill_line}"
+            "- Data files in the root directory — input data for the task\n\n"
             "## Output\n"
             "Write a `solution.py` script that produces all required output files.\n"
             "The script will be executed inside a Docker container with `python3 solution.py`.\n"
-            "**COMPLIANCE:** Follow the procedures, constraints, and best practices defined in the skills strictly. "
-            "Your code must pass all tests in `tests/test_outputs.py`.\n"
-            "**DO NOT reference any `/tmp/sb_cc_...` paths in your code.** "
-            "Use the container paths from TASK_INSTRUCTION.md.\n"
         )
 
         (work_dir / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
@@ -336,30 +313,23 @@ class ClaudeCodeAgent(BaseAgent):
         instruction = task.get("instruction", "")
         skill_ids = task.get("skill_ids", [])
 
-        # Build mode-specific skill hint.
+        # SkillsBench-aligned skill nudge (matches BenchFlow _resolve_prompts
+        # with skill_nudge="name" in traditional, custom for MCP).
         hints_enabled = task.get("skill_hints", True)
-        if not hints_enabled:
-            skill_hint = ""
+        if not hints_enabled or not skill_ids:
+            nudge = ""
         elif self.mode == "traditional":
-            skill_hint = (
-                f"Relevant skills: {', '.join(skill_ids)}. "
-                f"Read them from .claude/skills/ before writing code."
-            ) if skill_ids else ""
+            names = ", ".join(skill_ids)
+            nudge = f"Skills available at ~/.claude/skills: {names}. Read them before starting."
         else:
-            skill_hint = (
-                f"Relevant skills: {', '.join(skill_ids)}. "
-                f"Call ontoskill with query describing the task to load skill knowledge."
-            ) if skill_ids else ""
+            names = ", ".join(skill_ids)
+            nudge = (
+                f"Skills available via MCP tools: {names}. "
+                f"Call ontoskill with a query describing the task to load skill knowledge."
+            )
 
-        prompt = (
-            "Read TASK_INSTRUCTION.md to understand the task.\n"
-            "Write a solution.py script that produces all required output files.\n"
-            "The script runs inside a Docker container with: python3 solution.py\n"
-            "IMPORTANT: Use CONTAINER paths in your code (e.g., /root/data.csv), "
-            "NOT host paths (e.g., /tmp/sb_cc_...). Read Dockerfile.reference for the container file layout.\n"
-            f"{skill_hint}\n"
-            f"TASK: {instruction}"
-        )
+        # SkillsBench standard: nudge + "\n\n" + instruction (no wrapping).
+        prompt = f"{nudge}\n\n{instruction}" if nudge else instruction
 
         # Build CLI command.
         cmd = [

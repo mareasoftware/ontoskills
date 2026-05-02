@@ -229,86 +229,20 @@ class SkillsBenchWrapper:
     # ------------------------------------------------------------------
 
     def _build_code_gen_prompt(self, task: dict, skill_hints: bool = True) -> str:
-        """Build the prompt for the API-mode agent."""
+        """Build the prompt for the API-mode agent.
+
+        SkillsBench-aligned: skill_nudge (name level) + instruction.md content.
+        Matches BenchFlow _resolve_prompts() with skill_nudge="name".
+        """
         instruction = task["instruction"]
-        dockerfile = task.get("dockerfile", "")
         skill_ids = task.get("skill_ids", [])
 
-        workdir = "/root"
-        copy_lines: list[str] = []
-        for line in dockerfile.splitlines():
-            stripped = line.strip()
-            if stripped.upper().startswith("WORKDIR"):
-                workdir = stripped.split(None, 1)[1].strip() if len(stripped.split()) > 1 else workdir
-            if stripped.upper().startswith("COPY"):
-                copy_lines.append(stripped)
+        if not skill_hints or not skill_ids:
+            return instruction
 
-        skill_script_paths: list[str] = []
-        task_dir = Path(task["task_dir"])
-        for sid in skill_ids:
-            scripts_dir = task_dir / "environment" / "skills" / sid / "scripts"
-            if scripts_dir.is_dir():
-                for script_file in scripts_dir.iterdir():
-                    if script_file.suffix == ".py":
-                        skill_script_paths.append(
-                            f"/root/.claude/skills/{sid}/scripts"
-                        )
-                        break
-
-        syspath_info = ""
-        if skill_script_paths:
-            unique_paths = list(dict.fromkeys(skill_script_paths))
-            syspath_info = (
-                "\n\nSKILL HELPER SCRIPTS are available at these paths "
-                "(add them to sys.path to import):\n"
-                + "\n".join(f"  sys.path.append('{p}')" for p in unique_paths)
-            )
-
-        pip_lines = []
-        apt_lines = []
-        for line in dockerfile.splitlines():
-            stripped = line.strip()
-            if "pip" in stripped and "install" in stripped:
-                pip_lines.append(stripped)
-            if "apt" in stripped and "install" in stripped:
-                apt_lines.append(stripped)
-        packages_info = ""
-        if pip_lines:
-            packages_info += "\nInstalled Python packages:\n" + "\n".join(pip_lines)
-        if apt_lines:
-            packages_info += "\nInstalled system packages:\n" + "\n".join(apt_lines)
-
-        container_info = f"\n\nCONTAINER ENVIRONMENT:\n- Working directory: {workdir}\n- Solution script runs at: /tmp/agent_solution.py"
-        if copy_lines:
-            container_info += "\n- Files in container (from Dockerfile COPY):\n  " + "\n  ".join(copy_lines[:10])
-
-        skill_names = ", ".join(skill_ids) if skill_ids else "none"
-        skill_hint_line = (
-            f"8. Load the relevant skills using your available tools BEFORE writing code. Skills for this task: {skill_names}\n"
-            if skill_hints else ""
-        )
-
-        prompt = f"""You are an AI assistant solving a task. You must write a COMPLETE, self-contained Python 3 script that solves the task.
-
-IMPORTANT RULES:
-1. Write a single Python script that can be executed with `python3 script.py`
-2. The script must produce all required output files at the correct paths (paths in the task instruction refer to container paths)
-3. Do NOT use any packages not listed below — only use what's already installed
-4. Do NOT prompt for user input — the script must run non-interactively
-5. Handle errors gracefully — the script should not crash
-6. Output exactly what the task asks for — file paths, formats, and data must match precisely
-7. If skill helper scripts are mentioned below, import them via sys.path.append before importing{syspath_info}
-{skill_hint_line}{packages_info}{container_info}
----
-
-TASK INSTRUCTION:
-{instruction}
-
----
-
-Write your solution as a SINGLE Python script. Output ONLY the Python code inside a ```python code block. Do not add any explanation outside the code block."""
-
-        return prompt
+        names = ", ".join(skill_ids)
+        nudge = f"Skills available at ~/.claude/skills: {names}. Read them before starting."
+        return f"{nudge}\n\n{instruction}"
 
     # ------------------------------------------------------------------
     # BenchFlow Trial integration (async)
