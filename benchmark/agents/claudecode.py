@@ -324,8 +324,8 @@ class ClaudeCodeAgent(BaseAgent):
         else:
             names = ", ".join(skill_ids)
             nudge = (
-                f"Skills available via MCP tools: {names}. "
-                f"Call ontoskill with a query describing the task to load skill knowledge."
+                f"Skills available via ontoskill MCP tool: {names}. "
+                f"Load them with ontoskill before starting."
             )
 
         # SkillsBench standard: nudge + "\n\n" + instruction (no wrapping).
