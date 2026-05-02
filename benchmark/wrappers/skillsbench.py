@@ -23,6 +23,7 @@ import os
 import random
 import re
 import shutil
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import time
 from pathlib import Path
@@ -540,8 +541,47 @@ class SkillsBenchWrapper:
             return []
 
         results: list[dict] = []
-        incremental_path = os.environ.get("BENCHMARK_INCREMENTAL_PATH")
+        # Incremental save — always on, writes to output_dir/incremental.json.
+        incremental_path = Path(output_dir) / "skillsbench" / mode / "incremental.json"
+        incremental_path.parent.mkdir(parents=True, exist_ok=True)
+        # Also check env var override for custom path.
+        env_path = os.environ.get("BENCHMARK_INCREMENTAL_PATH")
+        if env_path:
+            incremental_path = Path(env_path)
+            incremental_path.parent.mkdir(parents=True, exist_ok=True)
+
+        def _save_incremental() -> None:
+            incremental_path.write_text(
+                json.dumps(results, indent=2, default=str, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.info(
+                "Incremental save: %d results -> %s",
+                len(results), incremental_path,
+            )
+
+        def _verify_task(task: dict, result: dict) -> dict:
+            """Run Docker verification in a sync wrapper (for ThreadPoolExecutor)."""
+            solution_script = result.get("solution_script", "")
+            if solution_script.strip():
+                verification = asyncio.run(
+                    self._run_with_trial(
+                        task,
+                        solution_script=solution_script,
+                        work_dir=result.get("work_dir"),
+                    )
+                )
+                result["verification"] = verification
+                result["reward"] = verification.get("reward", 0.0)
+            else:
+                result["verification"] = {"reward": 0.0, "test_details": []}
+                result["reward"] = 0.0
+            return result
+
         try:
+            verify_executor = ThreadPoolExecutor(max_workers=1)
+            pending_verification = None  # (future, task, result)
+
             for i, task in enumerate(tasks, 1):
                 logger.info(
                     "Claude Code [%d/%d]: %s (%s)",
@@ -550,47 +590,65 @@ class SkillsBenchWrapper:
 
                 task["skill_hints"] = skill_hints
 
+                # Wait for previous verification to finish before overwriting work_dir.
+                if pending_verification is not None:
+                    prev_future, prev_task, prev_result = pending_verification
+                    try:
+                        prev_result = prev_future.result()
+                    except Exception as exc:
+                        logger.warning(
+                            "Verification failed for %s: %s",
+                            prev_task["task_id"], exc,
+                        )
+                        prev_result["verification"] = {"reward": 0.0, "test_details": [], "verifier_error": str(exc)}
+                        prev_result["reward"] = 0.0
+
+                    if max_attempts > 1:
+                        prev_result["attempts"] = prev_result.get("attempts", 1)
+                    else:
+                        prev_result["attempts"] = 1
+                    results.append(prev_result)
+                    _save_incremental()
+                    pending_verification = None
+
+                # Run agent for current task (blocking — uses API).
                 if max_attempts > 1:
                     result = self.run_task_claudecode_with_retry(
                         cc_agent, task, timeout=timeout, max_budget=max_budget,
                         max_attempts=max_attempts,
                     )
+                    # Retry loop already verifies, just save.
+                    results.append(result)
+                    _save_incremental()
                 else:
                     result = self.run_task_claudecode(
                         cc_agent, task, timeout=timeout, max_budget=max_budget,
                     )
-                    solution_script = result.get("solution_script", "")
-                    if solution_script.strip():
-                        verification = asyncio.run(
-                            self._run_with_trial(
-                                task,
-                                solution_script=solution_script,
-                                work_dir=result.get("work_dir"),
-                            )
-                        )
-                        result["verification"] = verification
-                        result["reward"] = verification.get("reward", 0.0)
-                        result["attempts"] = 1
-                    else:
-                        result["verification"] = {"reward": 0.0, "test_details": []}
-                        result["reward"] = 0.0
-                        result["attempts"] = 1
-
-                results.append(result)
-
-                if incremental_path:
-                    _path = Path(incremental_path)
-                    _path.parent.mkdir(parents=True, exist_ok=True)
-                    _path.write_text(
-                        json.dumps(results, indent=2, default=str, ensure_ascii=False),
-                        encoding="utf-8",
+                    # Pipeline: start verification in background, move to next task.
+                    pending_verification = (
+                        verify_executor.submit(_verify_task, task, result),
+                        task,
+                        result,
                     )
-                    logger.info(
-                        "Incremental save: %d results -> %s",
-                        len(results), _path,
+
+            # Drain last pending verification.
+            if pending_verification is not None:
+                prev_future, prev_task, prev_result = pending_verification
+                try:
+                    prev_result = prev_future.result()
+                except Exception as exc:
+                    logger.warning(
+                        "Verification failed for %s: %s",
+                        prev_task["task_id"], exc,
                     )
+                    prev_result["verification"] = {"reward": 0.0, "test_details": [], "verifier_error": str(exc)}
+                    prev_result["reward"] = 0.0
+                prev_result["attempts"] = prev_result.get("attempts", 1)
+                results.append(prev_result)
+                _save_incremental()
 
         finally:
+            verify_executor.shutdown(wait=False)
             cc_agent.cleanup()
 
         return results
