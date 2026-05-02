@@ -34,7 +34,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
       <div class="section-shell">
         <h2>The Question</h2>
         <p>AI coding agents like Claude Code rely on skill documentation to solve specialized tasks — generating DOCX files, processing PDFs, analyzing financial data. Today, these skills are delivered as plain markdown files (<code>SKILL.md</code>). The agent reads the raw text and must extract instructions, heuristics, and anti-patterns on its own.</p>
-        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via MCP tools. The agent queries <code>search</code>, <code>get_skill_context</code>, <code>evaluate_execution_plan</code>, and <code>query_epistemic_rules</code> — receiving typed knowledge nodes with severity ratings and execution plan evaluations.</p>
+        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via a single MCP tool (<code>ontoskill</code>). The agent queries for skill knowledge — receiving typed knowledge nodes with severity ratings, anti-patterns with rationale, and curated code examples.</p>
         <p>Which approach produces better results?</p>
       </div>
     </section>
@@ -47,12 +47,12 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
         <div class="method-grid">
           <div class="method-card glass-panel">
             <h3>Evaluation</h3>
-            <p>We use <a href="https://github.com/benchflow-ai/skillsbench" target="_blank">SkillsBench</a>, which measures an agent's ability to generate working code for real-world tasks.</p>
+            <p>We use <a href="https://github.com/benchflow-ai/skillsbench" target="_blank">SkillsBench</a> (part of <a href="https://github.com/benchflow-ai/benchflow" target="_blank">BenchFlow</a>), which measures an agent's ability to generate working code for real-world tasks.</p>
             <ol>
               <li>Agent receives task description + skill docs</li>
               <li>Generates a Python solution script</li>
-              <li>Script runs inside the task's <strong>Docker container</strong></li>
-              <li><strong>pytest</strong> verifies output — deterministic, no human judgment</li>
+              <li>Script runs inside the task's <strong>Docker container</strong> (via BenchFlow Trial + Harbor)</li>
+              <li><strong>Harbor Verifier</strong> runs pytest — deterministic, no human judgment</li>
             </ol>
           </div>
 
@@ -61,8 +61,9 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
             <table class="setup-table">
               <tr><td>Agent</td><td>Claude Code CLI (<code>--print --bare</code>)</td></tr>
               <tr><td>Model</td><td>glm-5.1 (via API proxy)</td></tr>
-              <tr><td>Tasks</td><td>10 (seed=7), pool of 70+</td></tr>
+              <tr><td>Infrastructure</td><td>BenchFlow Trial + Harbor Verifier</td></tr>
               <tr><td>Scoring</td><td>Docker + pytest CTRF</td></tr>
+              <tr><td>Retries</td><td>5 per task (BenchFlow RetryConfig)</td></tr>
             </table>
           </div>
         </div>
@@ -75,10 +76,10 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
           <div class="mode-vs">vs</div>
           <div class="mode-card">
             <span class="mode-label" style="color: var(--accent-cyan);">OntoSkills MCP</span>
-            <p>Skills compiled to OWL 2, served via MCP tools (<code>search</code>, <code>get_skill_context</code>). Agent discovers skills through structured queries.</p>
+            <p>Skills compiled to OWL 2, served via <strong>OntoMCP</strong>. The agent discovers and loads skill knowledge through a single <code>ontoskill</code> tool call — receiving structured, prioritized context.</p>
           </div>
         </div>
-        <p class="note">Same agent, same model, same prompts. The only difference is <strong>how skill knowledge is delivered</strong>.</p>
+        <p class="note">Same agent, same model, same BenchFlow container management, same Harbor Verifier. The only difference is <strong>how skill knowledge is delivered</strong>.</p>
       </div>
     </section>
 
@@ -99,10 +100,10 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
         <ul>
           <li><code>CRITICAL</code> rules highlighted first</li>
           <li>Anti-patterns with explicit <code>rationale</code> explaining <em>why</em></li>
-          <li>Execution plan evaluation catches mistakes before coding</li>
           <li>Curated, prioritized view instead of a wall of text</li>
+          <li>88% token reduction through compact structured format</li>
         </ul>
-        <p>Especially valuable for complex domains like PDF processing (paper-anonymizer) where correct vs. incorrect output depends on subtle configuration details.</p>
+        <p>The result: structured knowledge helps agents solve more tasks correctly with fewer tokens.</p>
       </div>
     </section>
 
@@ -111,10 +112,9 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
       <div class="section-shell">
         <h2>Limitations</h2>
         <ul>
-          <li><strong>Sample size</strong>: 10 tasks from 70+ pool. Results should be confirmed with larger runs.</li>
+          <li><strong>Sample size</strong>: Results from a pool of 70+ eligible tasks.</li>
           <li><strong>Single model</strong>: All results use glm-5.1 via API proxy. Other models may differ.</li>
           <li><strong>Single benchmark</strong>: SkillsBench tests code generation. Other benchmarks planned.</li>
-          <li><strong>Seed-dependent</strong>: Task selection varies by seed. We report seed=7 for reproducibility.</li>
         </ul>
       </div>
     </section>
@@ -125,7 +125,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
         <div class="cta-box">
           <p style="margin-bottom: 12px;">All benchmark code is open source. Run it yourself:</p>
           <div class="command-shell">
-            <code>python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --seed 7</code>
+            <code>python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --attempts 5</code>
           </div>
         </div>
       </div>

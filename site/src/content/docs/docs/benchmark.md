@@ -21,15 +21,15 @@ Which approach produces better results?
 
 ## SkillsBench: Deterministic Code Generation
 
-We evaluated both approaches using [SkillsBench](https://github.com/benchflow-ai/skillsbench), a benchmark that measures an agent's ability to generate working code for real-world tasks.
+We evaluated both approaches using [SkillsBench](https://github.com/benchflow-ai/skillsbench), part of the [BenchFlow](https://github.com/benchflow-ai/benchflow) evaluation suite.
 
 ### How evaluation works
 
 1. The agent receives a task description and relevant skill documentation
 2. It generates a Python solution script
-3. The script runs inside the task's **Docker container** (via podman)
-4. A **pytest test suite** verifies the output files — deterministic, no human judgment
-5. Score = `tests_passed / tests_total` per task
+3. The script runs inside the task's **Docker container** (via [BenchFlow Trial](https://github.com/benchflow-ai/benchflow) + [Harbor](https://github.com/benchflow-ai/harbor))
+4. **Harbor Verifier** runs the task's pytest test suite — deterministic, no human judgment
+5. Score = `tests_passed / tests_total` per task (CTRF report)
 
 This is not LLM-as-judge. The evaluation is fully deterministic and reproducible.
 
@@ -39,9 +39,9 @@ This is not LLM-as-judge. The evaluation is fully deterministic and reproducible
 |-----------|-------|
 | Agent | Claude Code CLI (`--print --bare` mode) |
 | Model | glm-5.1 (via API proxy) |
-| Tasks | 23 (seed=7), from a pool of 70+ eligible tasks |
-| Attempts | 3 per task (multi-turn with Docker execution feedback) |
-| Scoring | Docker + pytest CTRF report, best of 3 attempts |
+| Infrastructure | [BenchFlow](https://github.com/benchflow-ai/benchflow) Trial + [Harbor](https://github.com/benchflow-ai/harbor) Verifier |
+| Scoring | Harbor Verifier + pytest CTRF report |
+| Retries | 5 per task (BenchFlow RetryConfig, clean retries, best reward wins) |
 
 ### Agent modes
 
@@ -49,22 +49,15 @@ This is not LLM-as-judge. The evaluation is fully deterministic and reproducible
 
 **OntoSkills MCP** — Skills compiled to OWL 2 ontologies, served via **OntoMCP**. The agent discovers and loads skill knowledge through a single `ontoskill` tool call, receiving structured, prioritized context with interconnections between knowledge elements.
 
-Both modes use the same Claude Code agent, the same model, the same prompts. The only difference is **how skill knowledge is delivered**.
+Both modes use the same Claude Code agent, the same model, the same BenchFlow container management, and the same Harbor Verifier. The only difference is **how skill knowledge is delivered**.
 
 ## Results
 
 <BenchmarkApp />
 
-### Key findings
-
-- **OntoSkills leads in pass rate**: 60.9% (14/23) vs 40.0% (10/25) — structured knowledge helps agents solve more tasks correctly
-- **OntoSkills has higher avg reward**: 0.93x vs 0.40x — structured delivery dramatically improves task completion
-- **OntoSkills uses fewer input tokens** — structured delivery is more compact
-- **Intra-skill links** — anti-patterns now point to correct alternatives, constraints link to the workflow steps they apply to
-
 ### Per-task highlights
 
-Results shown below are from the initial benchmark run. A re-run with improved knowledge delivery (intra-skill links, fixed caching) is in progress.
+Results will be shown after the benchmark re-run with the BenchFlow-aligned infrastructure.
 
 ### Why structured knowledge wins
 
@@ -77,28 +70,21 @@ OntoSkills delivers knowledge as **typed nodes with severity ratings and interco
 - Curated, prioritized view instead of a wall of text
 - Token-efficient compact format that deduplicates content already captured by knowledge nodes
 
-The token efficiency advantage compounds: the agent spends fewer turns reading documentation and more turns writing correct code. With multi-turn feedback (Docker test results), this means more fix iterations within the same token budget.
-
-### Infrastructure note
-
-1 task (`flink-query`) always fails for both modes due to a Java/Flink container that has no Python interpreter. This is an infrastructure limitation, not a knowledge quality issue.
+The token efficiency advantage compounds: the agent spends fewer turns reading documentation and more turns writing correct code.
 
 ## Limitations
 
-- **Sample size**: 23 tasks from 70+ pool. Results should be confirmed with larger runs.
+- **Sample size**: Results from a pool of 70+ eligible tasks.
 - **Single model**: All results use glm-5.1 via API proxy. Other models may differ.
 - **Single benchmark**: SkillsBench tests code generation. Other benchmarks planned.
-- **Seed-dependent**: Task selection varies by seed. We report seed=7 for reproducibility.
 
 ## What's next
 
-- **Re-run with fixed cache** — benchmark re-run with all skills properly compiled and loaded
-- **Intra-skill link evaluation** — measuring the impact of derivedFromSection, correctAlternative, and appliesToStep links on agent performance
-- **Case B** (without hints) — testing skill discovery rather than knowledge quality
-- **Test-first prompting** — injecting test specifications into the prompt
+- **BenchFlow-aligned re-run** — full 4-case benchmark (Traditional hints, MCP hints, Traditional no-hints, MCP no-hints) with BenchFlow infrastructure
+- **Intra-skill link evaluation** — measuring the impact of derivedFromSection, correctAlternative, and appliesToStep links
 - **GAIA** evaluation (Q&A with file attachments)
 - **SWE-bench** evaluation (repository patching)
 
 ---
 
-> All benchmark code is open source. Run it yourself: `python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --seed 7`
+> All benchmark code is open source. Run it yourself: `python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --attempts 5`
