@@ -61,12 +61,11 @@ class ClaudeCodeAgent(BaseAgent):
         api_key: str | None = None,
     ) -> None:
         super().__init__(model=model, api_key=api_key)
-        if mode not in ("traditional", "ontoskills"):
-            raise ValueError(f"mode must be 'traditional' or 'ontoskills', got '{mode}'")
-        if mode == "traditional":
+        if mode != "ontoskills":
             raise ValueError(
-                "traditional mode is no longer supported in ClaudeCodeAgent. "
-                "Use ACP mode (agent inside container) instead."
+                f"ClaudeCodeAgent only supports 'ontoskills' mode. "
+                f"Use ACP mode (agent inside container) for traditional mode. "
+                f"Got '{mode}'."
             )
         self.mode = mode
         self.skills_dir = skills_dir
