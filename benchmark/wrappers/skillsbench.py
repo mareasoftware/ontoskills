@@ -363,6 +363,91 @@ class SkillsBenchWrapper:
 
         logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json")
 
+    async def _run_acp_mcp_trial(
+        self,
+        task: dict,
+        *,
+        skill_nudge: str = "name",
+    ) -> dict:
+        """ACP Trial with MCP tools injected into the container.
+
+        Splits Trial.run() into individual steps so we can inject
+        ontomcp binary + TTL files + .mcp_config.json between
+        start and install_agent.
+        """
+        from benchflow.trial import Trial, TrialConfig
+
+        task_path = Path(task["task_dir"])
+        task_id = task["task_id"]
+        jobs_dir = task_path.parent.parent / ".benchflow_jobs"
+
+        agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
+        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        if api_key:
+            agent_env["ANTHROPIC_API_KEY"] = api_key
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            agent_env["ANTHROPIC_BASE_URL"] = base_url
+
+        config = TrialConfig.from_legacy(
+            task_path=task_path,
+            agent="claude-agent-acp",
+            model="glm-5.1",
+            jobs_dir=str(jobs_dir),
+            environment="docker",
+            agent_env=agent_env,
+        )
+
+        trial = await Trial.create(config)
+        try:
+            await trial._setup_environment()
+            trial._environment.default_user = trial._task.config.agent.user
+            await trial._start_environment_with_retry()
+
+            # MCP injection point — between start and agent setup.
+            await self._inject_mcp_into_container(trial._environment, task)
+
+            await trial._setup_agent()
+            trial._result.agent_info = trial._agent.to_agent_info()
+
+            try:
+                trial._environment.default_user = trial._task.config.agent.user
+                await trial._execute_agent()
+            except Exception as exc:
+                logger.warning("ACP MCP agent error for %s: %s", task_id, exc)
+
+            if not config.verifier.disable:
+                trial._environment.default_user = None
+                await trial._run_verification()
+
+            result = trial._result
+            reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+            return {
+                "task_id": task_id,
+                "reward": reward,
+                "rewards": result.rewards,
+                "error": str(result.exception_info) if result.exception_info else None,
+                "verifier_error": None,
+                "build_ok": True,
+                "n_tool_calls": getattr(result, "n_tool_calls", 0),
+            }
+        except Exception as exc:
+            logger.exception("ACP MCP Trial failed for %s: %s", task_id, exc)
+            return {
+                "task_id": task_id,
+                "reward": 0.0,
+                "rewards": None,
+                "error": str(exc),
+                "verifier_error": None,
+                "build_ok": False,
+                "n_tool_calls": 0,
+            }
+        finally:
+            try:
+                await trial._cleanup_and_finalize()
+            except Exception:
+                pass
+
     async def _run_hybrid_trial(
         self,
         task: dict,
