@@ -448,6 +448,71 @@ class SkillsBenchWrapper:
             except Exception:
                 pass
 
+    async def _run_pooled(
+        self,
+        tasks: list[dict],
+        state: "BenchmarkState",
+        trial_runner,
+        *,
+        max_attempts: int = 5,
+        workers: int = 2,
+    ) -> list[dict]:
+        """Run tasks with N parallel workers and state-backed resume."""
+        from benchflow.job import RetryConfig
+
+        queue: asyncio.Queue[tuple[str, dict, int]] = asyncio.Queue()
+
+        # Enqueue tasks that need work.
+        for task in tasks:
+            tid = task["task_id"]
+            if not state.should_run(tid):
+                continue
+            attempt = state.next_attempt(tid)
+            queue.put_nowait((tid, task, attempt))
+
+        if queue.empty():
+            logger.info("All tasks already completed, nothing to run.")
+            return state.get_results()
+
+        retry_config = RetryConfig(max_retries=max_attempts - 1)
+
+        async def worker(worker_id: int) -> None:
+            while True:
+                try:
+                    tid, task, attempt = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+
+                logger.info(
+                    "Worker %d: %s attempt %d/%d",
+                    worker_id, tid, attempt, max_attempts,
+                )
+
+                result = await trial_runner(task)
+                result["attempt"] = attempt
+                state.record_attempt(tid, result)
+
+                reward = result.get("reward", 0.0)
+                if reward >= 1.0:
+                    logger.info("Task %s: PASSED on attempt %d", tid, attempt)
+                    state.mark_completed(tid)
+                elif attempt >= max_attempts:
+                    logger.info("Task %s: exhausted %d attempts", tid, max_attempts)
+                    state.mark_completed(tid)
+                else:
+                    delay = retry_config.backoff_delay(attempt - 1)
+                    logger.info(
+                        "Task %s: attempt %d reward=%.3f, retry in %.1fs",
+                        tid, attempt, reward, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    queue.put_nowait((tid, task, attempt + 1))
+
+                queue.task_done()
+
+        await asyncio.gather(*[worker(i) for i in range(workers)])
+        return state.get_results()
+
     async def _run_hybrid_trial(
         self,
         task: dict,
