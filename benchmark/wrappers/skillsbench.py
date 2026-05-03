@@ -312,6 +312,57 @@ class SkillsBenchWrapper:
             "n_tool_calls": result.n_tool_calls,
         }
 
+    async def _inject_mcp_into_container(self, env, task: dict) -> None:
+        """Inject ontomcp binary + TTL files + MCP config into container."""
+        import subprocess as sp
+
+        ontology_root = self._prepare_skillsbench_ontology_root()
+        if not ontology_root:
+            raise RuntimeError("No SkillsBench ontology root available for MCP injection")
+
+        # Upload ontomcp binary.
+        await env.upload_file(self.ontomcp_bin, "/usr/local/bin/ontomcp")
+        await env.exec("chmod +x /usr/local/bin/ontomcp", timeout_sec=30)
+
+        # Upload TTL files as tar for efficiency.
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as f:
+            tar_path = f.name
+        try:
+            sp.run(
+                ["tar", "czf", tar_path, "-C", ontology_root, "."],
+                check=True, capture_output=True,
+            )
+            await env.upload_file(tar_path, "/tmp/ontoskills_ttl.tar.gz")
+        finally:
+            os.unlink(tar_path)
+        await env.exec(
+            "mkdir -p /opt/ontoskills/packages && "
+            "tar xzf /tmp/ontoskills_ttl.tar.gz -C /opt/ontoskills/packages",
+            timeout_sec=60,
+        )
+
+        # Write .mcp_config.json to WORKDIR.
+        mcp_config = json.dumps({
+            "mcpServers": {
+                "ontoskills": {
+                    "command": "/usr/local/bin/ontomcp",
+                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
+                    "type": "stdio",
+                }
+            }
+        })
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False,
+        ) as f:
+            f.write(mcp_config)
+            config_tmp = f.name
+        try:
+            await env.upload_file(config_tmp, ".mcp_config.json")
+        finally:
+            os.unlink(config_tmp)
+
+        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json")
+
     async def _run_hybrid_trial(
         self,
         task: dict,
