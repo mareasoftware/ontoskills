@@ -128,7 +128,11 @@ class BenchmarkState:
         skill_hints: bool,
     ) -> "BenchmarkState":
         if path.exists():
-            state = cls.load(path)
+            try:
+                state = cls.load(path)
+            except (json.JSONDecodeError, KeyError, ValueError):
+                logger.warning("Corrupted state file %s, starting fresh", path)
+                return cls.create(path, run_id, mode, skill_hints)
             if state.matches(run_id, mode, skill_hints):
                 logger.info("Resuming from %s (%d tasks done)", path, len(state.completed_task_ids()))
                 return state

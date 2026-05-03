@@ -252,6 +252,26 @@ class SkillsBenchWrapper:
     # BenchFlow Trial integration (async)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _build_agent_env(skill_nudge: str) -> dict[str, str]:
+        """Build agent environment dict with API key and provider vars."""
+        agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
+        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        if api_key:
+            agent_env["ANTHROPIC_API_KEY"] = api_key
+            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            agent_env["ANTHROPIC_BASE_URL"] = base_url
+        # BenchFlow provider resolution — glm-5.1 has no built-in provider,
+        # so we must pass the proxy URL and key explicitly.
+        if api_key:
+            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
+        if base_url:
+            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
+            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
+        return agent_env
+
     async def _run_acp_trial(
         self,
         task: dict,
@@ -270,21 +290,7 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        agent_env = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if api_key:
-            agent_env["ANTHROPIC_API_KEY"] = api_key
-            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            agent_env["ANTHROPIC_BASE_URL"] = base_url
-        # BenchFlow provider resolution — glm-5.1 has no built-in provider,
-        # so we must pass the proxy URL and key explicitly.
-        if api_key:
-            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
-        if base_url:
-            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
-            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
+        agent_env = self._build_agent_env(skill_nudge)
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
@@ -310,6 +316,11 @@ class SkillsBenchWrapper:
                 "build_ok": False,
                 "n_tool_calls": 0,
             }
+        finally:
+            try:
+                await trial.cleanup()
+            except Exception:
+                pass
 
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
         build_ok = result.error is None
@@ -398,20 +409,7 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if api_key:
-            agent_env["ANTHROPIC_API_KEY"] = api_key
-            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            agent_env["ANTHROPIC_BASE_URL"] = base_url
-        # BenchFlow provider resolution — glm-5.1 has no built-in provider.
-        if api_key:
-            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
-        if base_url:
-            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
-            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
+        agent_env = self._build_agent_env(skill_nudge)
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
@@ -443,13 +441,14 @@ class SkillsBenchWrapper:
 
             result = trial._build_result()
             reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+            build_ok = result.error is None
             return {
                 "task_id": task_id,
                 "reward": reward,
                 "rewards": result.rewards,
                 "error": result.error,
                 "verifier_error": result.verifier_error,
-                "build_ok": True,
+                "build_ok": build_ok,
                 "n_tool_calls": result.n_tool_calls,
             }
         except Exception as exc:
