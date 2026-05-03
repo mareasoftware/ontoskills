@@ -312,7 +312,7 @@ class SkillsBenchWrapper:
             }
 
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-        build_ok = result.error is None or "timed out" in (result.error or "")
+        build_ok = result.error is None
         return {
             "task_id": task_id,
             "reward": reward,

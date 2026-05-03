@@ -739,8 +739,13 @@ def main() -> None:
     # Determine which benchmarks to run.
     if args.benchmark == "all":
         benchmarks = ["gaia", "swebench", "perpackage", "skillsbench"]
+        if args.mode == "all5":
+            logger.warning("--mode all5 only applies to skillsbench; gaia/swebench/perpackage skipped")
+            benchmarks = ["skillsbench"]
     else:
         benchmarks = [args.benchmark]
+        if args.mode == "all5" and args.benchmark != "skillsbench":
+            parser.error("--mode all5 is only supported with --benchmark skillsbench")
 
     # Validate prerequisites.
     modes_needing_api = ("acp", "acp-mcp", "baseline", "both", "all5")
@@ -815,7 +820,7 @@ def main() -> None:
                     workers=args.workers,
                     resume=args.resume and not args.force_restart,
                     force_restart=args.force_restart,
-                    state_file=args.state_file,
+                    state_file=args.state_file if args.mode != "all5" else None,
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("SkillsBench %s completed in %.1fs", label, elapsed)

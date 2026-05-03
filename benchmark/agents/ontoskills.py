@@ -158,7 +158,7 @@ class OntoSkillsAgent(BaseAgent):
         for sid in skill_ids:
             try:
                 mcp_res = self._mcp_client.call_tool(
-                    "ontoskill", {"q": sid, **({"top_k": 1} if False else {})},
+                    "ontoskill", {"q": sid},
                 )
                 content = mcp_res.get("content", [])
                 if content and isinstance(content, list) and content[0].get("text"):
