@@ -274,9 +274,17 @@ class SkillsBenchWrapper:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         if api_key:
             agent_env["ANTHROPIC_API_KEY"] = api_key
+            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
         base_url = os.environ.get("ANTHROPIC_BASE_URL")
         if base_url:
             agent_env["ANTHROPIC_BASE_URL"] = base_url
+        # BenchFlow provider resolution — glm-5.1 has no built-in provider,
+        # so we must pass the proxy URL and key explicitly.
+        if api_key:
+            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
+        if base_url:
+            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
+            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
@@ -394,9 +402,16 @@ class SkillsBenchWrapper:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         if api_key:
             agent_env["ANTHROPIC_API_KEY"] = api_key
+            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
         base_url = os.environ.get("ANTHROPIC_BASE_URL")
         if base_url:
             agent_env["ANTHROPIC_BASE_URL"] = base_url
+        # BenchFlow provider resolution — glm-5.1 has no built-in provider.
+        if api_key:
+            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
+        if base_url:
+            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
+            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
