@@ -2,22 +2,28 @@
 """Main orchestrator: run benchmarks and generate comparison report.
 
 Usage:
-    python run.py --benchmark {gaia,swebench,perpackage,skillsbench,all} --mode {traditional,ontoskills,both}
-                  --skills-dir <path> --ttl-dir <path> --ontomcp-bin <path>
-                  --model <model_id> --max-tasks <N> --output-dir <path>
+    python run.py --benchmark {gaia,swebench,perpackage,skillsbench,all}
+                  --mode {acp,acp-mcp,both} --model <model_id> --max-tasks <N>
+                  --output-dir <path>
 
 Examples:
-    # Run GAIA with both agents (traditional + ontoskills)
+    # Run SkillsBench with ACP (traditional via container)
+    python run.py --benchmark skillsbench --mode acp --max-tasks 25
+
+    # Run SkillsBench with ACP-MCP (ontomcp inside container)
+    python run.py --benchmark skillsbench --mode acp-mcp --max-tasks 25
+
+    # Run SkillsBench both modes
+    python run.py --benchmark skillsbench --mode both --max-tasks 25
+
+    # Run GAIA with both agents (acp maps to traditional, acp-mcp to ontoskills)
     python run.py --benchmark gaia --mode both --max-tasks 10
 
-    # Run SWE-bench with only the OntoSkills agent
-    python run.py --benchmark swebench --mode ontoskills --ttl-dir /path/to/ttls
+    # Resume from previous state
+    python run.py --benchmark skillsbench --mode acp --resume
 
-    # Run all benchmarks, both modes
-    python run.py --benchmark all --mode both
-
-    # Only traditional agent (needs ANTHROPIC_API_KEY)
-    python run.py --benchmark gaia --mode traditional --skills-dir /path/to/skills
+    # Force fresh start (ignore existing state)
+    python run.py --benchmark skillsbench --mode acp --force-restart
 """
 
 from __future__ import annotations
@@ -358,127 +364,10 @@ def _run_perpackage(
     return results, judge_score["overall_avg"]
 
 
-def _run_skillsbench(
-    agent,
-    mode: str,
-    max_tasks: int | None,
-    output_dir: Path,
-    *,
-    skills_dir: str | None = None,
-    model: str = "glm-5.1",
-    shuffle: bool = True,
-    seed: int = 42,
-    skillsbench_repo: str = "/tmp/skillsbench_full",
-    workers: int = 3,
-    skip_first: int = 0,
-    skill_hints: bool = True,
-) -> tuple[list[dict], float | None]:
-    """Run the SkillsBench benchmark with deterministic Docker-based evaluation.
-
-    Returns (results_list, pass_rate).
-    """
-    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
-
-    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-    results = wrapper.run_benchmark(
-        agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        workers=workers, skip_first=skip_first, skill_hints=skill_hints,
-    )
-
-    # Score from Docker reward.txt (deterministic).
-    score = SkillsBenchWrapper.score(results)
-    logger.info(
-        "SkillsBench (%s): %d/%d passed (%.1f%%)",
-        mode,
-        score["tasks_passed"],
-        score["total_tasks"],
-        score["pass_rate"] * 100,
-    )
-
-    # Save results.
-    raw_path = output_dir / "skillsbench" / mode / "results.json"
-    raw_path.parent.mkdir(parents=True, exist_ok=True)
-    _save_json(results, raw_path)
-
-    # Save scores.
-    score_path = output_dir / "skillsbench" / mode / "score.json"
-    score_path.write_text(
-        json.dumps(score, indent=2, default=str, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    # Save chart data.
-    chart = generate_chart_data("skillsbench", mode, results, score, model=getattr(agent, "model", ""))
-    save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
-
-    return results, score["pass_rate"]
-
-
-def _run_skillsbench_claudecode(
-    agent,
-    mode: str,
-    max_tasks: int | None,
-    output_dir: Path,
-    *,
-    skills_dir: str | None = None,
-    model: str = "glm-5.1",
-    shuffle: bool = True,
-    seed: int = 42,
-    skillsbench_repo: str = "/tmp/skillsbench_full",
-    workers: int = 3,
-    skip_first: int = 0,
-    max_attempts: int = 1,
-    skill_hints: bool = True,
-    only_tasks: list[str] | None = None,
-) -> tuple[list[dict], float | None]:
-    """Run SkillsBench MCP mode: Trial container + host claude -p agent.
-
-    Returns (results_list, pass_rate).
-    """
-    import asyncio
-    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
-
-    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-    incremental_path = str(output_dir / "skillsbench" / mode / "incremental.json")
-    results = asyncio.run(wrapper.run_benchmark_claudecode(
-        agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        skip_first=skip_first, max_attempts=max_attempts,
-        skill_hints=skill_hints, only_tasks=only_tasks,
-        incremental_path=incremental_path,
-    ))
-
-    # Score from Docker reward.txt (deterministic).
-    score = SkillsBenchWrapper.score(results)
-    logger.info(
-        "SkillsBench MCP (%s): %d/%d passed (%.1f%%)",
-        mode,
-        score["tasks_passed"],
-        score["total_tasks"],
-        score["pass_rate"] * 100,
-    )
-
-    # Save results.
-    raw_path = output_dir / "skillsbench" / mode / "results.json"
-    raw_path.parent.mkdir(parents=True, exist_ok=True)
-    _save_json(results, raw_path)
-
-    # Save scores.
-    score_path = output_dir / "skillsbench" / mode / "score.json"
-    score_path.write_text(
-        json.dumps(score, indent=2, default=str, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-    # Save chart data.
-    chart = generate_chart_data("skillsbench", mode, results, score, model=getattr(agent, "model", ""))
-    save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
-
-    return results, score["pass_rate"]
-
-
 def _run_skillsbench_acp(
     output_dir: Path,
     *,
+    mode: str = "acp",
     model: str = "glm-5.1",
     max_tasks: int | None = None,
     shuffle: bool = True,
@@ -488,41 +377,103 @@ def _run_skillsbench_acp(
     skill_hints: bool = True,
     skillsbench_repo: str = "/tmp/skillsbench_full",
     only_tasks: list[str] | None = None,
+    workers: int = 2,
+    resume: bool = True,
+    force_restart: bool = False,
+    state_file: str | None = None,
 ) -> tuple[list[dict], float | None]:
-    """Run SkillsBench Traditional mode via full BenchFlow ACP Trial.
+    """Run SkillsBench via ACP with BenchmarkState resume and worker pool.
 
-    Agent runs inside container via ACP. 100% SkillsBench aligned.
+    Supports two trial modes:
+      - ``acp``     : Traditional via ACP (SKILL.md files injected into Dockerfile)
+      - ``acp-mcp`` : MCP via ACP (ontomcp inside container)
+
     Returns (results_list, pass_rate).
     """
     import asyncio
+    import uuid
+
+    from benchmark.state import BenchmarkState
     from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 
     wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-    results = asyncio.run(wrapper.run_benchmark_acp(
-        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        skip_first=skip_first, max_attempts=max_attempts,
-        skill_hints=skill_hints, only_tasks=only_tasks,
-    ))
 
-    mode = "acp"
+    # Load tasks.
+    packages_root = os.path.expanduser("~/.ontoskills/packages")
+    tasks = wrapper.load_tasks(
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        packages_root=packages_root, skip_first=skip_first,
+        only_tasks=only_tasks,
+    )
+    if not tasks:
+        logger.error("No tasks to run.")
+        return [], None
+
+    # Resolve state file path.
+    if state_file:
+        state_path = Path(state_file)
+    else:
+        state_path = output_dir / "skillsbench" / mode / "benchmark_state.json"
+
+    # Load or create state.
+    run_id = str(uuid.uuid4())[:8]
+    if force_restart:
+        state = BenchmarkState.create(state_path, run_id, mode, skill_hints)
+    elif resume:
+        state = BenchmarkState.load_or_create(state_path, run_id, mode, skill_hints)
+    else:
+        state = BenchmarkState.create(state_path, run_id, mode, skill_hints)
+
+    # Skip if already fully done.
+    all_task_ids = [t["task_id"] for t in tasks]
+    if state.is_fully_done(all_task_ids):
+        logger.info("All tasks already completed in state file.")
+        results = state.get_results()
+    else:
+        # Pick trial runner based on mode.
+        nudge = "name" if skill_hints else ""
+
+        if mode == "acp":
+            async def trial_runner(task: dict) -> dict:
+                skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
+                return await wrapper._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
+        elif mode == "acp-mcp":
+            async def trial_runner(task: dict) -> dict:
+                return await wrapper._run_acp_mcp_trial(task, skill_nudge=nudge)
+        else:
+            raise ValueError(f"Unknown SkillsBench ACP mode: {mode}")
+
+        # Run pooled with state-backed resume.
+        results = asyncio.run(
+            wrapper._run_pooled(
+                tasks, state, trial_runner,
+                max_attempts=max_attempts, workers=workers,
+            )
+        )
+
+    # Score from Docker reward.txt (deterministic).
     score = SkillsBenchWrapper.score(results)
     logger.info(
-        "SkillsBench ACP: %d/%d passed (%.1f%%)",
+        "SkillsBench %s: %d/%d passed (%.1f%%)",
+        mode,
         score["tasks_passed"],
         score["total_tasks"],
         score["pass_rate"] * 100,
     )
 
+    # Save results.
     raw_path = output_dir / "skillsbench" / mode / "results.json"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     _save_json(results, raw_path)
 
+    # Save scores.
     score_path = output_dir / "skillsbench" / mode / "score.json"
     score_path.write_text(
         json.dumps(score, indent=2, default=str, ensure_ascii=False),
         encoding="utf-8",
     )
 
+    # Save chart data.
     chart = generate_chart_data("skillsbench", mode, results, score, model=model)
     save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
 
@@ -588,8 +539,9 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
+            "  python run.py --benchmark skillsbench --mode acp --max-tasks 25\n"
+            "  python run.py --benchmark skillsbench --mode acp-mcp --max-tasks 25\n"
             "  python run.py --benchmark gaia --mode both --max-tasks 10\n"
-            "  python run.py --benchmark swebench --mode ontoskills\n"
             "  python run.py --benchmark all --mode both\n"
         ),
     )
@@ -607,13 +559,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=["traditional", "ontoskills", "both", "acp", "claudecode", "claudecode-mcp"],
+        choices=["acp", "acp-mcp", "both"],
         default="both",
         help=(
             "Which agent mode to run (default: both). "
-            "'acp' = BenchFlow ACP Trial (agent inside container, 100% SkillsBench aligned). "
-            "'claudecode' = Hybrid: Trial container + host claude -p with SKILL.md files. "
-            "'claudecode-mcp' = Hybrid: Trial container + host claude -p with OntoSkills MCP."
+            "'acp' = Traditional via ACP (SKILL.md files injected into container). "
+            "'acp-mcp' = MCP via ACP (ontomcp inside container). "
+            "'both' = Run both acp and acp-mcp. "
+            "For non-SkillsBench benchmarks: acp maps to traditional, acp-mcp to ontoskills."
         ),
     )
     parser.add_argument(
@@ -690,8 +643,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--workers",
         type=int,
-        default=3,
-        help="Parallel Docker verification workers (default: 3)",
+        default=2,
+        help="Parallel Docker workers (each needs its own container) (default: 2)",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        default=True,
+        help="Resume from previous state file (default: True)",
+    )
+    parser.add_argument(
+        "--force-restart",
+        action="store_true",
+        help="Ignore existing state and start fresh",
+    )
+    parser.add_argument(
+        "--state-file",
+        default=None,
+        help="Custom state file path (default: {output_dir}/skillsbench/{mode}/benchmark_state.json)",
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -732,11 +701,12 @@ def main() -> None:
         benchmarks = [args.benchmark]
 
     # Validate prerequisites.
-    if args.mode in ("traditional", "both"):
+    # For acp/acp-mcp/both modes, ANTHROPIC_API_KEY is needed.
+    if args.mode in ("acp", "both"):
         if not os.environ.get("ANTHROPIC_API_KEY"):
             parser.error(
-                "ANTHROPIC_API_KEY is required for the traditional agent. "
-                "Set it or use --mode ontoskills."
+                "ANTHROPIC_API_KEY is required for the traditional/acp agent. "
+                "Set it or use --mode acp-mcp."
             )
         if not Path(args.skills_dir).exists():
             logger.warning(
@@ -744,7 +714,7 @@ def main() -> None:
                 args.skills_dir,
             )
 
-    if args.mode in ("ontoskills", "both"):
+    if args.mode in ("acp-mcp", "both"):
         if not Path(args.ttl_dir).exists():
             logger.warning(
                 "TTL directory not found: %s — OntoSkills agent may not find ontologies.",
@@ -762,16 +732,53 @@ def main() -> None:
         logger.info("Benchmark: %s", bench_name)
         logger.info("=" * 60)
 
-        if bench_name == "perpackage":
+        if bench_name == "skillsbench":
+            # SkillsBench: ACP-based evaluation with BenchmarkState + worker pool.
+            modes_to_run = []
+            if args.mode in ("acp", "both"):
+                modes_to_run.append("acp")
+            if args.mode in ("acp-mcp", "both"):
+                modes_to_run.append("acp-mcp")
+
+            for run_mode in modes_to_run:
+                logger.info("Running SkillsBench %s (model=%s)...", run_mode, args.model)
+                t0 = time.perf_counter()
+                results, accuracy = _run_skillsbench_acp(
+                    output_dir,
+                    mode=run_mode,
+                    model=args.model,
+                    max_tasks=args.max_tasks,
+                    shuffle=args.shuffle,
+                    seed=args.seed,
+                    skip_first=args.skip_first,
+                    max_attempts=args.attempts,
+                    skill_hints=not args.no_skill_hints,
+                    skillsbench_repo=args.skillsbench_repo,
+                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
+                    workers=args.workers,
+                    resume=args.resume and not args.force_restart,
+                    force_restart=args.force_restart,
+                    state_file=args.state_file,
+                )
+                elapsed = time.perf_counter() - t0
+                logger.info("SkillsBench %s completed in %.1fs", run_mode, elapsed)
+                if run_mode == "acp":
+                    traditional_results[bench_name] = results
+                    traditional_accuracies[bench_name] = accuracy
+                else:
+                    ontoskills_results[bench_name] = results
+                    ontoskills_accuracies[bench_name] = accuracy
+
+        elif bench_name == "perpackage":
             # Per-package benchmark: wrapper handles skill scoping per task.
+            # Map acp -> traditional, acp-mcp -> ontoskills.
             package = args.package
 
-            if args.mode in ("traditional", "both"):
+            if args.mode in ("acp", "both"):
                 logger.info(
                     "Creating traditional agent (model=%s, per-task skill scoping)...",
                     args.model,
                 )
-                # Pass skills_dir so the wrapper can find SKILL.md files.
                 trad_agent = _make_traditional_agent(
                     model=args.model,
                     skills_dir=args.skills_dir,
@@ -787,7 +794,7 @@ def main() -> None:
                 traditional_results[bench_name] = results
                 traditional_accuracies[bench_name] = accuracy
 
-            if args.mode in ("ontoskills", "both"):
+            if args.mode in ("acp-mcp", "both"):
                 logger.info("Creating OntoSkills agent (model=%s)...", args.model)
                 os_agent = _make_ontoskills_agent(
                     model=args.model,
@@ -805,133 +812,12 @@ def main() -> None:
                 ontoskills_results[bench_name] = results
                 ontoskills_accuracies[bench_name] = accuracy
 
-        elif bench_name == "skillsbench":
-            # SkillsBench: wrapper fetches tasks from GitHub, scopes skills per task.
-            if args.mode == "acp":
-                # ACP mode — full BenchFlow Trial (100% SkillsBench aligned).
-                logger.info("Running SkillsBench ACP (model=%s)...", args.model)
-                t0 = time.perf_counter()
-                results, accuracy = _run_skillsbench_acp(
-                    output_dir,
-                    model=args.model, max_tasks=args.max_tasks,
-                    shuffle=args.shuffle, seed=args.seed,
-                    skip_first=args.skip_first, max_attempts=args.attempts,
-                    skill_hints=not args.no_skill_hints,
-                    skillsbench_repo=args.skillsbench_repo,
-                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-                )
-                elapsed = time.perf_counter() - t0
-                logger.info("ACP completed %s in %.1fs", bench_name, elapsed)
-                traditional_results[bench_name] = results
-                traditional_accuracies[bench_name] = accuracy
-
-            elif args.mode == "claudecode":
-                # Traditional hybrid — Trial container + host claude -p with SKILL.md files.
-                from benchmark.agents.claudecode import ClaudeCodeAgent
-                logger.info(
-                    "Creating Claude Code Traditional agent (model=%s, SkillsBench)...",
-                    args.model,
-                )
-                cc_agent = ClaudeCodeAgent(
-                    model=args.model,
-                    mode="traditional",
-                    skills_dir=args.skills_dir,
-                )
-                t0 = time.perf_counter()
-                results, accuracy = _run_skillsbench_claudecode(
-                    cc_agent, "claudecode", args.max_tasks, output_dir,
-                    skills_dir=args.skills_dir, model=args.model,
-                    shuffle=args.shuffle, seed=args.seed,
-                    skillsbench_repo=args.skillsbench_repo,
-                    workers=args.workers, skip_first=args.skip_first,
-                    max_attempts=args.attempts,
-                    skill_hints=not args.no_skill_hints,
-                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-                )
-                elapsed = time.perf_counter() - t0
-                logger.info("Traditional hybrid completed %s in %.1fs", bench_name, elapsed)
-                traditional_results[bench_name] = results
-                traditional_accuracies[bench_name] = accuracy
-
-            elif args.mode == "claudecode-mcp":
-                # MCP mode — hybrid: Trial container + host claude -p.
-                from benchmark.agents.claudecode import ClaudeCodeAgent
-                logger.info(
-                    "Creating Claude Code MCP agent (model=%s, SkillsBench)...",
-                    args.model,
-                )
-                cc_agent = ClaudeCodeAgent(
-                    model=args.model,
-                    mode="ontoskills",
-                    skills_dir=args.skills_dir,
-                    ontomcp_bin=args.ontomcp_bin,
-                )
-                t0 = time.perf_counter()
-                results, accuracy = _run_skillsbench_claudecode(
-                    cc_agent, "claudecode-mcp", args.max_tasks, output_dir,
-                    skills_dir=args.skills_dir, model=args.model,
-                    shuffle=args.shuffle, seed=args.seed,
-                    skillsbench_repo=args.skillsbench_repo,
-                    workers=args.workers, skip_first=args.skip_first,
-                    max_attempts=args.attempts,
-                    skill_hints=not args.no_skill_hints,
-                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-                )
-                elapsed = time.perf_counter() - t0
-                logger.info("MCP completed %s in %.1fs", bench_name, elapsed)
-                ontoskills_results[bench_name] = results
-                ontoskills_accuracies[bench_name] = accuracy
-
-            else:
-                if args.mode in ("traditional", "both"):
-                    logger.info(
-                        "Creating traditional agent (model=%s, SkillsBench)...",
-                        args.model,
-                    )
-                    trad_agent = _make_traditional_agent(
-                        model=args.model,
-                        skills_dir=args.skills_dir,
-                    )
-                    t0 = time.perf_counter()
-                    results, accuracy = _run_skillsbench(
-                        trad_agent, "traditional", args.max_tasks, output_dir,
-                        skills_dir=args.skills_dir, model=args.model,
-                        shuffle=args.shuffle, seed=args.seed,
-                        skillsbench_repo=args.skillsbench_repo,
-                        workers=args.workers, skip_first=args.skip_first,
-                        skill_hints=not args.no_skill_hints,
-                    )
-                    elapsed = time.perf_counter() - t0
-                    logger.info("Traditional agent completed %s in %.1fs", bench_name, elapsed)
-                    traditional_results[bench_name] = results
-                    traditional_accuracies[bench_name] = accuracy
-
-                if args.mode in ("ontoskills", "both"):
-                    logger.info("Creating OntoSkills agent (model=%s)...", args.model)
-                    os_agent = _make_ontoskills_agent(
-                        model=args.model,
-                        ttl_dir=args.ttl_dir,
-                        ontomcp_bin=args.ontomcp_bin,
-                    )
-                    t0 = time.perf_counter()
-                    results, accuracy = _run_skillsbench(
-                        os_agent, "ontoskills", args.max_tasks, output_dir,
-                        model=args.model,
-                        shuffle=args.shuffle, seed=args.seed,
-                        skillsbench_repo=args.skillsbench_repo,
-                        workers=args.workers, skip_first=args.skip_first,
-                        skill_hints=not args.no_skill_hints,
-                    )
-                    elapsed = time.perf_counter() - t0
-                    logger.info("OntoSkills agent completed %s in %.1fs", bench_name, elapsed)
-                    ontoskills_results[bench_name] = results
-                    ontoskills_accuracies[bench_name] = accuracy
-
         else:
             runner = _BENCHMARK_RUNNERS[bench_name]
 
-            if args.mode in ("traditional", "both"):
+            if args.mode in ("acp", "both"):
                 # GAIA/SWE-bench: per-task scoped skill loading (2-3 relevant skills).
+                # acp maps to traditional agent.
                 logger.info(
                     "Creating traditional agent (model=%s, per-task skill scoping)...",
                     args.model,
@@ -956,7 +842,8 @@ def main() -> None:
                 traditional_results[bench_name] = results
                 traditional_accuracies[bench_name] = accuracy
 
-            if args.mode in ("ontoskills", "both"):
+            if args.mode in ("acp-mcp", "both"):
+                # acp-mcp maps to ontoskills agent.
                 logger.info("Creating OntoSkills agent (model=%s)...", args.model)
                 os_agent = _make_ontoskills_agent(
                     model=args.model,
