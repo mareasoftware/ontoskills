@@ -3,14 +3,10 @@
 Uses the Claude Code CLI in ``--print`` mode for realistic evaluation:
 file exploration, multi-turn reasoning, tool use (Read, Write, Bash).
 
-Two modes:
-  - ``traditional`` — skills copied to ``.claude/skills/`` (Claude Code's
-    native skill discovery, same as Claude Code in production)
-  - ``ontoskills`` — skills loaded via MCP tools (ontomcp with compiled TTLs),
-    no skills in ``.claude/skills/`` (the MCP tools are the discovery mechanism)
-
-Both modes use the same base prompt and file access tools.  The only
-difference is **how skills are discovered and loaded**.
+Legacy agent for host-based hybrid mode.  The current SkillsBench evaluation
+uses ACP mode (agent inside container), so this class is only kept for
+backward compatibility.  The ``ontoskills`` mode provides MCP tools via
+ontomcp; the ``traditional`` mode is no longer supported (use ACP instead).
 """
 
 from __future__ import annotations
@@ -37,15 +33,19 @@ _ONTOMCP_BIN = os.path.expanduser("~/.ontoskills/bin/ontomcp")
 class ClaudeCodeAgent(BaseAgent):
     """Agent that delegates to the Claude Code CLI for realistic evaluation.
 
+    Legacy agent for host-based hybrid mode.  The current SkillsBench
+    evaluation uses ACP mode (agent inside container).  This class is kept
+    for backward compatibility.
+
     Parameters
     ----------
     model:
         Model ID (e.g. ``glm-5.1``).
     mode:
-        ``"traditional"`` or ``"ontoskills"``.  Determines how skills are
-        provided to Claude Code.
+        ``"ontoskills"`` — MCP tools via ontomcp.  ``"traditional"`` is
+        no longer supported (use ACP mode instead).
     skills_dir:
-        Path to SKILL.md files (used in traditional mode for script copying).
+        Path to SKILL.md files (unused in ontoskills mode).
     ontomcp_bin:
         Path to the ontomcp binary (used in ontoskills mode).
     api_key:
@@ -55,7 +55,7 @@ class ClaudeCodeAgent(BaseAgent):
     def __init__(
         self,
         model: str,
-        mode: str = "traditional",
+        mode: str = "ontoskills",
         skills_dir: str | None = None,
         ontomcp_bin: str | None = None,
         api_key: str | None = None,
@@ -63,6 +63,11 @@ class ClaudeCodeAgent(BaseAgent):
         super().__init__(model=model, api_key=api_key)
         if mode not in ("traditional", "ontoskills"):
             raise ValueError(f"mode must be 'traditional' or 'ontoskills', got '{mode}'")
+        if mode == "traditional":
+            raise ValueError(
+                "traditional mode is no longer supported in ClaudeCodeAgent. "
+                "Use ACP mode (agent inside container) instead."
+            )
         self.mode = mode
         self.skills_dir = skills_dir
         self.ontomcp_bin = ontomcp_bin or _ONTOMCP_BIN
@@ -96,7 +101,6 @@ class ClaudeCodeAgent(BaseAgent):
     def setup_task_env(self, task: dict) -> Path:
         """Prepare a working directory with task files for Claude Code.
 
-        In ``traditional`` mode: copies SKILL.md files to ``.claude/skills/``.
         In ``ontoskills`` mode: creates an MCP config for ontomcp (no skills
         in ``.claude/skills/`` — the agent discovers skills via MCP tools).
         """
@@ -114,13 +118,13 @@ class ClaudeCodeAgent(BaseAgent):
                     shutil.copy2(item, work_dir / "Dockerfile.reference")
                     continue
                 if item.name == "skills":
-                    continue  # handled per mode below
+                    continue
                 if item.is_dir():
                     shutil.copytree(item, work_dir / item.name)
                 else:
                     shutil.copy2(item, work_dir / item.name)
 
-            # Copy skill helper scripts (available in both modes).
+            # Copy skill helper scripts.
             skill_ids = task.get("skill_ids", [])
             for sid in skill_ids:
                 scripts_src = env_src / "skills" / sid / "scripts"
@@ -137,43 +141,14 @@ class ClaudeCodeAgent(BaseAgent):
         instruction = task.get("instruction", "")
         (work_dir / "TASK_INSTRUCTION.md").write_text(instruction, encoding="utf-8")
 
-        # --- Mode-specific skill setup ---
+        # --- MCP skill setup ---
         skill_ids = task.get("skill_ids", [])
-        skills_content = task.get("skills_content", {})
-
-        if self.mode == "traditional":
-            self._setup_traditional_skills(work_dir, skills_content, skill_ids, env_src)
-        else:
-            self._setup_ontoskills_mcp(work_dir, skill_ids)
+        self._setup_ontoskills_mcp(work_dir, skill_ids)
 
         # --- Write CLAUDE.md ---
         self._write_claude_md(work_dir)
 
         return work_dir
-
-    def _setup_traditional_skills(
-        self,
-        work_dir: Path,
-        skills_content: dict[str, str],
-        skill_ids: list[str],
-        env_src: Path,
-    ) -> None:
-        """Copy SKILL.md files to .claude/skills/ for native discovery."""
-        if not skills_content:
-            return
-
-        skills_dest = work_dir / ".claude" / "skills"
-        skills_dest.mkdir(parents=True, exist_ok=True)
-
-        for sid, content in skills_content.items():
-            skill_dir = skills_dest / sid
-            skill_dir.mkdir(exist_ok=True)
-            (skill_dir / "SKILL.md").write_text(content, encoding="utf-8")
-
-        logger.debug(
-            "Traditional mode: %d skills in .claude/skills/",
-            len(skills_content),
-        )
 
     def _setup_ontoskills_mcp(
         self,
@@ -256,11 +231,7 @@ class ClaudeCodeAgent(BaseAgent):
                     if len(parts) > 1:
                         workdir = parts[1].strip()
 
-        skill_line = ""
-        if self.mode == "traditional":
-            skill_line = "- `.claude/skills/` — skill documentation\n"
-        else:
-            skill_line = "- MCP tools — use `ontoskill` to find or load skill knowledge\n"
+        skill_line = "- MCP tools — use `ontoskill` to find or load skill knowledge\n"
 
         claude_md = (
             "# Task Environment\n\n"
@@ -313,14 +284,10 @@ class ClaudeCodeAgent(BaseAgent):
         instruction = task.get("instruction", "")
         skill_ids = task.get("skill_ids", [])
 
-        # SkillsBench-aligned skill nudge (matches BenchFlow _resolve_prompts
-        # with skill_nudge="name" in traditional, custom for MCP).
+        # SkillsBench-aligned skill nudge.
         hints_enabled = task.get("skill_hints", True)
         if not hints_enabled or not skill_ids:
             nudge = ""
-        elif self.mode == "traditional":
-            names = ", ".join(skill_ids)
-            nudge = f"Skills available at ~/.claude/skills: {names}. Read them before starting."
         else:
             names = ", ".join(skill_ids)
             nudge = (

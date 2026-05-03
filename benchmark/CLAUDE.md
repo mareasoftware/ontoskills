@@ -29,18 +29,19 @@ datasets    — HuggingFace dataset loading
 ```
 benchmark/
 ├── run.py                  # Main orchestrator (CLI entry point)
+├── state.py                # BenchmarkState — resume, incremental save
 ├── content_coverage.py     # Parser coverage + knowledge yield (no API calls)
 ├── config.py               # Model pricing, benchmark definitions
 ├── agents/
 │   ├── base.py             # BaseAgent with Anthropic API, run-loop, retry
-│   ├── claudecode.py       # ClaudeCodeAgent: CLI-based agent (--print --bare mode)
+│   ├── claudecode.py       # ClaudeCodeAgent: legacy host-based CLI agent
 │   ├── traditional.py      # Skill registry + read_skill tool (API mode)
-│   ├── ontoskills.py       # Single ontoskill MCP tool (API mode)
+│   ├── ontoskills.py       # Single ontoskill MCP tool in API mode
 │   └── utils.py            # Shared utilities (extract_python_code)
 ├── wrappers/
 │   ├── gaia.py             # GAIA: Q&A with file attachments
 │   ├── perpackage.py       # Per-package: run selected packages only
-│   ├── skillsbench.py      # SkillsBench: BenchFlow Trial + claude -p
+│   ├── skillsbench.py      # SkillsBench: ACP + ACP-MCP via BenchFlow Trial
 │   ├── swebench.py         # SWE-bench: repo checkout + diff patch generation
 │   └── tau2bench.py        # tau2-bench: agent benchmarking wrapper
 ├── reporting/
@@ -58,72 +59,78 @@ benchmark/
 
 ### SkillsBench (BenchFlow-aligned Docker evaluation)
 
+Both modes are **100% SkillsBench aligned**: the agent runs inside the
+container via BenchFlow ACP. The only difference is how skills are delivered.
+
 ```bash
 # Prerequisites: clone the SkillsBench repo
 git clone --depth 1 https://github.com/benchflow-ai/skillsbench /tmp/skillsbench_full
 
-# Traditional hybrid (SKILL.md files via claude -p)
-ANTHROPIC_API_KEY="$ANTHROPIC_AUTH_TOKEN" \
-python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 \
-  --model glm-5.1 --skills-dir .agents/skills --output-dir benchmark/results \
+# ACP mode — Traditional (SKILL.md files injected into Dockerfile)
+python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
+  --model glm-5.1 --output-dir benchmark/results \
   --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
 
-# OntoSkills MCP hybrid (ontomcp server via claude -p)
-ANTHROPIC_API_KEY="$ANTHROPIC_AUTH_TOKEN" \
-python benchmark/run.py --benchmark skillsbench --mode claudecode-mcp --max-tasks 25 \
-  --model glm-5.1 --skills-dir .agents/skills --output-dir benchmark/results \
+# ACP-MCP mode — OntoSkills (ontomcp inside container)
+python benchmark/run.py --benchmark skillsbench --mode acp-mcp --max-tasks 25 \
+  --model glm-5.1 --output-dir benchmark/results \
+  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+
+# Both modes (comparison)
+python benchmark/run.py --benchmark skillsbench --mode both --max-tasks 25 \
+  --model glm-5.1 --output-dir benchmark/results \
   --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
 
 # No-skill-hints variants (test discovery mechanism)
-python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 \
-  --no-skill-hints ... # Traditional, no hints
-python benchmark/run.py --benchmark skillsbench --mode claudecode-mcp --max-tasks 25 \
-  --no-skill-hints ... # MCP, no hints
+python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
+  --no-skill-hints ...
 ```
 
 ### SkillsBench methodology
 
-Both modes use the **hybrid approach**: BenchFlow Trial for container lifecycle,
-host `claude -p` for agent execution. Aligned with official
+Both modes use BenchFlow Trial for the complete lifecycle inside the
+container, aligned with official
 [BenchFlow](https://github.com/benchflow-ai/benchflow) /
 [SkillsBench](https://github.com/benchflow-ai/skillsbench) evaluation:
 
-1. **Container lifecycle**: BenchFlow `Trial` builds the Docker image and starts
-   the container.
-2. **Agent execution**: Claude Code CLI (`claude -p`) runs on the host with
-   task files copied to a temp working directory.
-3. **Solution upload**: The agent's `solution.py` is uploaded to the container
-   via `trial.env.upload_file()` and executed with `python3`.
+1. **Container lifecycle**: BenchFlow `Trial` builds the Docker image and
+   starts the container.
+2. **Agent execution**: Agent runs inside the container via ACP.
+3. **Skill delivery**:
+   - `acp` (Traditional): SKILL.md files injected into Dockerfile
+   - `acp-mcp` (MCP): ontomcp binary + TTLs + `.mcp_config.json` injected
 4. **Verification**: Harbor Verifier runs `tests/test.sh` (pytest) inside the
    container and reads CTRF report for fractional scoring.
-5. **Retries**: BenchFlow `RetryConfig` with exponential backoff, clean retries
-   (fresh work dir, no Docker feedback), timeout exclusion.
+5. **Retries**: BenchFlow `RetryConfig` with exponential backoff, clean retries,
+   timeout exclusion.
 
 **Comparison is fair**: both modes use identical container management (BenchFlow
-Trial), identical agent execution (claude -p), and identical verification
-(Harbor Verifier). The only difference is **how skills are delivered**:
-- `claudecode` (Traditional): SKILL.md files in `.claude/skills/`
-- `claudecode-mcp` (MCP): Skills via ontomcp MCP tools
+Trial) and identical verification (Harbor Verifier). The only difference is
+**how skills are delivered**.
 
 12 tasks are skipped: exotic base images, multi-container setups, and
 BuildKit heredoc incompatibility with Podman.
 
 #### CLI flags
 
+- `--mode {acp,acp-mcp,both}` — Agent mode (default: both)
 - `--attempts N` — Clean retries per task (default: 5, matches SkillsBench)
+- `--workers N` — Parallel Docker workers (default: 2)
+- `--resume` — Resume from previous state file (default: True)
+- `--force-restart` — Ignore existing state and start fresh
+- `--state-file PATH` — Custom state file path
 - `--no-skill-hints` — Omit skill names from prompts (tests discovery mechanism)
 - `--only-tasks id1,id2` — Run specific task IDs only
 - `--skip-first N` — Skip first N tasks (combine with previous results)
-- `--workers N` — Parallel Docker verification workers (default: 3)
 
 #### Production-realistic benchmark (4 runs)
 
-| Run | Mode          | Hints | Tests            |
-|-----|---------------|-------|------------------|
-| 1   | claudecode    | Yes   | Knowledge quality |
-| 2   | claudecode-mcp| Yes   | Knowledge quality |
-| 3   | claudecode    | No    | Discovery         |
-| 4   | claudecode-mcp| No    | Discovery         |
+| Run | Mode    | Hints | Tests            |
+|-----|---------|-------|------------------|
+| 1   | acp     | Yes   | Knowledge quality |
+| 2   | acp-mcp | Yes   | Knowledge quality |
+| 3   | acp     | No    | Discovery         |
+| 4   | acp-mcp | No    | Discovery         |
 
 ### Content coverage (instant, no API)
 ```bash
@@ -153,16 +160,13 @@ The knowledge yield Level 2 SPARQL uses `rdfs:subClassOf*` property paths. Requi
 python -m pytest benchmark/tests/ -q
 ```
 
-## ClaudeCodeAgent
+## ClaudeCodeAgent (legacy)
 
-Uses the Claude Code CLI in `--print --bare --output-format json` mode.
+Legacy host-based agent using the Claude Code CLI in `--print --bare --output-format json` mode.
+No longer used by SkillsBench (replaced by ACP mode), kept for backward compatibility.
 
-Two modes:
-- `traditional` — SKILL.md files in `.claude/skills/`, no MCP
-- `ontoskills` — MCP config for ontomcp + ontomcp-driver SKILL.md in `.claude/skills/`
-
-The MCP server uses a SkillsBench-only ontology root (`/tmp/skillsbench_ontology/`)
-containing only the SkillsBench TTLs for faster loading.
+Only supports `ontoskills` mode (MCP config for ontomcp). The `traditional` mode has been
+removed — use `--mode acp` instead.
 
 ## MCP response compaction
 
