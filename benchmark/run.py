@@ -607,11 +607,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=["traditional", "ontoskills", "both", "acp", "claudecode-mcp"],
+        choices=["traditional", "ontoskills", "both", "acp", "claudecode", "claudecode-mcp"],
         default="both",
         help=(
             "Which agent mode to run (default: both). "
             "'acp' = BenchFlow ACP Trial (agent inside container, 100% SkillsBench aligned). "
+            "'claudecode' = Hybrid: Trial container + host claude -p with SKILL.md files. "
             "'claudecode-mcp' = Hybrid: Trial container + host claude -p with OntoSkills MCP."
         ),
     )
@@ -821,6 +822,34 @@ def main() -> None:
                 )
                 elapsed = time.perf_counter() - t0
                 logger.info("ACP completed %s in %.1fs", bench_name, elapsed)
+                traditional_results[bench_name] = results
+                traditional_accuracies[bench_name] = accuracy
+
+            elif args.mode == "claudecode":
+                # Traditional hybrid — Trial container + host claude -p with SKILL.md files.
+                from benchmark.agents.claudecode import ClaudeCodeAgent
+                logger.info(
+                    "Creating Claude Code Traditional agent (model=%s, SkillsBench)...",
+                    args.model,
+                )
+                cc_agent = ClaudeCodeAgent(
+                    model=args.model,
+                    mode="traditional",
+                    skills_dir=args.skills_dir,
+                )
+                t0 = time.perf_counter()
+                results, accuracy = _run_skillsbench_claudecode(
+                    cc_agent, "claudecode", args.max_tasks, output_dir,
+                    skills_dir=args.skills_dir, model=args.model,
+                    shuffle=args.shuffle, seed=args.seed,
+                    skillsbench_repo=args.skillsbench_repo,
+                    workers=args.workers, skip_first=args.skip_first,
+                    max_attempts=args.attempts,
+                    skill_hints=not args.no_skill_hints,
+                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
+                )
+                elapsed = time.perf_counter() - t0
+                logger.info("Traditional hybrid completed %s in %.1fs", bench_name, elapsed)
                 traditional_results[bench_name] = results
                 traditional_accuracies[bench_name] = accuracy
 
