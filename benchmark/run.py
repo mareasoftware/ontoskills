@@ -431,23 +431,26 @@ def _run_skillsbench_claudecode(
     skill_hints: bool = True,
     only_tasks: list[str] | None = None,
 ) -> tuple[list[dict], float | None]:
-    """Run SkillsBench using the Claude Code CLI for realistic evaluation.
+    """Run SkillsBench MCP mode: Trial container + host claude -p agent.
 
     Returns (results_list, pass_rate).
     """
+    import asyncio
     from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 
     wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-    results = wrapper.run_benchmark_claudecode(
+    incremental_path = str(output_dir / "skillsbench" / mode / "incremental.json")
+    results = asyncio.run(wrapper.run_benchmark_claudecode(
         agent, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        workers=workers, skip_first=skip_first, max_attempts=max_attempts,
+        skip_first=skip_first, max_attempts=max_attempts,
         skill_hints=skill_hints, only_tasks=only_tasks,
-    )
+        incremental_path=incremental_path,
+    ))
 
     # Score from Docker reward.txt (deterministic).
     score = SkillsBenchWrapper.score(results)
     logger.info(
-        "SkillsBench ClaudeCode (%s): %d/%d passed (%.1f%%)",
+        "SkillsBench MCP (%s): %d/%d passed (%.1f%%)",
         mode,
         score["tasks_passed"],
         score["total_tasks"],
@@ -468,6 +471,59 @@ def _run_skillsbench_claudecode(
 
     # Save chart data.
     chart = generate_chart_data("skillsbench", mode, results, score, model=getattr(agent, "model", ""))
+    save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
+
+    return results, score["pass_rate"]
+
+
+def _run_skillsbench_acp(
+    output_dir: Path,
+    *,
+    model: str = "glm-5.1",
+    max_tasks: int | None = None,
+    shuffle: bool = True,
+    seed: int = 42,
+    skip_first: int = 0,
+    max_attempts: int = 5,
+    skill_hints: bool = True,
+    skillsbench_repo: str = "/tmp/skillsbench_full",
+    only_tasks: list[str] | None = None,
+) -> tuple[list[dict], float | None]:
+    """Run SkillsBench Traditional mode via full BenchFlow ACP Trial.
+
+    Agent runs inside container via ACP. 100% SkillsBench aligned.
+    Returns (results_list, pass_rate).
+    """
+    import asyncio
+    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
+
+    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
+    results = asyncio.run(wrapper.run_benchmark_acp(
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        skip_first=skip_first, max_attempts=max_attempts,
+        skill_hints=skill_hints, only_tasks=only_tasks,
+    ))
+
+    mode = "acp"
+    score = SkillsBenchWrapper.score(results)
+    logger.info(
+        "SkillsBench ACP: %d/%d passed (%.1f%%)",
+        score["tasks_passed"],
+        score["total_tasks"],
+        score["pass_rate"] * 100,
+    )
+
+    raw_path = output_dir / "skillsbench" / mode / "results.json"
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    _save_json(results, raw_path)
+
+    score_path = output_dir / "skillsbench" / mode / "score.json"
+    score_path.write_text(
+        json.dumps(score, indent=2, default=str, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    chart = generate_chart_data("skillsbench", mode, results, score, model=model)
     save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
 
     return results, score["pass_rate"]
@@ -551,12 +607,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=["traditional", "ontoskills", "both", "claudecode", "claudecode-mcp"],
+        choices=["traditional", "ontoskills", "both", "acp", "claudecode-mcp"],
         default="both",
         help=(
             "Which agent mode to run (default: both). "
-            "'claudecode' = Claude Code CLI with skills in .claude/skills/. "
-            "'claudecode-mcp' = Claude Code CLI with OntoSkills MCP tools."
+            "'acp' = BenchFlow ACP Trial (agent inside container, 100% SkillsBench aligned). "
+            "'claudecode-mcp' = Hybrid: Trial container + host claude -p with OntoSkills MCP."
         ),
     )
     parser.add_argument(
@@ -750,24 +806,40 @@ def main() -> None:
 
         elif bench_name == "skillsbench":
             # SkillsBench: wrapper fetches tasks from GitHub, scopes skills per task.
-            if args.mode in ("claudecode", "claudecode-mcp"):
-                # Claude Code CLI mode — realistic agent evaluation.
+            if args.mode == "acp":
+                # ACP mode — full BenchFlow Trial (100% SkillsBench aligned).
+                logger.info("Running SkillsBench ACP (model=%s)...", args.model)
+                t0 = time.perf_counter()
+                results, accuracy = _run_skillsbench_acp(
+                    output_dir,
+                    model=args.model, max_tasks=args.max_tasks,
+                    shuffle=args.shuffle, seed=args.seed,
+                    skip_first=args.skip_first, max_attempts=args.attempts,
+                    skill_hints=not args.no_skill_hints,
+                    skillsbench_repo=args.skillsbench_repo,
+                    only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
+                )
+                elapsed = time.perf_counter() - t0
+                logger.info("ACP completed %s in %.1fs", bench_name, elapsed)
+                traditional_results[bench_name] = results
+                traditional_accuracies[bench_name] = accuracy
+
+            elif args.mode == "claudecode-mcp":
+                # MCP mode — hybrid: Trial container + host claude -p.
                 from benchmark.agents.claudecode import ClaudeCodeAgent
-                cc_mode = "traditional" if args.mode == "claudecode" else "ontoskills"
-                cc_tag = args.mode  # for output directory naming
                 logger.info(
-                    "Creating Claude Code agent (mode=%s, model=%s, SkillsBench)...",
-                    cc_mode, args.model,
+                    "Creating Claude Code MCP agent (model=%s, SkillsBench)...",
+                    args.model,
                 )
                 cc_agent = ClaudeCodeAgent(
                     model=args.model,
-                    mode=cc_mode,
+                    mode="ontoskills",
                     skills_dir=args.skills_dir,
                     ontomcp_bin=args.ontomcp_bin,
                 )
                 t0 = time.perf_counter()
                 results, accuracy = _run_skillsbench_claudecode(
-                    cc_agent, cc_tag, args.max_tasks, output_dir,
+                    cc_agent, "claudecode-mcp", args.max_tasks, output_dir,
                     skills_dir=args.skills_dir, model=args.model,
                     shuffle=args.shuffle, seed=args.seed,
                     skillsbench_repo=args.skillsbench_repo,
@@ -777,11 +849,9 @@ def main() -> None:
                     only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
                 )
                 elapsed = time.perf_counter() - t0
-                logger.info("Claude Code (%s) completed %s in %.1fs", cc_tag, bench_name, elapsed)
-                results_dict = ontoskills_results if cc_mode == "ontoskills" else traditional_results
-                accuracy_dict = ontoskills_accuracies if cc_mode == "ontoskills" else traditional_accuracies
-                results_dict[bench_name] = results
-                accuracy_dict[bench_name] = accuracy
+                logger.info("MCP completed %s in %.1fs", bench_name, elapsed)
+                ontoskills_results[bench_name] = results
+                ontoskills_accuracies[bench_name] = accuracy
 
             else:
                 if args.mode in ("traditional", "both"):

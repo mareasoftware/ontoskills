@@ -328,8 +328,11 @@ class ClaudeCodeAgent(BaseAgent):
                 f"Load them with ontoskill before starting."
             )
 
-        # SkillsBench standard: nudge + "\n\n" + instruction (no wrapping).
-        prompt = f"{nudge}\n\n{instruction}" if nudge else instruction
+        # SkillsBench standard: nudge + "\n\n" + instruction.
+        # Host-mode agent needs explicit "write solution.py" instruction
+        # (ACP agent inside container doesn't need this).
+        solution_instr = "\n\nWrite a solution.py script that produces all required output files."
+        prompt = f"{nudge}\n\n{instruction}{solution_instr}" if nudge else f"{instruction}{solution_instr}"
 
         # Build CLI command.
         cmd = [

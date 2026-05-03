@@ -249,16 +249,17 @@ class SkillsBenchWrapper:
     # BenchFlow Trial integration (async)
     # ------------------------------------------------------------------
 
-    async def _run_with_trial(
+    async def _run_acp_trial(
         self,
         task: dict,
-        solution_script: str,
-        work_dir: str | None = None,
+        *,
+        skills_dir: str | None = None,
+        skill_nudge: str = "name",
     ) -> dict:
-        """Run solution inside a BenchFlow-managed container and verify.
+        """Full ACP Trial: agent inside container (100% SkillsBench aligned).
 
-        Uses BenchFlow's Trial for container lifecycle and Harbor Verifier
-        for deterministic scoring.
+        Uses Trial.run() for the complete lifecycle: setup → start →
+        install_agent → connect (ACP) → execute → verify → cleanup.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -269,30 +270,106 @@ class SkillsBenchWrapper:
         config = TrialConfig.from_legacy(
             task_path=task_path,
             agent="claude-agent-acp",
-            model="unused",  # agent runs on host, not via ACP
+            model="glm-5.1",
+            jobs_dir=str(jobs_dir),
+            environment="docker",
+            skills_dir=skills_dir,
+            agent_env={"BENCHFLOW_SKILL_NUDGE": skill_nudge},
+        )
+
+        trial = await Trial.create(config)
+        try:
+            result = await trial.run()
+        except Exception as exc:
+            logger.exception("ACP Trial failed for %s: %s", task_id, exc)
+            return {
+                "task_id": task_id,
+                "reward": 0.0,
+                "rewards": None,
+                "error": str(exc),
+                "verifier_error": None,
+                "build_ok": False,
+                "n_tool_calls": 0,
+            }
+
+        reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+        build_ok = result.error is None or "timed out" in (result.error or "")
+        return {
+            "task_id": task_id,
+            "reward": reward,
+            "rewards": result.rewards,
+            "error": result.error,
+            "verifier_error": result.verifier_error,
+            "build_ok": build_ok,
+            "n_tool_calls": result.n_tool_calls,
+        }
+
+    async def _run_hybrid_trial(
+        self,
+        task: dict,
+        cc_agent: "ClaudeCodeAgent",
+        *,
+        timeout: int = 900,
+        max_budget: float = 2.00,
+    ) -> dict:
+        """Hybrid mode: Trial for container lifecycle, host claude -p for agent.
+
+        Uses Trial for setup → start → verify → cleanup.
+        Agent runs on host with MCP tools, solution uploaded to container.
+        """
+        from benchflow.trial import Trial, TrialConfig
+
+        task_path = Path(task["task_dir"])
+        task_id = task["task_id"]
+        jobs_dir = task_path.parent.parent / ".benchflow_jobs"
+
+        config = TrialConfig.from_legacy(
+            task_path=task_path,
+            agent="claude-agent-acp",
+            model="unused",
             jobs_dir=str(jobs_dir),
             environment="docker",
         )
 
         trial = await Trial.create(config)
-        rewards = None
-        verifier_error = None
-
         try:
             await trial.setup()
             await trial.start()
+
+            # Run host-based agent.
+            cc_agent.setup_task_env(task)
+            task_timeout = task.get("agent_timeout_sec", timeout)
+            cli_result = cc_agent.run_with_cli(
+                task, max_budget=max_budget, timeout=task_timeout,
+            )
+
+            solution_path = Path(cli_result["solution_path"])
+            solution_script = ""
+            if solution_path.exists():
+                solution_script = solution_path.read_text(encoding="utf-8")
+
+            usage = cli_result.get("usage", {})
+            metrics = {
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "latency_ms": cli_result.get("duration_ms", 0),
+                "tool_calls": cli_result.get("num_turns", 0),
+                "cost_usd": cli_result.get("total_cost_usd", 0),
+            }
 
             if not solution_script.strip():
                 return {
                     "task_id": task_id,
                     "reward": 0.0,
-                    "test_details": [],
+                    "solution_script": "",
                     "verifier_error": None,
-                    "solution_ran": False,
+                    "error": "No solution generated",
                     "build_ok": True,
+                    "metrics": metrics,
+                    "work_dir": cli_result.get("work_dir", ""),
                 }
 
-            # Upload solution script to container.
+            # Upload and execute solution inside container.
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".py", delete=False
             ) as f:
@@ -303,57 +380,43 @@ class SkillsBenchWrapper:
             finally:
                 os.unlink(tmp_script)
 
-            # Copy skill helper scripts if present.
-            if work_dir:
-                scripts_src = Path(work_dir) / "skill_scripts"
-                if scripts_src.is_dir():
-                    await trial.env.exec(
-                        "mkdir -p /tmp/skill_scripts", timeout_sec=10,
-                    )
-                    await trial.env.upload_dir(str(scripts_src), "/tmp/skill_scripts/")
-
-            # Execute solution script inside container.
             logger.info("Running solution for %s...", task_id)
-            exec_result = await trial.env.exec(
-                "python3 /tmp/agent_solution.py",
-                timeout_sec=300,
+            await trial.env.exec(
+                "python3 /tmp/agent_solution.py", timeout_sec=300,
             )
-            solution_output = exec_result.stdout[-2000:] if exec_result.stdout else ""
-            solution_errors = exec_result.stderr[-2000:] if exec_result.stderr else ""
 
-            if exec_result.return_code != 0:
-                logger.warning(
-                    "Solution script failed for %s (exit %d):\n%s",
-                    task_id, exec_result.return_code, solution_errors[-500:],
-                )
-
-            # Verify via Harbor Verifier.
+            # Verify.
             logger.info("Verifying %s...", task_id)
-            try:
-                rewards = await trial.verify()
-            except Exception as exc:
-                verifier_error = str(exc)
-                logger.warning("Verifier error for %s: %s", task_id, exc)
+            rewards = await trial.verify()
+            reward = rewards.get("reward", 0.0) if rewards else 0.0
+
+            return {
+                "task_id": task_id,
+                "reward": reward,
+                "rewards": rewards,
+                "solution_script": solution_script,
+                "verifier_error": None,
+                "error": None,
+                "build_ok": True,
+                "metrics": metrics,
+                "work_dir": cli_result.get("work_dir", ""),
+            }
 
         except Exception as exc:
-            logger.exception("Trial failed for %s: %s", task_id, exc)
-            verifier_error = str(exc)
+            logger.exception("Hybrid trial failed for %s: %s", task_id, exc)
+            return {
+                "task_id": task_id,
+                "reward": 0.0,
+                "solution_script": "",
+                "verifier_error": str(exc),
+                "error": str(exc),
+                "build_ok": False,
+            }
         finally:
             try:
                 await trial.cleanup()
             except Exception:
                 pass
-
-        reward = rewards.get("reward", 0.0) if rewards else 0.0
-        return {
-            "task_id": task_id,
-            "reward": reward,
-            "rewards": rewards,
-            "test_details": [],
-            "verifier_error": verifier_error,
-            "solution_ran": True,
-            "build_ok": True,
-        }
 
     # ------------------------------------------------------------------
     # CLI mode: single task execution
@@ -511,144 +574,171 @@ class SkillsBenchWrapper:
         return result
 
     # ------------------------------------------------------------------
-    # Full benchmark (CLI mode)
+    # Full benchmark — ACP mode (100% SkillsBench aligned)
     # ------------------------------------------------------------------
 
-    def run_benchmark_claudecode(
+    async def run_benchmark_acp(
         self,
-        cc_agent: "ClaudeCodeAgent",
+        *,
         max_tasks: int | None = None,
         shuffle: bool = True,
         seed: int = 42,
-        workers: int = 3,
-        timeout: int = 900,
-        max_budget: float = 2.00,
         skip_first: int = 0,
         max_attempts: int = 5,
         skill_hints: bool = True,
         only_tasks: list[str] | None = None,
     ) -> list[dict]:
-        """Run SkillsBench tasks via Claude Code CLI, then verify with BenchFlow Trial."""
+        """Run SkillsBench via full BenchFlow Trial lifecycle (ACP aligned).
+
+        Agent runs inside container via ACP. Skills injected into Dockerfile.
+        Retry loop with exponential backoff, stop on pass or timeout.
+        """
         packages_root = os.path.expanduser("~/.ontoskills/packages")
         tasks = self.load_tasks(
             max_tasks=max_tasks, shuffle=shuffle, seed=seed,
             packages_root=packages_root, skip_first=skip_first,
             only_tasks=only_tasks,
         )
-
         if not tasks:
             logger.error("No tasks to run.")
             return []
 
+        from benchflow.job import RetryConfig
+
         results: list[dict] = []
-        # Incremental save — always on, writes to output_dir/incremental.json.
-        incremental_path = Path(output_dir) / "skillsbench" / mode / "incremental.json"
-        incremental_path.parent.mkdir(parents=True, exist_ok=True)
-        # Also check env var override for custom path.
-        env_path = os.environ.get("BENCHMARK_INCREMENTAL_PATH")
-        if env_path:
-            incremental_path = Path(env_path)
-            incremental_path.parent.mkdir(parents=True, exist_ok=True)
+        for i, task in enumerate(tasks, 1):
+            task_id = task["task_id"]
+            logger.info("ACP [%d/%d]: %s (%s)", i, len(tasks), task_id, task.get("category", ""))
+
+            skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
+            nudge = "name" if skill_hints else ""
+
+            best_result = None
+            best_reward = -1.0
+
+            for attempt in range(max_attempts):
+                if attempt > 0:
+                    rc = RetryConfig(max_retries=max_attempts - 1)
+                    delay = rc.backoff_delay(attempt - 1)
+                    logger.info("Retry backoff: %.1fs for %s attempt %d", delay, task_id, attempt + 1)
+                    await asyncio.sleep(delay)
+
+                result = await self._run_acp_trial(
+                    task, skills_dir=skills_dir, skill_nudge=nudge,
+                )
+                reward = result.get("reward", 0.0)
+
+                if reward > best_reward:
+                    best_reward = reward
+                    best_result = result.copy()
+                    best_result["attempts"] = attempt + 1
+
+                if reward >= 1.0:
+                    logger.info("Task %s: PASSED on attempt %d", task_id, attempt + 1)
+                    break
+
+                error = result.get("error") or ""
+                if "timed out" in error or "timeout" in error.lower():
+                    logger.info("Task %s: timeout on attempt %d", task_id, attempt + 1)
+                    break
+
+            if best_result:
+                results.append(best_result)
+                logger.info(
+                    "Task %s: best reward=%.3f after %d attempts",
+                    task_id, best_reward, best_result.get("attempts", max_attempts),
+                )
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Full benchmark — MCP mode (hybrid: Trial container + host agent)
+    # ------------------------------------------------------------------
+
+    async def run_benchmark_claudecode(
+        self,
+        cc_agent: "ClaudeCodeAgent",
+        *,
+        max_tasks: int | None = None,
+        shuffle: bool = True,
+        seed: int = 42,
+        timeout: int = 900,
+        max_budget: float = 2.00,
+        skip_first: int = 0,
+        max_attempts: int = 5,
+        skill_hints: bool = True,
+        only_tasks: list[str] | None = None,
+        incremental_path: str | None = None,
+    ) -> list[dict]:
+        """Run SkillsBench MCP mode: Trial container + host claude -p agent."""
+        packages_root = os.path.expanduser("~/.ontoskills/packages")
+        tasks = self.load_tasks(
+            max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+            packages_root=packages_root, skip_first=skip_first,
+            only_tasks=only_tasks,
+        )
+        if not tasks:
+            logger.error("No tasks to run.")
+            return []
+
+        from benchflow.job import RetryConfig
+
+        results: list[dict] = []
+        inc_path = Path(incremental_path) if incremental_path else None
 
         def _save_incremental() -> None:
-            incremental_path.write_text(
+            if not inc_path:
+                return
+            inc_path.parent.mkdir(parents=True, exist_ok=True)
+            inc_path.write_text(
                 json.dumps(results, indent=2, default=str, ensure_ascii=False),
                 encoding="utf-8",
             )
-            logger.info(
-                "Incremental save: %d results -> %s",
-                len(results), incremental_path,
-            )
-
-        def _verify_task(task: dict, result: dict) -> dict:
-            """Run Docker verification in a sync wrapper (for ThreadPoolExecutor)."""
-            solution_script = result.get("solution_script", "")
-            if solution_script.strip():
-                verification = asyncio.run(
-                    self._run_with_trial(
-                        task,
-                        solution_script=solution_script,
-                        work_dir=result.get("work_dir"),
-                    )
-                )
-                result["verification"] = verification
-                result["reward"] = verification.get("reward", 0.0)
-            else:
-                result["verification"] = {"reward": 0.0, "test_details": []}
-                result["reward"] = 0.0
-            return result
+            logger.info("Incremental save: %d results -> %s", len(results), inc_path)
 
         try:
-            verify_executor = ThreadPoolExecutor(max_workers=1)
-            pending_verification = None  # (future, task, result)
-
             for i, task in enumerate(tasks, 1):
+                task_id = task["task_id"]
                 logger.info(
-                    "Claude Code [%d/%d]: %s (%s)",
-                    i, len(tasks), task["task_id"], task.get("category", ""),
+                    "MCP [%d/%d]: %s (%s)",
+                    i, len(tasks), task_id, task.get("category", ""),
                 )
 
                 task["skill_hints"] = skill_hints
+                best_result = None
+                best_reward = -1.0
 
-                # Wait for previous verification to finish before overwriting work_dir.
-                if pending_verification is not None:
-                    prev_future, prev_task, prev_result = pending_verification
-                    try:
-                        prev_result = prev_future.result()
-                    except Exception as exc:
-                        logger.warning(
-                            "Verification failed for %s: %s",
-                            prev_task["task_id"], exc,
-                        )
-                        prev_result["verification"] = {"reward": 0.0, "test_details": [], "verifier_error": str(exc)}
-                        prev_result["reward"] = 0.0
+                for attempt in range(max_attempts):
+                    if attempt > 0:
+                        rc = RetryConfig(max_retries=max_attempts - 1)
+                        delay = rc.backoff_delay(attempt - 1)
+                        logger.info("Retry backoff: %.1fs for %s attempt %d", delay, task_id, attempt + 1)
+                        await asyncio.sleep(delay)
 
-                    if max_attempts > 1:
-                        prev_result["attempts"] = prev_result.get("attempts", 1)
-                    else:
-                        prev_result["attempts"] = 1
-                    results.append(prev_result)
+                    result = await self._run_hybrid_trial(
+                        task, cc_agent, timeout=timeout, max_budget=max_budget,
+                    )
+                    reward = result.get("reward", 0.0)
+
+                    if reward > best_reward:
+                        best_reward = reward
+                        best_result = result.copy()
+                        best_result["attempts"] = attempt + 1
+
+                    if reward >= 1.0:
+                        logger.info("Task %s: PASSED on attempt %d", task_id, attempt + 1)
+                        break
+
+                    error = result.get("error") or ""
+                    if "No solution generated" in error:
+                        logger.info("Task %s: no solution on attempt %d", task_id, attempt + 1)
+                        break
+
+                if best_result:
+                    results.append(best_result)
                     _save_incremental()
-                    pending_verification = None
-
-                # Run agent for current task (blocking — uses API).
-                if max_attempts > 1:
-                    result = self.run_task_claudecode_with_retry(
-                        cc_agent, task, timeout=timeout, max_budget=max_budget,
-                        max_attempts=max_attempts,
-                    )
-                    # Retry loop already verifies, just save.
-                    results.append(result)
-                    _save_incremental()
-                else:
-                    result = self.run_task_claudecode(
-                        cc_agent, task, timeout=timeout, max_budget=max_budget,
-                    )
-                    # Pipeline: start verification in background, move to next task.
-                    pending_verification = (
-                        verify_executor.submit(_verify_task, task, result),
-                        task,
-                        result,
-                    )
-
-            # Drain last pending verification.
-            if pending_verification is not None:
-                prev_future, prev_task, prev_result = pending_verification
-                try:
-                    prev_result = prev_future.result()
-                except Exception as exc:
-                    logger.warning(
-                        "Verification failed for %s: %s",
-                        prev_task["task_id"], exc,
-                    )
-                    prev_result["verification"] = {"reward": 0.0, "test_details": [], "verifier_error": str(exc)}
-                    prev_result["reward"] = 0.0
-                prev_result["attempts"] = prev_result.get("attempts", 1)
-                results.append(prev_result)
-                _save_incremental()
 
         finally:
-            verify_executor.shutdown(wait=False)
             cc_agent.cleanup()
 
         return results
