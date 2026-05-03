@@ -62,39 +62,48 @@ benchmark/
 # Prerequisites: clone the SkillsBench repo
 git clone --depth 1 https://github.com/benchflow-ai/skillsbench /tmp/skillsbench_full
 
-# Traditional (SKILL.md files)
+# Traditional hybrid (SKILL.md files via claude -p)
 ANTHROPIC_API_KEY="$ANTHROPIC_AUTH_TOKEN" \
 python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 \
   --model glm-5.1 --skills-dir .agents/skills --output-dir benchmark/results \
   --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
 
-# OntoSkills MCP (ontomcp server)
+# OntoSkills MCP hybrid (ontomcp server via claude -p)
 ANTHROPIC_API_KEY="$ANTHROPIC_AUTH_TOKEN" \
 python benchmark/run.py --benchmark skillsbench --mode claudecode-mcp --max-tasks 25 \
   --model glm-5.1 --skills-dir .agents/skills --output-dir benchmark/results \
   --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+
+# No-skill-hints variants (test discovery mechanism)
+python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 \
+  --no-skill-hints ... # Traditional, no hints
+python benchmark/run.py --benchmark skillsbench --mode claudecode-mcp --max-tasks 25 \
+  --no-skill-hints ... # MCP, no hints
 ```
 
 ### SkillsBench methodology
 
-Aligned with official [BenchFlow](https://github.com/benchflow-ai/benchflow) /
+Both modes use the **hybrid approach**: BenchFlow Trial for container lifecycle,
+host `claude -p` for agent execution. Aligned with official
+[BenchFlow](https://github.com/benchflow-ai/benchflow) /
 [SkillsBench](https://github.com/benchflow-ai/skillsbench) evaluation:
 
 1. **Container lifecycle**: BenchFlow `Trial` builds the Docker image and starts
-   the container. Skills are injected into the Dockerfile by Harbor.
+   the container.
 2. **Agent execution**: Claude Code CLI (`claude -p`) runs on the host with
    task files copied to a temp working directory.
-3. **Solution execution**: The agent's `solution.py` is uploaded to the container
+3. **Solution upload**: The agent's `solution.py` is uploaded to the container
    via `trial.env.upload_file()` and executed with `python3`.
 4. **Verification**: Harbor Verifier runs `tests/test.sh` (pytest) inside the
    container and reads CTRF report for fractional scoring.
 5. **Retries**: BenchFlow `RetryConfig` with exponential backoff, clean retries
    (fresh work dir, no Docker feedback), timeout exclusion.
 
-**Comparison is fair**: both Traditional and MCP modes use identical container
-management (BenchFlow Trial), identical agent execution (claude -p), and
-identical verification (Harbor Verifier). The only difference is how skills are
-delivered to the agent.
+**Comparison is fair**: both modes use identical container management (BenchFlow
+Trial), identical agent execution (claude -p), and identical verification
+(Harbor Verifier). The only difference is **how skills are delivered**:
+- `claudecode` (Traditional): SKILL.md files in `.claude/skills/`
+- `claudecode-mcp` (MCP): Skills via ontomcp MCP tools
 
 12 tasks are skipped: exotic base images, multi-container setups, and
 BuildKit heredoc incompatibility with Podman.
@@ -104,16 +113,17 @@ BuildKit heredoc incompatibility with Podman.
 - `--attempts N` — Clean retries per task (default: 5, matches SkillsBench)
 - `--no-skill-hints` — Omit skill names from prompts (tests discovery mechanism)
 - `--only-tasks id1,id2` — Run specific task IDs only
+- `--skip-first N` — Skip first N tasks (combine with previous results)
 - `--workers N` — Parallel Docker verification workers (default: 3)
 
 #### Production-realistic benchmark (4 runs)
 
-| Run | Agent       | Hints | Tests            |
-|-----|-------------|-------|------------------|
-| 1   | Traditional | Yes   | Knowledge quality |
-| 2   | MCP         | Yes   | Knowledge quality |
-| 3   | Traditional | No    | Discovery         |
-| 4   | MCP         | No    | Discovery         |
+| Run | Mode          | Hints | Tests            |
+|-----|---------------|-------|------------------|
+| 1   | claudecode    | Yes   | Knowledge quality |
+| 2   | claudecode-mcp| Yes   | Knowledge quality |
+| 3   | claudecode    | No    | Discovery         |
+| 4   | claudecode-mcp| No    | Discovery         |
 
 ### Content coverage (instant, no API)
 ```bash
