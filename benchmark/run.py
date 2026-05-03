@@ -433,7 +433,10 @@ def _run_skillsbench_acp(
         # Pick trial runner based on mode.
         nudge = "name" if skill_hints else ""
 
-        if mode == "acp":
+        if mode == "baseline":
+            async def trial_runner(task: dict) -> dict:
+                return await wrapper._run_acp_trial(task, skills_dir=None, skill_nudge="")
+        elif mode == "acp":
             async def trial_runner(task: dict) -> dict:
                 skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
                 return await wrapper._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
@@ -559,13 +562,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=["acp", "acp-mcp", "both"],
+        choices=["acp", "acp-mcp", "baseline", "both", "all5"],
         default="both",
         help=(
             "Which agent mode to run (default: both). "
             "'acp' = Traditional via ACP (SKILL.md files injected into container). "
             "'acp-mcp' = MCP via ACP (ontomcp inside container). "
-            "'both' = Run both acp and acp-mcp. "
+            "'baseline' = No skills, no nudge — raw agent performance. "
+            "'both' = Run acp + acp-mcp. "
+            "'all5' = Run all 5 benchmark cases (baseline, acp+hints, acp-mcp+hints, acp+nohints, acp-mcp+nohints). "
             "For non-SkillsBench benchmarks: acp maps to traditional, acp-mcp to ontoskills."
         ),
     )
@@ -734,14 +739,28 @@ def main() -> None:
 
         if bench_name == "skillsbench":
             # SkillsBench: ACP-based evaluation with BenchmarkState + worker pool.
-            modes_to_run = []
-            if args.mode in ("acp", "both"):
-                modes_to_run.append("acp")
-            if args.mode in ("acp-mcp", "both"):
-                modes_to_run.append("acp-mcp")
+            # Build list of (mode, skill_hints) tuples to run.
+            cases: list[tuple[str, bool]] = []
+            if args.mode == "all5":
+                cases = [
+                    ("baseline", False),
+                    ("acp", True),
+                    ("acp-mcp", True),
+                    ("acp", False),
+                    ("acp-mcp", False),
+                ]
+            elif args.mode == "baseline":
+                cases = [("baseline", False)]
+            elif args.mode == "both":
+                cases = [("acp", True), ("acp-mcp", True)]
+            elif args.mode == "acp":
+                cases = [("acp", not args.no_skill_hints)]
+            elif args.mode == "acp-mcp":
+                cases = [("acp-mcp", not args.no_skill_hints)]
 
-            for run_mode in modes_to_run:
-                logger.info("Running SkillsBench %s (model=%s)...", run_mode, args.model)
+            for run_mode, hints in cases:
+                label = f"{run_mode}+{'hints' if hints else 'nohints'}"
+                logger.info("Running SkillsBench %s (model=%s)...", label, args.model)
                 t0 = time.perf_counter()
                 results, accuracy = _run_skillsbench_acp(
                     output_dir,
@@ -752,7 +771,7 @@ def main() -> None:
                     seed=args.seed,
                     skip_first=args.skip_first,
                     max_attempts=args.attempts,
-                    skill_hints=not args.no_skill_hints,
+                    skill_hints=hints,
                     skillsbench_repo=args.skillsbench_repo,
                     only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
                     workers=args.workers,
@@ -761,13 +780,13 @@ def main() -> None:
                     state_file=args.state_file,
                 )
                 elapsed = time.perf_counter() - t0
-                logger.info("SkillsBench %s completed in %.1fs", run_mode, elapsed)
-                if run_mode == "acp":
-                    traditional_results[bench_name] = results
-                    traditional_accuracies[bench_name] = accuracy
-                else:
+                logger.info("SkillsBench %s completed in %.1fs", label, elapsed)
+                if run_mode == "acp-mcp":
                     ontoskills_results[bench_name] = results
                     ontoskills_accuracies[bench_name] = accuracy
+                else:
+                    traditional_results[bench_name] = results
+                    traditional_accuracies[bench_name] = accuracy
 
         elif bench_name == "perpackage":
             # Per-package benchmark: wrapper handles skill scoping per task.
