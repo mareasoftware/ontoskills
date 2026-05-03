@@ -25,19 +25,19 @@ We evaluated both approaches using [SkillsBench](https://github.com/benchflow-ai
 
 ### How evaluation works
 
-1. The agent receives a task description and relevant skill documentation
-2. It generates a Python solution script
-3. The script runs inside the task's **Docker container** (via [BenchFlow Trial](https://github.com/benchflow-ai/benchflow) + [Harbor](https://github.com/benchflow-ai/harbor))
-4. **Harbor Verifier** runs the task's pytest test suite — deterministic, no human judgment
-5. Score = `tests_passed / tests_total` per task (CTRF report)
+1. The agent runs **inside the task's Docker container** via BenchFlow ACP (Agent Communication Protocol)
+2. It receives the task description and generates a Python solution script
+3. [Harbor Verifier](https://github.com/benchflow-ai/harbor) runs the task's pytest test suite — deterministic, no human judgment
+4. Score = `tests_passed / tests_total` per task (CTRF report)
+5. Retries with exponential backoff — best reward wins
 
-This is not LLM-as-judge. The evaluation is fully deterministic and reproducible.
+This is not LLM-as-judge. The evaluation is fully deterministic and reproducible. Both modes use identical container management (BenchFlow Trial) and identical verification (Harbor Verifier). The only difference is **how skill knowledge is delivered**.
 
 ### Setup
 
 | Parameter | Value |
 |-----------|-------|
-| Agent | Claude Code CLI (`--print --bare` mode) |
+| Agent | claude-agent-acp (via BenchFlow ACP) |
 | Model | glm-5.1 (via API proxy) |
 | Infrastructure | [BenchFlow](https://github.com/benchflow-ai/benchflow) Trial + [Harbor](https://github.com/benchflow-ai/harbor) Verifier |
 | Scoring | Harbor Verifier + pytest CTRF report |
@@ -45,19 +45,33 @@ This is not LLM-as-judge. The evaluation is fully deterministic and reproducible
 
 ### Agent modes
 
-**Traditional** — Skill documentation placed in `.claude/skills/` as SKILL.md files. The agent uses Claude Code's native file reading to discover and load skills — exactly how skills work in production.
+**Traditional (`acp`)** — SKILL.md files injected into the Docker image. The agent discovers and loads skills using its native file reading capabilities — exactly how skills work in production.
 
-**OntoSkills MCP** — Skills compiled to OWL 2 ontologies, served via **OntoMCP**. The agent discovers and loads skill knowledge through a single `ontoskill` tool call, receiving structured, prioritized context with interconnections between knowledge elements.
+**OntoSkills MCP (`acp-mcp`)** — Skills compiled to OWL 2 ontologies, served via **OntoMCP** inside the container. The `ontomcp` binary, TTL packages, and `.mcp_config.json` are injected into the Docker image. The agent discovers and loads skill knowledge through a single `ontoskill` tool call, receiving structured, prioritized context with interconnections between knowledge elements.
 
-Both modes use the same Claude Code agent, the same model, the same BenchFlow container management, and the same Harbor Verifier. The only difference is **how skill knowledge is delivered**.
+Both modes run the same agent inside the container, using the same model and the same BenchFlow infrastructure.
+
+## 5-Case Experimental Design
+
+We run five controlled cases to isolate different aspects of skill delivery:
+
+| Run | Mode | Skills | Hints | What it measures |
+|-----|------|--------|-------|------------------|
+| 1 | acp | None | No | **Baseline** — raw agent without any skills |
+| 2 | acp | SKILL.md | Yes | **Knowledge quality** — traditional delivery |
+| 3 | acp-mcp | ontomcp | Yes | **Knowledge quality** — structured delivery |
+| 4 | acp | SKILL.md | No | **Discovery** — agent must find skills on its own |
+| 5 | acp-mcp | ontomcp | No | **Discovery** — agent must query MCP tools |
+
+- **Baseline (Run 1)**: The raw agent with no skills and no hints. This establishes the floor — what the model can do without any domain knowledge.
+- **Knowledge quality (Runs 2-3)**: Skills are explicitly named in the prompt. This isolates how well each delivery method transfers knowledge to the agent.
+- **Discovery (Runs 4-5)**: No skill names in the prompt. This tests whether the agent can autonomously discover and use available skills.
 
 ## Results
 
+Results coming soon — 5-case benchmark running with 25 tasks x 5 attempts, fully BenchFlow-aligned.
+
 <BenchmarkApp />
-
-### Per-task highlights
-
-Results will be shown after the benchmark re-run with the BenchFlow-aligned infrastructure.
 
 ### Why structured knowledge wins
 
@@ -74,17 +88,17 @@ The token efficiency advantage compounds: the agent spends fewer turns reading d
 
 ## Limitations
 
-- **Sample size**: Results from a pool of 70+ eligible tasks.
+- **Sample size**: Results from a pool of 70+ eligible tasks (some skipped due to infrastructure constraints).
 - **Single model**: All results use glm-5.1 via API proxy. Other models may differ.
 - **Single benchmark**: SkillsBench tests code generation. Other benchmarks planned.
 
 ## What's next
 
-- **BenchFlow-aligned re-run** — full 4-case benchmark (Traditional hints, MCP hints, Traditional no-hints, MCP no-hints) with BenchFlow infrastructure
+- **5-case results** — full benchmark with baseline, knowledge quality, and discovery dimensions
 - **Intra-skill link evaluation** — measuring the impact of derivedFromSection, correctAlternative, and appliesToStep links
 - **GAIA** evaluation (Q&A with file attachments)
 - **SWE-bench** evaluation (repository patching)
 
 ---
 
-> All benchmark code is open source. Run it yourself: `python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --attempts 5`
+> All benchmark code is open source. Run it yourself: `python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 --model glm-5.1 --attempts 5`

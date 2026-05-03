@@ -123,14 +123,32 @@ BuildKit heredoc incompatibility with Podman.
 - `--only-tasks id1,id2` — Run specific task IDs only
 - `--skip-first N` — Skip first N tasks (combine with previous results)
 
-#### Production-realistic benchmark (4 runs)
+#### Production-realistic benchmark (5 runs)
 
-| Run | Mode    | Hints | Tests            |
-|-----|---------|-------|------------------|
-| 1   | acp     | Yes   | Knowledge quality |
-| 2   | acp-mcp | Yes   | Knowledge quality |
-| 3   | acp     | No    | Discovery         |
-| 4   | acp-mcp | No    | Discovery         |
+| Run | Mode    | Skills   | Hints | Tests            |
+|-----|---------|----------|-------|------------------|
+| 1   | acp     | None     | No    | Baseline (agent only) |
+| 2   | acp     | SKILL.md | Yes   | Knowledge quality |
+| 3   | acp-mcp | ontomcp  | Yes   | Knowledge quality |
+| 4   | acp     | SKILL.md | No    | Discovery         |
+| 5   | acp-mcp | ontomcp  | No    | Discovery         |
+
+Note: Baseline (Run 1) needs `skill_nudge=""` and no skills_dir passed. This
+measures the raw agent without any skill delivery.
+
+#### Incremental execution
+
+```bash
+# Start with 15 tasks
+python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 15 \
+  --model glm-5.1 --output-dir benchmark/results \
+  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+
+# Later, extend to 25 (resumes from saved state):
+python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
+  --model glm-5.1 --output-dir benchmark/results \
+  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5 --resume
+```
 
 ### Content coverage (instant, no API)
 ```bash
