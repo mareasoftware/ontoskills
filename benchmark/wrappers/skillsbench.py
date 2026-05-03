@@ -316,12 +316,18 @@ class SkillsBenchWrapper:
         """Inject ontomcp binary + TTL files + MCP config into container."""
         import subprocess as sp
 
+        from benchmark.config import ONTOMCP_BIN_PATH
+
         ontology_root = self._prepare_skillsbench_ontology_root()
         if not ontology_root:
             raise RuntimeError("No SkillsBench ontology root available for MCP injection")
 
+        ontomcp_bin = Path(ONTOMCP_BIN_PATH)
+        if not ontomcp_bin.exists():
+            raise FileNotFoundError(f"ontomcp binary not found at {ontomcp_bin}")
+
         # Upload ontomcp binary.
-        await env.upload_file(self.ontomcp_bin, "/usr/local/bin/ontomcp")
+        await env.upload_file(str(ontomcp_bin), "/usr/local/bin/ontomcp")
         await env.exec("chmod +x /usr/local/bin/ontomcp", timeout_sec=30)
 
         # Upload TTL files as tar for efficiency.
@@ -371,9 +377,9 @@ class SkillsBenchWrapper:
     ) -> dict:
         """ACP Trial with MCP tools injected into the container.
 
-        Splits Trial.run() into individual steps so we can inject
+        Splits Trial lifecycle using public API so we can inject
         ontomcp binary + TTL files + .mcp_config.json between
-        start and install_agent.
+        start() and install_agent().
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -400,36 +406,33 @@ class SkillsBenchWrapper:
 
         trial = await Trial.create(config)
         try:
-            await trial._setup_environment()
-            trial._environment.default_user = trial._task.config.agent.user
-            await trial._start_environment_with_retry()
+            await trial.setup()
+            await trial.start()
 
-            # MCP injection point — between start and agent setup.
-            await self._inject_mcp_into_container(trial._environment, task)
+            # MCP injection point — between start and install_agent.
+            await self._inject_mcp_into_container(trial.env, task)
 
-            await trial._setup_agent()
-            trial._result.agent_info = trial._agent.to_agent_info()
+            await trial.install_agent()
+            await trial.connect()
+            await trial.execute()
 
             try:
-                trial._environment.default_user = trial._task.config.agent.user
-                await trial._execute_agent()
-            except Exception as exc:
-                logger.warning("ACP MCP agent error for %s: %s", task_id, exc)
+                await trial.disconnect()
+            except Exception:
+                pass
 
-            if not config.verifier.disable:
-                trial._environment.default_user = None
-                await trial._run_verification()
+            await trial.verify()
 
-            result = trial._result
+            result = trial._build_result()
             reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
             return {
                 "task_id": task_id,
                 "reward": reward,
                 "rewards": result.rewards,
-                "error": str(result.exception_info) if result.exception_info else None,
-                "verifier_error": None,
+                "error": result.error,
+                "verifier_error": result.verifier_error,
                 "build_ok": True,
-                "n_tool_calls": getattr(result, "n_tool_calls", 0),
+                "n_tool_calls": result.n_tool_calls,
             }
         except Exception as exc:
             logger.exception("ACP MCP Trial failed for %s: %s", task_id, exc)
@@ -444,7 +447,7 @@ class SkillsBenchWrapper:
             }
         finally:
             try:
-                await trial._cleanup_and_finalize()
+                await trial.cleanup()
             except Exception:
                 pass
 
