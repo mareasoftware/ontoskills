@@ -368,6 +368,7 @@ def _run_skillsbench_acp(
     output_dir: Path,
     *,
     mode: str = "acp",
+    label: str | None = None,
     model: str = "glm-5.1",
     max_tasks: int | None = None,
     shuffle: bool = True,
@@ -410,10 +411,11 @@ def _run_skillsbench_acp(
         return [], None
 
     # Resolve state file path.
+    effective_label = label or mode
     if state_file:
         state_path = Path(state_file)
     else:
-        state_path = output_dir / "skillsbench" / mode / "benchmark_state.json"
+        state_path = output_dir / "skillsbench" / effective_label / "benchmark_state.json"
 
     # Load or create state.
     run_id = str(uuid.uuid4())[:8]
@@ -465,12 +467,12 @@ def _run_skillsbench_acp(
     )
 
     # Save results.
-    raw_path = output_dir / "skillsbench" / mode / "results.json"
+    raw_path = output_dir / "skillsbench" / effective_label / "results.json"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     _save_json(results, raw_path)
 
     # Save scores.
-    score_path = output_dir / "skillsbench" / mode / "score.json"
+    score_path = output_dir / "skillsbench" / effective_label / "score.json"
     score_path.write_text(
         json.dumps(score, indent=2, default=str, ensure_ascii=False),
         encoding="utf-8",
@@ -478,7 +480,7 @@ def _run_skillsbench_acp(
 
     # Save chart data.
     chart = generate_chart_data("skillsbench", mode, results, score, model=model)
-    save_chart_data(chart, str(output_dir / "skillsbench" / mode / "chart_data.json"))
+    save_chart_data(chart, str(output_dir / "skillsbench" / effective_label / "chart_data.json"))
 
     return results, score["pass_rate"]
 
@@ -516,6 +518,41 @@ def _generate_comparison(
     report_path = output_dir / "comparison.md"
     save_report(md, str(report_path))
     logger.info("Comparison report saved to %s", report_path)
+
+
+# ---------------------------------------------------------------------------
+# All5 summary report
+# ---------------------------------------------------------------------------
+
+def _generate_all5_summary(
+    traditional_results: dict[str, list[dict]],
+    ontoskills_results: dict[str, list[dict]],
+    traditional_accuracies: dict[str, float | None],
+    ontoskills_accuracies: dict[str, float | None],
+    output_dir: Path,
+) -> None:
+    """Generate a summary report for all 5 benchmark cases."""
+    all_cases = {**traditional_results, **ontoskills_results}
+    all_accs = {**traditional_accuracies, **ontoskills_accuracies}
+
+    lines = ["# SkillsBench All5 Benchmark Summary\n"]
+    lines.append("| Case | Pass Rate | Avg Reward | Tasks Passed | Total |")
+    lines.append("|------|-----------|------------|--------------|-------|")
+
+    for key in sorted(all_cases.keys()):
+        results = all_cases[key]
+        acc = all_accs.get(key)
+        total = len(results)
+        passed = sum(1 for r in results if r.get("best_reward", r.get("reward", 0)) >= 1.0)
+        avg_reward = sum(r.get("best_reward", r.get("reward", 0.0)) for r in results) / total if total else 0
+        rate = f"{acc * 100:.1f}%" if acc is not None else f"{passed}/{total}"
+        lines.append(f"| {key} | {rate} | {avg_reward:.3f} | {passed} | {total} |")
+
+    report = "\n".join(lines) + "\n"
+    report_path = output_dir / "skillsbench" / "all5_summary.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report, encoding="utf-8")
+    logger.info("All5 summary saved to %s", report_path)
 
 
 # ---------------------------------------------------------------------------
@@ -706,12 +743,12 @@ def main() -> None:
         benchmarks = [args.benchmark]
 
     # Validate prerequisites.
-    # For acp/acp-mcp/both modes, ANTHROPIC_API_KEY is needed.
-    if args.mode in ("acp", "both"):
-        if not os.environ.get("ANTHROPIC_API_KEY"):
+    modes_needing_api = ("acp", "acp-mcp", "baseline", "both", "all5")
+    if args.mode in modes_needing_api:
+        if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
             parser.error(
-                "ANTHROPIC_API_KEY is required for the traditional/acp agent. "
-                "Set it or use --mode acp-mcp."
+                "ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required. "
+                "Export it before running the benchmark."
             )
         if not Path(args.skills_dir).exists():
             logger.warning(
@@ -765,6 +802,7 @@ def main() -> None:
                 results, accuracy = _run_skillsbench_acp(
                     output_dir,
                     mode=run_mode,
+                    label=label,
                     model=args.model,
                     max_tasks=args.max_tasks,
                     shuffle=args.shuffle,
@@ -782,11 +820,11 @@ def main() -> None:
                 elapsed = time.perf_counter() - t0
                 logger.info("SkillsBench %s completed in %.1fs", label, elapsed)
                 if run_mode == "acp-mcp":
-                    ontoskills_results[bench_name] = results
-                    ontoskills_accuracies[bench_name] = accuracy
+                    ontoskills_results[f"{bench_name}/{label}"] = results
+                    ontoskills_accuracies[f"{bench_name}/{label}"] = accuracy
                 else:
-                    traditional_results[bench_name] = results
-                    traditional_accuracies[bench_name] = accuracy
+                    traditional_results[f"{bench_name}/{label}"] = results
+                    traditional_accuracies[f"{bench_name}/{label}"] = accuracy
 
         elif bench_name == "perpackage":
             # Per-package benchmark: wrapper handles skill scoping per task.
@@ -892,6 +930,13 @@ def main() -> None:
             ontoskills_results,
             traditional_accuracies,
             ontoskills_accuracies,
+            output_dir,
+        )
+    elif args.mode == "all5" and (traditional_results or ontoskills_results):
+        logger.info("Generating all5 summary report...")
+        _generate_all5_summary(
+            traditional_results, ontoskills_results,
+            traditional_accuracies, ontoskills_accuracies,
             output_dir,
         )
 

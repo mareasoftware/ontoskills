@@ -805,6 +805,56 @@ class SkillsBenchWrapper:
         return results
 
     # ------------------------------------------------------------------
+    # Trial verification (for legacy API mode)
+    # ------------------------------------------------------------------
+
+    async def _run_with_trial(self, task: dict, solution_script: str) -> dict:
+        """Verify a solution script via BenchFlow Trial (legacy API mode)."""
+        from benchflow.trial import Trial, TrialConfig
+
+        task_path = Path(task["task_dir"])
+        task_id = task["task_id"]
+        jobs_dir = task_path.parent.parent / ".benchflow_jobs"
+
+        config = TrialConfig.from_legacy(
+            task_path=task_path,
+            agent="claude-agent-acp",
+            model="glm-5.1",
+            jobs_dir=str(jobs_dir),
+            environment="docker",
+        )
+
+        trial = await Trial.create(config)
+        try:
+            await trial.setup()
+            await trial.start()
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".py", delete=False,
+            ) as f:
+                f.write(solution_script)
+                tmp_path = f.name
+            try:
+                await trial.env.upload_file(tmp_path, "/tmp/agent_solution.py")
+            finally:
+                os.unlink(tmp_path)
+
+            await trial.env.exec("python3 /tmp/agent_solution.py", timeout_sec=300)
+            await trial.verify()
+
+            result = trial._build_result()
+            reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+            return {"reward": reward, "rewards": result.rewards, "test_details": []}
+        except Exception as exc:
+            logger.exception("Trial verification failed for %s: %s", task_id, exc)
+            return {"reward": 0.0, "test_details": []}
+        finally:
+            try:
+                await trial.cleanup()
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
     # Scoring (uses BenchFlow extract_reward)
     # ------------------------------------------------------------------
 

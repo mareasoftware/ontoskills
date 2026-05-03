@@ -112,10 +112,11 @@ class BenchmarkState:
             attempts = task.get("attempts", [])
             best = task.get("best_reward", 0.0)
             best_attempt = max(attempts, key=lambda a: a.get("reward", 0.0)) if attempts else {}
-            best_attempt["task_id"] = tid
-            best_attempt["best_reward"] = best
-            best_attempt["attempts_completed"] = len(attempts)
-            results.append(best_attempt)
+            entry = dict(best_attempt)
+            entry["task_id"] = tid
+            entry["best_reward"] = best
+            entry["attempts_completed"] = len(attempts)
+            results.append(entry)
         return results
 
     @classmethod
