@@ -267,6 +267,14 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
+        agent_env = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
+        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        if api_key:
+            agent_env["ANTHROPIC_API_KEY"] = api_key
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            agent_env["ANTHROPIC_BASE_URL"] = base_url
+
         config = TrialConfig.from_legacy(
             task_path=task_path,
             agent="claude-agent-acp",
@@ -274,7 +282,7 @@ class SkillsBenchWrapper:
             jobs_dir=str(jobs_dir),
             environment="docker",
             skills_dir=skills_dir,
-            agent_env={"BENCHFLOW_SKILL_NUDGE": skill_nudge},
+            agent_env=agent_env,
         )
 
         trial = await Trial.create(config)
