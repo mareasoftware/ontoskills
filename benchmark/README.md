@@ -54,22 +54,22 @@ Software engineering benchmark. Agents produce unified-diff patches.
 
 ```bash
 # Prerequisites: clone SkillsBench repo
-git clone --depth 1 https://github.com/benchflow-ai/skillsbench /tmp/skillsbench_full
+git clone --depth 1 https://github.com/benchflow-ai/skillsbench ~/.ontoskills/skillsbench
 
 # Run ACP mode (Traditional)
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # Run ACP-MCP mode (OntoSkills)
 python benchmark/run.py --benchmark skillsbench --mode acp-mcp --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # Run both modes for comparison
 python benchmark/run.py --benchmark skillsbench --mode both --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # No-skill-hints variant (test discovery mechanism)
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \

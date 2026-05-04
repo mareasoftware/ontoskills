@@ -22,6 +22,7 @@ datasets    — HuggingFace dataset loading
 ### Binary prerequisites
 - `ontomcp` at `~/.ontoskills/bin/ontomcp` — Rust MCP server
 - Compiled TTLs at `~/.ontoskills/packages/` — TTL files compiled from skills
+- SkillsBench repo at `~/.ontoskills/skillsbench` — `git clone --depth 1 https://github.com/benchflow-ai/skillsbench ~/.ontoskills/skillsbench`
 - `docker` (or `podman` with docker alias) — container runtime
 
 ## Architecture
@@ -64,22 +65,22 @@ container via BenchFlow ACP. The only difference is how skills are delivered.
 
 ```bash
 # Prerequisites: clone the SkillsBench repo
-git clone --depth 1 https://github.com/benchflow-ai/skillsbench /tmp/skillsbench_full
+git clone --depth 1 https://github.com/benchflow-ai/skillsbench ~/.ontoskills/skillsbench
 
 # ACP mode — Traditional (SKILL.md files injected into Dockerfile)
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # ACP-MCP mode — OntoSkills (ontomcp inside container)
 python benchmark/run.py --benchmark skillsbench --mode acp-mcp --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # Both modes (comparison)
 python benchmark/run.py --benchmark skillsbench --mode both --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # No-skill-hints variants (test discovery mechanism)
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
@@ -143,12 +144,12 @@ measures the raw agent without any skill delivery.
 # Start with 15 tasks
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 15 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
 
 # Later, extend to 25 (resumes from saved state):
 python benchmark/run.py --benchmark skillsbench --mode acp --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo /tmp/skillsbench_full -v --attempts 5 --resume
+  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5 --resume
 ```
 
 ### Content coverage (instant, no API)
