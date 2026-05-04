@@ -4,6 +4,25 @@ All notable changes to OntoCore (Python package) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-05-04
+
+### Added
+
+- **Intra-skill link inference** — New `linker.py` module adds three types of links via post-serialization inference:
+  - `derivedFromSection` — KnowledgeNode → Section (token overlap matching)
+  - `correctAlternative` — AntiPattern → Section/CodeExample (keyword matching)
+  - `appliesToStep` — KnowledgeNode → WorkflowStep (numeric reference matching)
+- **Named URIs instead of blank nodes** — All content nodes (sections, paragraphs, code blocks, tables, etc.) promoted from `BNode` to `URIRef` with deterministic SHA-256 hashes, enabling cross-referencing from the linker and SPARQL queries
+
+### Changed
+
+- **`--skip-security` bypasses entire pipeline** — Previously only skipped LLM review; now skips both pattern matching and LLM review
+- **Serialization** — `make_bnode()` → `make_uri()` with prefix map for compact, deterministic named URIs
+
+### Fixed
+
+- **security.py** — `--skip-security` now correctly skips all security checks instead of only the LLM review stage
+
 ## [1.0.0] - 2026-04-28
 
 ### Changed

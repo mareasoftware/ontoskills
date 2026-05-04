@@ -4,6 +4,22 @@ All notable changes to ontomcp (Rust MCP Server) will be documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-05-04
+
+### Added
+
+- **Unified `ontoskill` tool** — Replaces 4 separate tools (`search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules`) with a single `ontoskill(q, top_k)` tool. When `q` matches a known skill ID, returns full skill context; otherwise falls back to BM25 keyword search (or semantic when embeddings are enabled)
+- **Knowledge node BM25 ranking** — `NodeBm25Engine` ranks knowledge nodes by query relevance with bottom-percentile cutoff (keeps top 80%, minimum 10 nodes). `NODE_BUDGET_CHARS` (12K chars) prevents overwhelming the agent
+- **Section tree content** — New `SectionBm25Engine` ranks code examples and reference tables within `SECTION_BUDGET_CHARS` (3K chars). Content served alongside knowledge nodes in compact output
+- **Intra-skill link rendering** — `KnowledgeNodeLink` struct with `correctAlternative` and `appliesToStep` properties, rendered as `→ Correct: "..."` and `→ Applies to: ...` in compact output
+- **Backward-compatible old tool handlers** — Legacy `search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules` handlers still present for direct JSON-RPC calls
+
+### Changed
+
+- **Tool surface reduced from 5 to 1** — `prefetch_knowledge` kept as internal handler (backward compat), removed from `tool_definitions()`
+- **Compact context** — `compact_context_with_query()` supports optional BM25 filtering for both knowledge nodes and section content
+- **Version aligned** — OntoMCP 1.1.0 matches OntoCore 1.1.0
+
 ## [1.0.0] - 2026-04-28
 
 ### Added
