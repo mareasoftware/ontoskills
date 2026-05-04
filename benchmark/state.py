@@ -50,8 +50,7 @@ class BenchmarkState:
 
     def matches(self, run_id: str, mode: str, skill_hints: bool) -> bool:
         return (
-            self._data["run_id"] == run_id
-            and self._data["mode"] == mode
+            self._data["mode"] == mode
             and self._data["skill_hints"] == skill_hints
         )
 

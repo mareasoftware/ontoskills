@@ -91,7 +91,7 @@ class TestBenchmarkStateRecord:
         assert state2.should_run("task-1") is False
         assert state2.is_fully_done(["task-1"]) is True
 
-    def test_mismatched_run_id_starts_fresh(self, tmp_path):
+    def test_mismatched_mode_starts_fresh(self, tmp_path):
         path = tmp_path / "state.json"
         state = BenchmarkState.create(
             path=path, run_id="r1", mode="acp", skill_hints=True,
@@ -99,7 +99,23 @@ class TestBenchmarkStateRecord:
         state.record_attempt("task-1", {"attempt": 1, "reward": 1.0, "duration_ms": 100})
         state.mark_completed("task-1")
 
+        # Same run_id but different mode -> start fresh
+        state2 = BenchmarkState.load_or_create(
+            path=path, run_id="r1", mode="acp-mcp", skill_hints=True,
+        )
+        assert state2.should_run("task-1") is True
+
+    def test_different_run_id_same_mode_resumes(self, tmp_path):
+        path = tmp_path / "state.json"
+        state = BenchmarkState.create(
+            path=path, run_id="r1", mode="acp", skill_hints=True,
+        )
+        state.record_attempt("task-1", {"attempt": 1, "reward": 1.0, "duration_ms": 100})
+        state.mark_completed("task-1")
+
+        # Different run_id but same mode+hints -> resume
         state2 = BenchmarkState.load_or_create(
             path=path, run_id="r2", mode="acp", skill_hints=True,
         )
-        assert state2.should_run("task-1") is True
+        assert state2.should_run("task-1") is False
+        assert state2.is_fully_done(["task-1"]) is True
