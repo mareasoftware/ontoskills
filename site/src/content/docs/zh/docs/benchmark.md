@@ -104,7 +104,7 @@ python benchmark/run.py \
   --model glm-5.1 \
   --attempts 5 \
   --workers 2 \
-  --skillsbench-repo /tmp/skillsbench_full \
+  --skillsbench-repo ~/.ontoskills/skillsbench \
   --output-dir benchmark/results \
   --force-restart -v
 ```
