@@ -55,359 +55,64 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tool reference
 
-OntoMCP exposes **5 tools** for skill discovery, context retrieval, and reasoning.
+OntoMCP exposes **1 unified tool** `ontoskill` that combines skill discovery, context retrieval, and knowledge querying.
 
 > **Sparse serialization**: null values and empty arrays are omitted from responses. Only fields with actual values are included. This keeps responses compact and avoids cluttering the context window with empty data.
 
-> **Compact format**: All tools return compact responses by default (88% token reduction vs. verbose JSON). Use the `format` parameter to control output: `"compact"` (default) or `"raw"` for full JSON. Compact mode preserves all knowledge in `structuredContent` — zero information loss.
+### `ontoskill`
 
-### `search`
-
-Search skills by semantic query, alias, or structured filters. The tool dispatches based on the parameters provided:
-
-- **`query`** provided → BM25 keyword search (with optional semantic fallback for large catalogs)
-- **`alias`** provided → alias resolution
-- Otherwise → structured skill search with filters
-
-#### Structured skill search
+Find skills by name or natural language query, then load their full context — all in a single call.
 
 ```json
 {
-  "intent": "create_pdf",
-  "requires_state": "oc:DocumentCreated",
-  "yields_state": "oc:PdfGenerated",
-  "skill_type": "executable",
-  "category": "document",
-  "is_user_invocable": true,
-  "limit": 25
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `intent` | string | Filter by resolved intent |
-| `requires_state` | string | Filter by required state (URI or `oc:StateName`) |
-| `yields_state` | string | Filter by yielded state (URI or `oc:StateName`) |
-| `skill_type` | string | `executable` or `declarative` |
-| `category` | string | Filter by skill category (e.g., `automation`, `document`, `marketing`) |
-| `is_user_invocable` | boolean | Filter by whether the skill is directly invocable by users |
-| `limit` | integer | Max results (1-100, default 25) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-
-**Example response:**
-
-When the `query` parameter is provided, the search tool uses **BM25** as the default search engine. BM25 is an in-memory keyword ranking algorithm that operates directly on Catalog data — it is always available and requires no additional dependencies.
-
-```json
-{
-  "query": "create a pdf document",
+  "q": "create a pdf document",
   "top_k": 5
 }
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `query` | string | **Required.** Natural language query |
-| `top_k` | integer | Number of results (default 5) |
-| `format` | string | `"compact"` (default) or `"raw"` |
+| `q` | string | **Required.** Skill ID (e.g. `pdf`) or natural language query (e.g. `create a pdf document`) |
+| `top_k` | integer | Max search results when the query doesn't match a skill ID (default 5) |
 
-**BM25 response example** (default mode):
+**When `q` matches a known skill ID** → returns the full skill context: payload, dependencies, knowledge nodes, code examples, and reference tables.
+
+**When `q` doesn't match a skill ID** → falls back to search mode using **BM25** keyword ranking (always available). For large catalogs compiled with `--features embeddings`, semantic fallback is used when BM25 confidence is low:
 
 ```json
 {
-  "query": "create a pdf document",
   "mode": "bm25",
+  "query": "create a pdf document",
   "results": [
     {
       "skill_id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
-      "package_id": "superpowers",
       "trust_tier": "core",
       "score": 0.92,
       "matched_by": "intent",
-      "intents": ["create_pdf", "export_to_pdf"],
-      "aliases": ["pdf"]
+      "intents": ["create_pdf", "export_to_pdf"]
     }
   ]
 }
 ```
-
-**Semantic fallback** (optional, for large catalogs):
-
-Semantic search is an optional enhancement for large skill catalogs where keyword matching alone may not capture nuanced queries. It requires compiling with `--features embeddings` and having embedding files present (`ontoskills export-embeddings`).
-
-When BM25 confidence is below the fallback threshold (0.4) and embeddings are available, the server automatically falls back to semantic search:
-
-```json
-{
-  "query": "generate a report with charts and export it",
-  "mode": "semantic",
-  "results": [
-    {
-      "skill_id": "pdf",
-      "qualified_id": "obra/superpowers/test-driven-development",
-      "package_id": "superpowers",
-      "trust_tier": "core",
-      "score": 0.88,
-      "matched_by": "embedding_similarity",
-      "intents": ["create_pdf", "export_to_pdf"],
-      "aliases": ["pdf"]
-    }
-  ]
-}
-```
-
-Semantic results use **hybrid scoring** (cosine similarity x trust-tier quality multiplier) so higher-trust skills rank above community contributions even with slightly lower raw similarity.
-
-#### Alias resolution
-
-```json
-{
-  "alias": "pdf"
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `alias` | string | **Required.** Alias to resolve (case-insensitive) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-
-**Example response:**
-
-```json
-{
-  "alias": "pdf",
-  "skills": [
-    {
-      "id": "test-driven-development",
-      "qualified_id": "obra/superpowers/test-driven-development",
-      "nature": "A skill for test-driven development",
-      "intents": ["write tests first", "practice TDD"]
-    }
-  ]
-}
-```
-
----
-
-### `get_skill_context`
-
-Fetch the full execution context for a skill, including requirements, transitions, payload, dependencies, knowledge nodes, and section titles (table of contents).
-
-```json
-{
-  "skill_id": "pdf",
-  "include_inherited_knowledge": true
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `skill_id` | string | **Required.** Short id (`test-driven-development`) or qualified (`obra/superpowers/test-driven-development`) |
-| `include_inherited_knowledge` | boolean | Include knowledge from extended skills (default true) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-
-**Example response:**
-
-```json
-{
-  "id": "test-driven-development",
-  "qualified_id": "obra/superpowers/test-driven-development",
-  "package_id": "superpowers",
-  "trust_tier": "core",
-  "nature": "A skill for test-driven development",
-  "genus": "Development",
-  "differentia": "writes tests first",
-  "intents": ["write tests first", "practice TDD"],
-  "requires_state": ["oc:CodeReady"],
-  "yields_state": ["oc:TestsPassing"],
-  "handles_failure": ["oc:PdfGenerationFailed"],
-  "requirements": [
-    {"type": "Tool", "value": "wkhtmltopdf", "optional": false}
-  ],
-  "depends_on": ["content-processor"],
-  "extends": ["document-base"],
-  "payload": {
-    "available": true,
-    "executor": "shell",
-    "code": "wkhtmltopdf $INPUT $OUTPUT.pdf",
-    "timeout": 30000
-  },
-  "knowledge_nodes": [
-    {
-      "node_type": "PreFlightCheck",
-      "directive_content": "Verify wkhtmltopdf is installed",
-      "applies_to_context": "Before PDF generation",
-      "has_rationale": "Avoids runtime failures",
-      "severity_level": "HIGH"
-    }
-  ]
-}
-```
-
-> The `payload` section is only present when the skill has an executable payload (`available: true`). Most declarative skills omit it entirely.
-
----
-
-### `prefetch_knowledge`
-
-One-call knowledge loading combining search and context retrieval. This is the recommended entry point for agents — it performs search + `get_skill_context` in a single MCP call and returns compact, prioritized knowledge.
-
-```json
-{
-  "query": "create a PDF with tables and charts",
-  "skill_ids": ["pdf"],
-  "limit": 3
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string | Search query (uses BM25) |
-| `skill_ids` | array | Explicit skill IDs to load (skips search) |
-| `limit` | integer | Max skills to load (default 5) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-
-**Example compact response:**
-
-```markdown
-# pdf
-
-## Knowledge (8 nodes, sorted by priority)
-[CRITICAL] Do not accept file paths from untrusted input (file handling)
-[HIGH] Verify wkhtmltopdf is installed (Before PDF generation)
-...
-
-## Requirements
-- Tool: wkhtmltopdf (required)
-- EnvVar: OUTPUT_DIR (optional)
-
-## Execution
-executor: shell | timeout: 30s
-```
-
-This single call replaces the `search` → `get_skill_context` sequence, saving 1-2 round trips.
-
----
 
 ### Agent workflow
 
-The 5 tools form a complete workflow that replaces reading raw SKILL.md files:
+The `ontoskill` tool replaces the old multi-step workflow:
 
 ```
-prefetch_knowledge → evaluate_execution_plan → query_epistemic_rules
-  discovery + context      plan validation          compliance
+Before (4 tools):
+  search → get_skill_context → evaluate_execution_plan → query_epistemic_rules
+
+After (1 tool):
+  ontoskill(q) → returns context or search results
 ```
 
-1. **`prefetch_knowledge`** — Load skill knowledge in one call (recommended first call)
-2. **`evaluate_execution_plan`** — Validate that the plan is feasible (states, dependencies)
-3. **`query_epistemic_rules`** — Check specific rules and constraints during execution
+1. Agent receives a user request
+2. Calls `ontoskill(q: user request)` — if the query is a skill ID, returns full context immediately; otherwise returns BM20-ranked search results
+3. Agent now has everything needed — payload, dependencies, knowledge nodes, code examples — in a single response
 
-For granular control, you can also use the individual tools:
-- **`search`** — Find the right skill by intent, keyword, or alias
-- **`get_skill_context`** — Get the full context for a specific skill
-
-Each tool loads only the data it needs. The agent never reads the full SKILL.md — it queries the ontology store via SPARQL and gets deterministic, structured results in sub-millisecond time.
-
----
-
-### `evaluate_execution_plan`
-
-Evaluate whether an intent or skill can be executed from the current states. Returns the full execution plan plus warnings.
-
-```json
-{
-  "intent": "create_pdf",
-  "current_states": ["oc:ContentReady", "oc:UserAuthenticated"],
-  "max_depth": 10
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `intent` | string | Target intent (use either `intent` or `skill_id`) |
-| `skill_id` | string | Target skill (use either `intent` or `skill_id`) |
-| `current_states` | array | Current state URIs or compact values |
-| `max_depth` | integer | Max plan depth (1-10, default 10) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-
-**Example response:**
-
-```json
-{
-  "executable": true,
-  "plan": [
-    {
-      "skill_id": "content-processor",
-      "step": 1,
-      "satisfies": ["oc:ContentReady"]
-    },
-    {
-      "skill_id": "pdf",
-      "step": 2,
-      "requires": ["oc:ContentReady"],
-      "yields": ["oc:PdfGenerated"]
-    }
-  ],
-  "missing_states": [],
-  "warnings": [
-    "Skill 'pdf' has optional dependency 'fonts-installer' not in plan"
-  ]
-}
-```
-
-**When `executable: false`:**
-
-```json
-{
-  "executable": false,
-  "plan": [],
-  "missing_states": ["oc:ApiKeyConfigured"],
-  "warnings": ["Cannot proceed without API key configuration"]
-}
-```
-
----
-
-### `query_epistemic_rules`
-
-Query normalized knowledge nodes with guided filters.
-
-```json
-{
-  "skill_id": "pdf",
-  "kind": "AntiPattern",
-  "dimension": "SecurityGuardrail",
-  "severity_level": "CRITICAL",
-  "applies_to_context": "file handling",
-  "include_inherited": true,
-  "limit": 25
-}
-```
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `skill_id` | string | Filter by skill |
-| `kind` | string | Node type (Heuristic, AntiPattern, PreFlightCheck, etc.) |
-| `dimension` | string | Epistemic dimension (NormativeRule, ResilienceTactic, etc.) |
-| `severity_level` | string | CRITICAL, HIGH, MEDIUM, LOW |
-| `applies_to_context` | string | Context filter |
-| `include_inherited` | boolean | Include extended skills (default true) |
-| `limit` | integer | Max results (1-100, default 25) |
-| `format` | string | `"compact"` (default) or `"raw"` |
-    {
-      "skill_id": "pdf",
-      "node_type": "AntiPattern",
-      "dimension": "SecurityGuardrail",
-      "directive_content": "Do not accept file paths from untrusted input",
-      "applies_to_context": "When processing user-provided filenames",
-      "has_rationale": "Prevents path traversal attacks",
-      "severity_level": "CRITICAL"
-    }
-  ],
-  "total": 1
-}
-```
+No round-trips between search and context retrieval. No separate tools for plan validation or epistemic queries — all knowledge is embedded in the skill context.
 
 ---
 

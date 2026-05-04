@@ -67,10 +67,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tools exposed
 
-- `search` — search by semantic query, alias, or structured filters
-- `get_skill_context`
-- `evaluate_execution_plan`
-- `query_epistemic_rules`
+- `ontoskill` — unified skill discovery and context retrieval. Pass a skill ID for full context, or a natural language query for BM25 search.
 
 ## Notes
 

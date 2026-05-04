@@ -98,7 +98,7 @@ Every skill is extracted with:
 |-----------|----------|-------------|
 | **ontoskills** | CLI | User-facing installer and manager |
 | **OntoCore** | Python | Skill compiler for `SKILL.md` sources |
-| **OntoMCP** | Rust | MCP server with 5 tools (search, get_skill_context, evaluate_execution_plan, query_epistemic_rules, prefetch_knowledge) |
+| **OntoMCP** | Rust | MCP server with unified ontoskill tool (search + context retrieval) |
 | **OntoStore** | GitHub repo | Official compiled skill store |
 | `skills/` | Markdown | Human-authored source skills |
 | `ontoskills/` | Turtle | Compiled ontology artifacts |

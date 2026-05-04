@@ -55,356 +55,64 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 工具参考
 
-OntoMCP 暴露 **5 个工具** 用于技能发现、上下文检索和推理。
+OntoMCP 暴露 **1 个统一工具** `ontoskill`，集技能发现、上下文检索和知识查询于一体。
 
 > **稀疏序列化**：响应中省略空值和空数组。仅包含有实际值的字段。这使响应保持紧凑，避免用空数据填充上下文窗口。
 
-> **紧凑格式**：所有工具默认返回紧凑响应（相比详细 JSON 减少 88% 的 token）。使用 `format` 参数控制输出：`"compact"`（默认）或 `"raw"` 获取完整 JSON。紧凑模式在 `structuredContent` 中保留所有知识 — 零信息损失。
+### `ontoskill`
 
-### `search`
-
-通过语义查询、别名或结构化过滤器搜索技能。工具根据提供的参数进行分派：
-
-- 提供了 **`query`** → BM25 关键词搜索（可选语义回退，用于大规模技能目录）
-- 提供了 **`alias`** → 别名解析
-- 否则 → 结构化技能搜索（带过滤器）
-
-#### 结构化技能搜索
+按名称或自然语言查询查找技能，然后加载其完整上下文 — 全在一次调用中。
 
 ```json
 {
-  "intent": "create_pdf",
-  "requires_state": "oc:DocumentCreated",
-  "yields_state": "oc:PdfGenerated",
-  "skill_type": "executable",
-  "category": "document",
-  "is_user_invocable": true,
-  "limit": 25
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `intent` | string | 按已解决的意图过滤 |
-| `requires_state` | string | 按所需状态过滤（URI 或 `oc:StateName`）|
-| `yields_state` | string | 按产出状态过滤（URI 或 `oc:StateName`）|
-| `skill_type` | string | `executable` 或 `declarative` |
-| `category` | string | 按技能类别过滤（如 `automation`、`document`、`marketing`）|
-| `is_user_invocable` | boolean | 按技能是否可由用户直接调用过滤 |
-| `limit` | integer | 最大结果数（1-100，默认 25）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-
-**示例响应：**
-
-当提供 `query` 参数时，搜索工具使用 **BM25** 作为默认搜索引擎。BM25 是一种内存关键词排序算法，直接在 Catalog 数据上运行 — 始终可用，无需额外依赖。
-
-```json
-{
-  "query": "创建 pdf 文档",
+  "q": "create a pdf document",
   "top_k": 5
 }
 ```
 
 | 参数 | 类型 | 描述 |
 |------|------|------|
-| `query` | string | **必需。** 自然语言查询 |
-| `top_k` | integer | 返回结果数（默认 5）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
+| `q` | string | **必需。** 技能 ID（如 `pdf`）或自然语言查询（如 `create a pdf document`） |
+| `top_k` | integer | 查询不匹配技能 ID 时的最大搜索结果（默认 5） |
 
-**BM25 响应示例**（默认模式）：
+**当 `q` 匹配已知技能 ID 时** → 返回完整技能上下文：负载、依赖、知识节点、代码示例和参考表格。
+
+**当 `q` 不匹配技能 ID 时** → 回退到搜索模式，使用 **BM25** 关键词排序（始终可用）。对于使用 `--features embeddings` 编译的大规模技能目录，当 BM25 置信度低时会使用语义回退：
 
 ```json
 {
-  "query": "创建 pdf 文档",
   "mode": "bm25",
+  "query": "create a pdf document",
   "results": [
     {
       "skill_id": "pdf",
       "qualified_id": "obra/superpowers/test-driven-development",
-      "package_id": "superpowers",
       "trust_tier": "core",
       "score": 0.92,
       "matched_by": "intent",
-      "intents": ["create_pdf", "export_pdf"],
-      "aliases": ["pdf"]
+      "intents": ["create_pdf", "export_to_pdf"]
     }
   ]
 }
 ```
-
-**语义回退**（可选，用于大规模技能目录）：
-
-语义搜索是大规模技能目录的可选增强功能，仅靠关键词匹配可能无法捕获细微的查询意图。需使用 `--features embeddings` 编译并提供嵌入文件（`ontoskills export-embeddings`）。
-
-当 BM25 置信度低于回退阈值（0.4）且嵌入可用时，服务器自动回退到语义搜索：
-
-```json
-{
-  "query": "生成带图表的报告并导出",
-  "mode": "semantic",
-  "results": [
-    {
-      "skill_id": "pdf",
-      "qualified_id": "obra/superpowers/test-driven-development",
-      "package_id": "superpowers",
-      "trust_tier": "core",
-      "score": 0.88,
-      "matched_by": "embedding_similarity",
-      "intents": ["create_pdf", "export_pdf"],
-      "aliases": ["pdf"]
-    }
-  ]
-}
-```
-
-语义结果使用**混合评分**（余弦相似度 x 信任层级质量乘数），使高信任技能在原始相似度略低的情况下也能排在社区贡献之上。
-
-#### 别名解析
-
-```json
-{
-  "alias": "pdf"
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `alias` | string | **必需。** 要解析的别名（不区分大小写）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-
-**示例响应：**
-
-```json
-{
-  "alias": "pdf",
-  "skills": [
-    {
-      "id": "pdf",
-      "qualified_id": "obra/superpowers/test-driven-development",
-      "nature": "创建 PDF 文档的技能",
-      "intents": ["create_pdf", "export_pdf"]
-    }
-  ]
-}
-```
-
----
-
-### `get_skill_context`
-
-获取技能的完整执行上下文，包括需求、转换、负载、依赖和知识节点。
-
-```json
-{
-  "skill_id": "pdf",
-  "include_inherited_knowledge": true
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `skill_id` | string | **必需。** 短 id（`pdf`）或限定 id（`obra/superpowers/test-driven-development`）|
-| `include_inherited_knowledge` | boolean | 包含扩展技能的知识（默认 true）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-
-**示例响应：**
-
-```json
-{
-  "id": "pdf",
-  "qualified_id": "obra/superpowers/test-driven-development",
-  "nature": "从内容创建 PDF 文档的技能",
-  "genus": "DocumentGenerator",
-  "differentia": "输出 PDF 格式",
-  "intents": ["create_pdf", "export_pdf"],
-  "requires_state": ["oc:ContentReady"],
-  "yields_state": ["oc:PdfGenerated"],
-  "handles_failure": ["oc:PdfGenerationFailed"],
-  "requirements": [
-    {"type": "Tool", "value": "wkhtmltopdf", "optional": false}
-  ],
-  "depends_on": ["content-processor"],
-  "extends": ["document-base"],
-  "execution_payload": {
-    "executor": "shell",
-    "code": "wkhtmltopdf $INPUT $OUTPUT.pdf",
-    "timeout": 30000
-  },
-  "knowledge_nodes": [
-    {
-      "node_type": "PreFlightCheck",
-      "directive_content": "验证 wkhtmltopdf 已安装",
-      "applies_to_context": "PDF 生成之前",
-      "has_rationale": "避免运行时失败",
-      "severity_level": "HIGH"
-    }
-  ]
-}
-```
-
-> `payload` 部分仅在技能具有可执行负载（`available: true`）时出现。大多数声明式技能完全省略此部分。
-
----
 
 ### 代理工作流
 
-5 个工具构成完整的工作流，替代读取原始 SKILL.md 文件：
+`ontoskill` 工具取代了旧的多步骤工作流：
 
 ```
-prefetch_knowledge → evaluate_execution_plan → query_epistemic_rules
-  发现 + 上下文           计划验证                 合规检查
+之前（4 个工具）：
+  search → get_skill_context → evaluate_execution_plan → query_epistemic_rules
+
+之后（1 个工具）：
+  ontoskill(q) → 返回上下文或搜索结果
 ```
 
-1. **`prefetch_knowledge`** — 一次调用加载技能知识（推荐的首次调用）
-2. **`evaluate_execution_plan`** — 验证计划是否可行（状态、依赖）
-3. **`query_epistemic_rules`** — 在执行期间检查特定规则和约束
+1. 代理收到用户请求
+2. 调用 `ontoskill(q: 用户请求)` — 如果查询是技能 ID，立即返回完整上下文；否则返回 BM25 排序的搜索结果
+3. 代理一次获得所有需要的信息 — 负载、依赖、知识节点、代码示例
 
-如需精细控制，也可以使用单独的工具：
-- **`search`** — 通过意图、关键词或别名找到正确的技能
-- **`get_skill_context`** — 获取特定技能的完整上下文
-
-每个工具仅加载所需的数据。代理从不读取完整的 SKILL.md — 它通过 SPARQL 查询本体存储，并在亚毫秒时间内获得确定性的结构化结果。
-
----
-
-### `prefetch_knowledge`
-
-一次性知识加载，结合搜索和上下文检索。这是代理推荐的入口点 — 它在单个 MCP 调用中执行搜索 + `get_skill_context`，返回紧凑的、优先排序的知识。
-
-```json
-{
-  "query": "创建带表格和图表的 PDF",
-  "skill_ids": ["pdf"],
-  "limit": 3
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `query` | string | 搜索查询（使用 BM25）|
-| `skill_ids` | array | 要加载的显式技能 ID（跳过搜索）|
-| `limit` | integer | 最大加载数（默认 5）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-
-**紧凑响应示例：**
-
-```markdown
-# pdf
-
-## Knowledge (8 nodes, sorted by priority)
-[CRITICAL] 不要接受来自不可信输入的文件路径 (文件处理)
-[HIGH] 验证 wkhtmltopdf 已安装 (PDF 生成之前)
-...
-
-## Requirements
-- Tool: wkhtmltopdf (required)
-- EnvVar: OUTPUT_DIR (optional)
-
-## Execution
-executor: shell | timeout: 30s
-```
-
-此单次调用替代 `search` → `get_skill_context` 序列，节省 1-2 次往返。
-
----
-
-### `evaluate_execution_plan`
-
-评估意图或技能是否可以从当前状态执行。返回完整的执行计划和警告。
-
-```json
-{
-  "intent": "create_pdf",
-  "current_states": ["oc:ContentReady", "oc:UserAuthenticated"],
-  "max_depth": 10
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `intent` | string | 目标意图（使用 `intent` 或 `skill_id`）|
-| `skill_id` | string | 目标技能（使用 `intent` 或 `skill_id`）|
-| `current_states` | array | 当前状态 URI 或紧凑值 |
-| `max_depth` | integer | 最大计划深度（1-10，默认 10）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-
-**示例响应：**
-
-```json
-{
-  "executable": true,
-  "plan": [
-    {
-      "skill_id": "content-processor",
-      "step": 1,
-      "satisfies": ["oc:ContentReady"]
-    },
-    {
-      "skill_id": "pdf",
-      "step": 2,
-      "requires": ["oc:ContentReady"],
-      "yields": ["oc:PdfGenerated"]
-    }
-  ],
-  "missing_states": [],
-  "warnings": [
-    "技能 'pdf' 有可选依赖 'fonts-installer' 不在计划中"
-  ]
-}
-```
-
-**当 `executable: false`：**
-
-```json
-{
-  "executable": false,
-  "plan": [],
-  "missing_states": ["oc:ApiKeyConfigured"],
-  "warnings": ["没有 API key 配置无法继续"]
-}
-```
-
----
-
-### `query_epistemic_rules`
-
-使用引导过滤器查询规范化的知识节点。
-
-```json
-{
-  "skill_id": "pdf",
-  "kind": "AntiPattern",
-  "dimension": "SecurityGuardrail",
-  "severity_level": "CRITICAL",
-  "applies_to_context": "文件处理",
-  "include_inherited": true,
-  "limit": 25
-}
-```
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `skill_id` | string | 按技能过滤 |
-| `kind` | string | 节点类型（Heuristic、AntiPattern、PreFlightCheck 等）|
-| `dimension` | string | 认识维度（NormativeRule、ResilienceTactic 等）|
-| `severity_level` | string | CRITICAL、HIGH、MEDIUM、LOW |
-| `applies_to_context` | string | 上下文过滤器 |
-| `include_inherited` | boolean | 包含扩展技能（默认 true）|
-| `limit` | integer | 最大结果数（1-100，默认 25）|
-| `format` | string | `"compact"`（默认）或 `"raw"` |
-    {
-      "skill_id": "pdf",
-      "node_type": "AntiPattern",
-      "dimension": "SecurityGuardrail",
-      "directive_content": "不要接受来自不可信输入的文件路径",
-      "applies_to_context": "处理用户提供的文件名时",
-      "has_rationale": "防止路径遍历攻击",
-      "severity_level": "CRITICAL"
-    }
-  ],
-  "total": 1
-}
-```
+不再需要在搜索和上下文检索之间往返。无需单独的工具用于计划验证或知识查询 — 所有知识都嵌入在技能上下文中。
 
 ---
 

@@ -64,10 +64,9 @@ Status: ✓ Connected
 
 连接后，Claude Code 可以调用：
 
-- `search` — 通过语义查询、别名或结构化过滤器搜索
-- `get_skill_context`
-- `evaluate_execution_plan`
-- `query_epistemic_rules`
+- `ontoskill` — 统一的技能发现和上下文检索。传入技能 ID（如 `pdf`）获取完整上下文，或传入自然语言查询（如 `创建 PDF 文档`）进行 BM25 搜索。
+
+此单一工具取代了之前的 5 工具工作流（`search`、`get_skill_context`、`evaluate_execution_plan`、`query_epistemic_rules`）。
 
 ## 故障排除
 
