@@ -113,7 +113,8 @@ BuildKit heredoc incompatibility with Podman.
 
 #### CLI flags
 
-- `--mode {acp,acp-mcp,both}` — Agent mode (default: both)
+- `--mode {acp,acp-mcp,baseline,both,all5}` — Agent mode (default: both)
+  - `all5`: task-first iteration — for each task runs all 5 cases, then prunes Docker
 - `--attempts N` — Clean retries per task (default: 5, matches SkillsBench)
 - `--workers N` — Parallel Docker workers (default: 2)
 - `--resume` — Resume from previous state file (default: True)

@@ -546,23 +546,31 @@ def _run_skillsbench_task_first(
         states.append(state)
 
     # Build trial runners per case.
+    def _make_baseline_runner(w, nudge: str):
+        async def _runner(task: dict) -> dict:
+            return await w._run_acp_trial(task, skills_dir=None, skill_nudge=nudge)
+        return _runner
+
+    def _make_acp_runner(w, nudge: str):
+        async def _runner(task: dict) -> dict:
+            skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
+            return await w._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
+        return _runner
+
+    def _make_mcp_runner(w, nudge: str):
+        async def _runner(task: dict) -> dict:
+            return await w._run_acp_mcp_trial(task, skill_nudge=nudge)
+        return _runner
+
     trial_runners: list = []
     for mode, hints in cases:
         nudge = "name" if hints else ""
-
         if mode == "baseline":
-            async def _runner(task: dict, _nudge: str = "") -> dict:
-                return await wrapper._run_acp_trial(task, skills_dir=None, skill_nudge=_nudge)
-            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+            trial_runners.append(_make_baseline_runner(wrapper, nudge))
         elif mode == "acp":
-            async def _runner(task: dict, _nudge: str = "") -> dict:
-                skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
-                return await wrapper._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=_nudge)
-            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+            trial_runners.append(_make_acp_runner(wrapper, nudge))
         elif mode == "acp-mcp":
-            async def _runner(task: dict, _nudge: str = "") -> dict:
-                return await wrapper._run_acp_mcp_trial(task, skill_nudge=_nudge)
-            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+            trial_runners.append(_make_mcp_runner(wrapper, nudge))
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
@@ -600,13 +608,18 @@ def _run_skillsbench_task_first(
         case_results[label] = (results, pass_rate)
 
     # Generate all5 summary.
-    _generate_all5_summary(
-        {f"skillsbench/{label}": res for label, (res, _) in case_results.items()},
-        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
-        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
-        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
-        output_dir,
-    )
+    trad_res, onto_res, trad_acc, onto_acc = {}, {}, {}, {}
+    for label, (res, rate) in case_results.items():
+        mode = label.split("+")[0]
+        key = f"skillsbench/{label}"
+        if mode == "acp-mcp":
+            onto_res[key] = res
+            onto_acc[key] = rate
+        else:
+            trad_res[key] = res
+            trad_acc[key] = rate
+
+    _generate_all5_summary(trad_res, onto_res, trad_acc, onto_acc, output_dir)
 
     return case_results
 
