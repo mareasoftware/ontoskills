@@ -376,7 +376,7 @@ def _run_skillsbench_acp(
     skip_first: int = 0,
     max_attempts: int = 5,
     skill_hints: bool = True,
-    skillsbench_repo: str = "/tmp/skillsbench_full",
+    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
     only_tasks: list[str] | None = None,
     workers: int = 2,
     resume: bool = True,
@@ -494,7 +494,7 @@ def _run_skillsbench_task_first(
     seed: int = 42,
     skip_first: int = 0,
     max_attempts: int = 5,
-    skillsbench_repo: str = "/tmp/skillsbench_full",
+    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
     only_tasks: list[str] | None = None,
     workers: int = 2,
     force_restart: bool = False,
@@ -818,7 +818,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--skillsbench-repo",
-        default="/tmp/skillsbench_full",
+        default=os.path.expanduser("~/.ontoskills/skillsbench"),
         help="Path to local clone of benchflow-ai/skillsbench (for Docker eval)",
     )
     parser.add_argument(

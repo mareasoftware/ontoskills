@@ -53,7 +53,7 @@ _SKIP_TASKS = {
     "mhc-layer-impl",           # docker-compose: multi-container
 }
 
-DEFAULT_REPO_PATH = "/tmp/skillsbench_full"
+DEFAULT_REPO_PATH = os.path.expanduser("~/.ontoskills/skillsbench")
 
 RATE_LIMIT_BACKOFF = [5, 10, 20, 60, 120]
 RATE_LIMIT_CONSECUTIVE_MAX = 5

@@ -67,13 +67,13 @@ def merge_results(
         from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 
         wrapper = SkillsBenchWrapper(
-            repo_path="/tmp/skillsbench_full",
+            repo_path=os.path.expanduser("~/.ontoskills/skillsbench"),
         )
         # Load ALL tasks that appear in merged results (no filtering).
         tasks = []
         for r in all_results:
             tid = r.get("task_id", "")
-            task_dir = Path("/tmp/skillsbench_full/tasks") / tid
+            task_dir = Path(os.path.expanduser("~/.ontoskills/skillsbench")) / "tasks" / tid
             if task_dir.is_dir():
                 tasks.append({"task_id": tid, "task_dir": str(task_dir)})
 
