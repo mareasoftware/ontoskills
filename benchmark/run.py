@@ -485,6 +485,132 @@ def _run_skillsbench_acp(
     return results, score["pass_rate"]
 
 
+def _run_skillsbench_task_first(
+    output_dir: Path,
+    *,
+    model: str = "glm-5.1",
+    max_tasks: int | None = None,
+    shuffle: bool = True,
+    seed: int = 42,
+    skip_first: int = 0,
+    max_attempts: int = 5,
+    skillsbench_repo: str = "/tmp/skillsbench_full",
+    only_tasks: list[str] | None = None,
+    workers: int = 2,
+    force_restart: bool = False,
+) -> dict[str, tuple[list[dict], float | None]]:
+    """Run all5 benchmark with task-first iteration and Docker pruning.
+
+    Returns dict mapping label -> (results, pass_rate) for each of the 5 cases.
+    """
+    import asyncio
+    import uuid
+
+    from benchmark.state import BenchmarkState
+    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
+
+    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
+
+    # Load tasks once.
+    packages_root = os.path.expanduser("~/.ontoskills/packages")
+    tasks = wrapper.load_tasks(
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        packages_root=packages_root, skip_first=skip_first,
+        only_tasks=only_tasks,
+    )
+    if not tasks:
+        logger.error("No tasks to run.")
+        return {}
+
+    # Define the 5 cases.
+    cases: list[tuple[str, bool]] = [
+        ("baseline", False),
+        ("acp", True),
+        ("acp-mcp", True),
+        ("acp", False),
+        ("acp-mcp", False),
+    ]
+
+    # Create one state per case.
+    run_id = str(uuid.uuid4())[:8]
+    states: list[BenchmarkState] = []
+    labels: list[str] = []
+    for mode, hints in cases:
+        label = f"{mode}+{'hints' if hints else 'nohints'}"
+        labels.append(label)
+        state_path = output_dir / "skillsbench" / label / "benchmark_state.json"
+        if force_restart:
+            state = BenchmarkState.create(state_path, run_id, mode, hints)
+        else:
+            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints)
+        states.append(state)
+
+    # Build trial runners per case.
+    trial_runners: list = []
+    for mode, hints in cases:
+        nudge = "name" if hints else ""
+
+        if mode == "baseline":
+            async def _runner(task: dict, _nudge: str = "") -> dict:
+                return await wrapper._run_acp_trial(task, skills_dir=None, skill_nudge=_nudge)
+            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+        elif mode == "acp":
+            async def _runner(task: dict, _nudge: str = "") -> dict:
+                skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
+                return await wrapper._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=_nudge)
+            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+        elif mode == "acp-mcp":
+            async def _runner(task: dict, _nudge: str = "") -> dict:
+                return await wrapper._run_acp_mcp_trial(task, skill_nudge=_nudge)
+            trial_runners.append(lambda t, _n=nudge: _runner(t, _n))
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+
+    # Run task-first with Docker pruning.
+    logger.info("Starting task-first all5: %d tasks, %d cases, %d workers", len(tasks), len(cases), workers)
+    asyncio.run(
+        wrapper._run_pooled_task_first(
+            tasks, states, trial_runners, cases,
+            max_attempts=max_attempts, workers=workers,
+        )
+    )
+
+    # Collect and save results per case.
+    case_results: dict[str, tuple[list[dict], float | None]] = {}
+    for i, label in enumerate(labels):
+        results = states[i].get_results()
+        score = SkillsBenchWrapper.score(results)
+        pass_rate = score["pass_rate"]
+
+        case_dir = output_dir / "skillsbench" / label
+        case_dir.mkdir(parents=True, exist_ok=True)
+        _save_json(results, case_dir / "results.json")
+        (case_dir / "score.json").write_text(
+            json.dumps(score, indent=2, default=str, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        chart = generate_chart_data("skillsbench", cases[i][0], results, score, model=model)
+        save_chart_data(chart, str(case_dir / "chart_data.json"))
+
+        logger.info(
+            "SkillsBench %s: %d/%d passed (%.1f%%)",
+            label, score["tasks_passed"], score["total_tasks"], pass_rate * 100,
+        )
+        case_results[label] = (results, pass_rate)
+
+    # Generate all5 summary.
+    _generate_all5_summary(
+        {f"skillsbench/{label}": res for label, (res, _) in case_results.items()},
+        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
+        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
+        {f"skillsbench/{label}": rate for label, (_, rate) in case_results.items()},
+        output_dir,
+    )
+
+    return case_results
+
+
 # Map benchmark names to runner functions.
 _BENCHMARK_RUNNERS = {
     "gaia": _run_gaia,
@@ -781,55 +907,79 @@ def main() -> None:
 
         if bench_name == "skillsbench":
             # SkillsBench: ACP-based evaluation with BenchmarkState + worker pool.
-            # Build list of (mode, skill_hints) tuples to run.
-            cases: list[tuple[str, bool]] = []
             if args.mode == "all5":
-                cases = [
-                    ("baseline", False),
-                    ("acp", True),
-                    ("acp-mcp", True),
-                    ("acp", False),
-                    ("acp-mcp", False),
-                ]
-            elif args.mode == "baseline":
-                cases = [("baseline", False)]
-            elif args.mode == "both":
-                cases = [("acp", True), ("acp-mcp", True)]
-            elif args.mode == "acp":
-                cases = [("acp", not args.no_skill_hints)]
-            elif args.mode == "acp-mcp":
-                cases = [("acp-mcp", not args.no_skill_hints)]
-
-            for run_mode, hints in cases:
-                label = f"{run_mode}+{'hints' if hints else 'nohints'}"
-                logger.info("Running SkillsBench %s (model=%s)...", label, args.model)
+                # Task-first: each task runs all 5 cases, then Docker prunes.
+                logger.info("Running SkillsBench all5 task-first (model=%s)...", args.model)
                 t0 = time.perf_counter()
-                results, accuracy = _run_skillsbench_acp(
+                case_results = _run_skillsbench_task_first(
                     output_dir,
-                    mode=run_mode,
-                    label=label,
                     model=args.model,
                     max_tasks=args.max_tasks,
                     shuffle=args.shuffle,
                     seed=args.seed,
                     skip_first=args.skip_first,
                     max_attempts=args.attempts,
-                    skill_hints=hints,
                     skillsbench_repo=args.skillsbench_repo,
                     only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
                     workers=args.workers,
-                    resume=args.resume and not args.force_restart,
                     force_restart=args.force_restart,
-                    state_file=args.state_file if args.mode != "all5" else None,
                 )
                 elapsed = time.perf_counter() - t0
-                logger.info("SkillsBench %s completed in %.1fs", label, elapsed)
-                if run_mode == "acp-mcp":
-                    ontoskills_results[f"{bench_name}/{label}"] = results
-                    ontoskills_accuracies[f"{bench_name}/{label}"] = accuracy
-                else:
-                    traditional_results[f"{bench_name}/{label}"] = results
-                    traditional_accuracies[f"{bench_name}/{label}"] = accuracy
+                logger.info("SkillsBench all5 completed in %.1fs", elapsed)
+
+                # Bucket results for comparison reporting.
+                for label, (results, accuracy) in case_results.items():
+                    mode = label.split("+")[0]
+                    key = f"{bench_name}/{label}"
+                    if mode == "acp-mcp":
+                        ontoskills_results[key] = results
+                        ontoskills_accuracies[key] = accuracy
+                    else:
+                        traditional_results[key] = results
+                        traditional_accuracies[key] = accuracy
+
+            else:
+                # Single-case or both mode: case-first iteration.
+                cases: list[tuple[str, bool]] = []
+                if args.mode == "baseline":
+                    cases = [("baseline", False)]
+                elif args.mode == "both":
+                    cases = [("acp", True), ("acp-mcp", True)]
+                elif args.mode == "acp":
+                    cases = [("acp", not args.no_skill_hints)]
+                elif args.mode == "acp-mcp":
+                    cases = [("acp-mcp", not args.no_skill_hints)]
+
+                for run_mode, hints in cases:
+                    label = f"{run_mode}+{'hints' if hints else 'nohints'}"
+                    logger.info("Running SkillsBench %s (model=%s)...", label, args.model)
+                    t0 = time.perf_counter()
+                    results, accuracy = _run_skillsbench_acp(
+                        output_dir,
+                        mode=run_mode,
+                        label=label,
+                        model=args.model,
+                        max_tasks=args.max_tasks,
+                        shuffle=args.shuffle,
+                        seed=args.seed,
+                        skip_first=args.skip_first,
+                        max_attempts=args.attempts,
+                        skill_hints=hints,
+                        skillsbench_repo=args.skillsbench_repo,
+                        only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
+                        workers=args.workers,
+                        resume=args.resume and not args.force_restart,
+                        force_restart=args.force_restart,
+                        state_file=args.state_file,
+                    )
+                    elapsed = time.perf_counter() - t0
+                    logger.info("SkillsBench %s completed in %.1fs", label, elapsed)
+                    if run_mode == "acp-mcp":
+                        ontoskills_results[f"{bench_name}/{label}"] = results
+                        ontoskills_accuracies[f"{bench_name}/{label}"] = accuracy
+                    else:
+                        traditional_results[f"{bench_name}/{label}"] = results
+                        traditional_accuracies[f"{bench_name}/{label}"] = accuracy
 
         elif bench_name == "perpackage":
             # Per-package benchmark: wrapper handles skill scoping per task.

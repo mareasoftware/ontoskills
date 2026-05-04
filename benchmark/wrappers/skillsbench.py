@@ -533,6 +533,108 @@ class SkillsBenchWrapper:
         await asyncio.gather(*[worker(i) for i in range(workers)])
         return state.get_results()
 
+    async def _run_pooled_task_first(
+        self,
+        tasks: list[dict],
+        states: list["BenchmarkState"],
+        trial_runners: list,
+        cases: list[tuple[str, bool]],
+        *,
+        max_attempts: int = 5,
+        workers: int = 2,
+    ) -> None:
+        """Run all5 benchmark with task-first iteration + Docker pruning.
+
+        For each task, runs all cases sequentially, then prunes Docker.
+        Disk usage bounded to ~workers tasks worth of images.
+        """
+        queue: asyncio.Queue[dict] = asyncio.Queue()
+
+        # Enqueue tasks where at least one case has work to do.
+        for task in tasks:
+            tid = task["task_id"]
+            needs_work = any(
+                states[i].should_run(tid) for i in range(len(cases))
+            )
+            if needs_work:
+                queue.put_nowait(task)
+
+        if queue.empty():
+            logger.info("All tasks already completed for all cases.")
+            return
+
+        async def _docker_prune() -> None:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "system", "prune", "-a", "-f",
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await proc.wait()
+                logger.info("Docker prune completed")
+            except Exception:
+                pass
+
+        async def worker(worker_id: int) -> None:
+            while True:
+                try:
+                    task = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+
+                tid = task["task_id"]
+
+                # Run all cases for this task
+                for case_idx, (mode, hints) in enumerate(cases):
+                    state = states[case_idx]
+                    if not state.should_run(tid):
+                        continue
+
+                    runner = trial_runners[case_idx]
+                    label = f"{mode}+{'hints' if hints else 'nohints'}"
+
+                    for attempt in range(1, max_attempts + 1):
+                        if not state.should_run(tid):
+                            break
+
+                        logger.info(
+                            "Worker %d: %s [%s] attempt %d/%d",
+                            worker_id, tid, label, attempt, max_attempts,
+                        )
+
+                        result = await runner(task)
+                        result["attempt"] = attempt
+                        state.record_attempt(tid, result)
+
+                        reward = result.get("reward", 0.0)
+                        if reward >= 1.0:
+                            logger.info(
+                                "Task %s [%s]: PASSED on attempt %d",
+                                tid, label, attempt,
+                            )
+                            state.mark_completed(tid)
+                            break
+                        elif attempt >= max_attempts:
+                            logger.info(
+                                "Task %s [%s]: exhausted %d attempts",
+                                tid, label, max_attempts,
+                            )
+                            state.mark_completed(tid)
+                            break
+                        else:
+                            delay = min(1.0 * 2.0 ** attempt, 30.0)
+                            logger.info(
+                                "Task %s [%s]: attempt %d reward=%.3f, retry in %.1fs",
+                                tid, label, attempt, reward, delay,
+                            )
+                            await asyncio.sleep(delay)
+
+                # Prune Docker after all cases for this task
+                logger.info("Worker %d: pruning Docker after task %s", worker_id, tid)
+                await _docker_prune()
+
+        await asyncio.gather(*[worker(i) for i in range(workers)])
+
     # ------------------------------------------------------------------
     # API mode (for TraditionalAgent / OntoSkillsAgent)
     # ------------------------------------------------------------------
