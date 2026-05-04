@@ -90,19 +90,9 @@ ANTHROPIC_MODELS = [
 # ---------------------------------------------------------------------------
 
 BENCHMARK_CONFIG = {
-    "gaia": {
-        "dataset": "gaia-benchmark/GAIA",
-        "levels": ["2023_level1", "2023_level2", "2023_level3"],
-    },
-    "swebench": {
-        "dataset": "princeton-nlp/SWE-bench_Verified",
-    },
     "skillsbench": {
         "repo": "benchflow-ai/skillsbench",
         "branch": "main",
-    },
-    "tau2bench": {
-        "environments": ["airline", "retail", "telecom"],
     },
 }
 
