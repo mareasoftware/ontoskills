@@ -39,7 +39,7 @@ class TestBenchmarkStateRecord:
         state.record_attempt("task-1", {"attempt": 1, "reward": 0.0, "duration_ms": 100})
         raw = json.loads((tmp_path / "state.json").read_text())
         assert raw["tasks"]["task-1"]["attempts"] == [
-            {"attempt": 1, "reward": 0.0, "duration_ms": 100}
+            {"attempt": 1, "reward": 0.0, "duration_ms": 100, "counted": True}
         ]
 
     def test_record_attempt_tracks_best_reward(self, tmp_path):

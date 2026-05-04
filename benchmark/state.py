@@ -10,6 +10,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+RATE_LIMIT_CONSECUTIVE_MAX = 5
+
 
 class BenchmarkState:
     """Persists benchmark progress to disk for resume.
@@ -35,6 +37,7 @@ class BenchmarkState:
             "mode": mode,
             "skill_hints": skill_hints,
             "tasks": {},
+            "rate_limit_count": 0,
         }
         state = cls(path, data)
         state._flush()
@@ -63,7 +66,7 @@ class BenchmarkState:
             return False
         return True
 
-    def record_attempt(self, task_id: str, result: dict) -> None:
+    def record_attempt(self, task_id: str, result: dict, *, counted: bool = True) -> None:
         if task_id not in self._data["tasks"]:
             self._data["tasks"][task_id] = {
                 "status": "in_progress",
@@ -71,10 +74,13 @@ class BenchmarkState:
                 "best_reward": 0.0,
             }
         task = self._data["tasks"][task_id]
-        task["attempts"].append(result)
-        reward = result.get("reward", 0.0)
-        if reward > task["best_reward"]:
-            task["best_reward"] = reward
+        entry = dict(result)
+        entry["counted"] = counted
+        task["attempts"].append(entry)
+        if counted:
+            reward = result.get("reward", 0.0)
+            if reward > task["best_reward"]:
+                task["best_reward"] = reward
         self._flush()
 
     def mark_completed(self, task_id: str) -> None:
@@ -86,7 +92,8 @@ class BenchmarkState:
         task = self._data["tasks"].get(task_id)
         if task is None:
             return 1
-        return len(task["attempts"]) + 1
+        counted = sum(1 for a in task["attempts"] if a.get("counted", True))
+        return counted + 1
 
     def best_reward(self, task_id: str) -> float:
         task = self._data["tasks"].get(task_id)
@@ -98,7 +105,7 @@ class BenchmarkState:
         task = self._data["tasks"].get(task_id)
         if task is None:
             return 0
-        return len(task.get("attempts", []))
+        return sum(1 for a in task.get("attempts", []) if a.get("counted", True))
 
     def is_fully_done(self, all_task_ids: list[str]) -> bool:
         return all(
@@ -151,3 +158,18 @@ class BenchmarkState:
             json.dumps(self._data, indent=2, default=str, ensure_ascii=False),
             encoding="utf-8",
         )
+
+    # ── rate limit tracking ──
+
+    @property
+    def rate_limit_count(self) -> int:
+        return self._data.get("rate_limit_count", 0)
+
+    def increment_rate_limit(self) -> int:
+        self._data["rate_limit_count"] = self.rate_limit_count + 1
+        self._flush()
+        return self._data["rate_limit_count"]
+
+    def reset_rate_limit(self) -> None:
+        self._data["rate_limit_count"] = 0
+        self._flush()

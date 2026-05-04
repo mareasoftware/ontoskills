@@ -55,6 +55,19 @@ _SKIP_TASKS = {
 
 DEFAULT_REPO_PATH = "/tmp/skillsbench_full"
 
+RATE_LIMIT_BACKOFF = [5, 10, 20, 60, 120]
+RATE_LIMIT_CONSECUTIVE_MAX = 5
+
+
+def _is_rate_limit_error(error: str | None) -> bool:
+    if not error:
+        return False
+    error_lower = error.lower()
+    return any(
+        kw in error_lower
+        for kw in ("rate limit", "429", "ratelimiterror", "too many requests")
+    )
+
 
 def _parse_toml_simple(text: str) -> dict:
     """Parse simple TOML (flat sections, no nested tables)."""
@@ -477,12 +490,18 @@ class SkillsBenchWrapper:
         max_attempts: int = 5,
         workers: int = 2,
     ) -> list[dict]:
-        """Run tasks with N parallel workers and state-backed resume."""
+        """Run tasks with N parallel workers and state-backed resume.
+
+        Rate-limit errors are treated as free attempts (not counted toward
+        max_attempts).  After ``RATE_LIMIT_CONSECUTIVE_MAX`` consecutive
+        rate-limit responses the workers gracefully shut down so the
+        benchmark can be resumed later.
+        """
         from benchflow.job import RetryConfig
 
         queue: asyncio.Queue[tuple[str, dict, int]] = asyncio.Queue()
+        shutdown_event = asyncio.Event()
 
-        # Enqueue tasks that need work.
         for task in tasks:
             tid = task["task_id"]
             if not state.should_run(tid):
@@ -497,7 +516,7 @@ class SkillsBenchWrapper:
         retry_config = RetryConfig(max_retries=max_attempts - 1)
 
         async def worker(worker_id: int) -> None:
-            while True:
+            while not shutdown_event.is_set():
                 try:
                     tid, task, attempt = queue.get_nowait()
                 except asyncio.QueueEmpty:
@@ -509,8 +528,36 @@ class SkillsBenchWrapper:
                 )
 
                 result = await trial_runner(task)
+
+                if _is_rate_limit_error(result.get("error")):
+                    state.record_attempt(tid, result, counted=False)
+                    rl_count = state.increment_rate_limit()
+
+                    if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
+                        logger.warning(
+                            "Rate limit threshold reached (%d consecutive), "
+                            "shutting down gracefully. Resume with --resume.",
+                            rl_count,
+                        )
+                        shutdown_event.set()
+                        queue.put_nowait((tid, task, attempt))
+                        queue.task_done()
+                        return
+
+                    backoff = RATE_LIMIT_BACKOFF[min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)]
+                    logger.info(
+                        "Task %s: rate limited (free attempt, consecutive RL %d/%d), "
+                        "retry in %ds",
+                        tid, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    queue.put_nowait((tid, task, attempt))
+                    queue.task_done()
+                    continue
+
+                state.reset_rate_limit()
                 result["attempt"] = attempt
-                state.record_attempt(tid, result)
+                state.record_attempt(tid, result, counted=True)
 
                 reward = result.get("reward", 0.0)
                 if reward >= 1.0:
@@ -531,6 +578,14 @@ class SkillsBenchWrapper:
                 queue.task_done()
 
         await asyncio.gather(*[worker(i) for i in range(workers)])
+
+        if shutdown_event.is_set():
+            logger.warning(
+                "Benchmark shut down due to rate limits. "
+                "%d task(s) remain in progress — resume with --resume.",
+                sum(1 for t in tasks if state.should_run(t["task_id"])),
+            )
+
         return state.get_results()
 
     async def _run_pooled_task_first(
@@ -547,10 +602,14 @@ class SkillsBenchWrapper:
 
         For each task, runs all cases sequentially, then prunes Docker.
         Disk usage bounded to ~workers tasks worth of images.
+
+        Rate-limit errors are free attempts; after
+        ``RATE_LIMIT_CONSECUTIVE_MAX`` consecutive rate-limit responses
+        the workers gracefully shut down for later resume.
         """
         queue: asyncio.Queue[dict] = asyncio.Queue()
+        shutdown_event = asyncio.Event()
 
-        # Enqueue tasks where at least one case has work to do.
         for task in tasks:
             tid = task["task_id"]
             needs_work = any(
@@ -576,7 +635,7 @@ class SkillsBenchWrapper:
                 pass
 
         async def worker(worker_id: int) -> None:
-            while True:
+            while not shutdown_event.is_set():
                 try:
                     task = queue.get_nowait()
                 except asyncio.QueueEmpty:
@@ -584,8 +643,10 @@ class SkillsBenchWrapper:
 
                 tid = task["task_id"]
 
-                # Run all cases for this task
                 for case_idx, (mode, hints) in enumerate(cases):
+                    if shutdown_event.is_set():
+                        break
+
                     state = states[case_idx]
                     if not state.should_run(tid):
                         continue
@@ -593,8 +654,9 @@ class SkillsBenchWrapper:
                     runner = trial_runners[case_idx]
                     label = f"{mode}+{'hints' if hints else 'nohints'}"
 
-                    for attempt in range(1, max_attempts + 1):
-                        if not state.should_run(tid):
+                    attempt = state.next_attempt(tid)
+                    while attempt <= max_attempts:
+                        if not state.should_run(tid) or shutdown_event.is_set():
                             break
 
                         logger.info(
@@ -603,8 +665,33 @@ class SkillsBenchWrapper:
                         )
 
                         result = await runner(task)
+
+                        if _is_rate_limit_error(result.get("error")):
+                            state.record_attempt(tid, result, counted=False)
+                            rl_count = state.increment_rate_limit()
+
+                            if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
+                                logger.warning(
+                                    "Rate limit threshold reached (%d consecutive), "
+                                    "shutting down gracefully. Resume with --resume.",
+                                    rl_count,
+                                )
+                                shutdown_event.set()
+                                break
+
+                            idx = min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)
+                            backoff = RATE_LIMIT_BACKOFF[idx]
+                            logger.info(
+                                "Task %s [%s]: rate limited "
+                                "(free attempt, consecutive RL %d/%d), retry in %ds",
+                                tid, label, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
+                            )
+                            await asyncio.sleep(backoff)
+                            continue
+
+                        state.reset_rate_limit()
                         result["attempt"] = attempt
-                        state.record_attempt(tid, result)
+                        state.record_attempt(tid, result, counted=True)
 
                         reward = result.get("reward", 0.0)
                         if reward >= 1.0:
@@ -614,7 +701,10 @@ class SkillsBenchWrapper:
                             )
                             state.mark_completed(tid)
                             break
-                        elif attempt >= max_attempts:
+
+                        attempt += 1
+
+                        if attempt > max_attempts:
                             logger.info(
                                 "Task %s [%s]: exhausted %d attempts",
                                 tid, label, max_attempts,
@@ -629,11 +719,25 @@ class SkillsBenchWrapper:
                             )
                             await asyncio.sleep(delay)
 
-                # Prune Docker after all cases for this task
+                if shutdown_event.is_set():
+                    break
+
                 logger.info("Worker %d: pruning Docker after task %s", worker_id, tid)
                 await _docker_prune()
 
         await asyncio.gather(*[worker(i) for i in range(workers)])
+
+        if shutdown_event.is_set():
+            total_remaining = sum(
+                1 for t in tasks
+                for s in states
+                if s.should_run(t["task_id"])
+            )
+            logger.warning(
+                "Benchmark shut down due to rate limits. "
+                "%d case(s) remain in progress — resume with --resume.",
+                total_remaining,
+            )
 
     # ------------------------------------------------------------------
     # API mode (for TraditionalAgent / OntoSkillsAgent)
