@@ -64,11 +64,9 @@ Status: ✓ Connected
 
 Once connected, Claude Code can call:
 
-- `search` — search by semantic query, alias, or structured filters
-- `get_skill_context`
-- `evaluate_execution_plan`
-- `query_epistemic_rules`
-- `prefetch_knowledge` — one-call knowledge loading (recommended first call)
+- `ontoskill` — unified skill discovery and context retrieval. Pass a skill ID (e.g. `pdf`) for full context, or a natural language query (e.g. `create a pdf document`) for BM25 search.
+
+This single tool replaces the previous 5-tool workflow (`search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules`, `prefetch_knowledge`).
 
 ## Troubleshooting
 

@@ -67,10 +67,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 暴露的工具
 
-- `search` — 通过语义查询、别名或结构化过滤器搜索
-- `get_skill_context`
-- `evaluate_execution_plan`
-- `query_epistemic_rules`
+- `ontoskill` — 统一的技能发现和上下文检索。传入技能 ID 获取完整上下文，或传入自然语言查询进行 BM25 搜索。
 
 ## 注意事项
 

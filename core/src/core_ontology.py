@@ -866,6 +866,63 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
         "Skill contradicts another skill (mutually exclusive)"
     )))
 
+    # ========== Intra-Skill Link Properties ==========
+
+    # oc:derivedFromSection (ObjectProperty) — KnowledgeNode → Section
+    g.add((oc.derivedFromSection, RDF.type, OWL.ObjectProperty))
+    g.add((oc.derivedFromSection, RDFS.domain, oc.KnowledgeNode))
+    g.add((oc.derivedFromSection, RDFS.range, oc.Section))
+    g.add((oc.derivedFromSection, RDFS.label, Literal("derived from section")))
+    g.add((oc.derivedFromSection, RDFS.comment, Literal(
+        "Links a KnowledgeNode to the Section it was inferred from"
+    )))
+    g.add((oc.derivedFromSection, OWL.inverseOf, oc.isSourceOf))
+
+    # oc:isSourceOf (ObjectProperty) — Section → KnowledgeNode (inverse)
+    g.add((oc.isSourceOf, RDF.type, OWL.ObjectProperty))
+    g.add((oc.isSourceOf, RDFS.domain, oc.Section))
+    g.add((oc.isSourceOf, RDFS.range, oc.KnowledgeNode))
+    g.add((oc.isSourceOf, RDFS.label, Literal("is source of")))
+    g.add((oc.isSourceOf, RDFS.comment, Literal(
+        "Links a Section to the KnowledgeNodes derived from it"
+    )))
+
+    # oc:correctAlternative (ObjectProperty) — AntiPattern → Section/CodeExample
+    g.add((oc.correctAlternative, RDF.type, OWL.ObjectProperty))
+    g.add((oc.correctAlternative, RDFS.domain, oc.AntiPattern))
+    g.add((oc.correctAlternative, RDFS.label, Literal("correct alternative")))
+    g.add((oc.correctAlternative, RDFS.comment, Literal(
+        "Links an AntiPattern to the Section or CodeExample showing the correct approach"
+    )))
+    g.add((oc.correctAlternative, OWL.inverseOf, oc.isAlternativeTo))
+
+    # oc:isAlternativeTo (ObjectProperty) — inverse of correctAlternative
+    g.add((oc.isAlternativeTo, RDF.type, OWL.ObjectProperty))
+    g.add((oc.isAlternativeTo, RDFS.range, oc.AntiPattern))
+    g.add((oc.isAlternativeTo, RDFS.label, Literal("is alternative to")))
+    g.add((oc.isAlternativeTo, RDFS.comment, Literal(
+        "Links a Section/CodeExample to the AntiPattern it corrects"
+    )))
+
+    # oc:appliesToStep (ObjectProperty) — KnowledgeNode → WorkflowStep
+    g.add((oc.appliesToStep, RDF.type, OWL.ObjectProperty))
+    g.add((oc.appliesToStep, RDFS.domain, oc.KnowledgeNode))
+    g.add((oc.appliesToStep, RDFS.range, oc.WorkflowStep))
+    g.add((oc.appliesToStep, RDFS.label, Literal("applies to step")))
+    g.add((oc.appliesToStep, RDFS.comment, Literal(
+        "Links a KnowledgeNode constraint to the WorkflowStep it constrains"
+    )))
+    g.add((oc.appliesToStep, OWL.inverseOf, oc.hasStepConstraint))
+
+    # oc:hasStepConstraint (ObjectProperty) — WorkflowStep → KnowledgeNode (inverse)
+    g.add((oc.hasStepConstraint, RDF.type, OWL.ObjectProperty))
+    g.add((oc.hasStepConstraint, RDFS.domain, oc.WorkflowStep))
+    g.add((oc.hasStepConstraint, RDFS.range, oc.KnowledgeNode))
+    g.add((oc.hasStepConstraint, RDFS.label, Literal("has step constraint")))
+    g.add((oc.hasStepConstraint, RDFS.comment, Literal(
+        "Links a WorkflowStep to the KnowledgeNodes that constrain it"
+    )))
+
     # ========== Predefined Core States ==========
 
     for state_name, state_fragment in CORE_STATES.items():

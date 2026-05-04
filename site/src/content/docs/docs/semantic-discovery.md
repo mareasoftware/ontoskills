@@ -15,8 +15,7 @@ Intent Discovery enables LLM agents to find skills by natural language intent wi
 |-----------|---------|
 | **Convention** | Predictable naming (`verb_noun` for intents, `camelCase` for properties) |
 | **Schema Summary** | MCP Resource `ontology://schema` — 2KB compact schema |
-| **search** (BM25 mode) | MCP Tool — fast keyword matching via in-memory BM25 index |
-| **search** (semantic mode) | MCP Tool — optional semantic matching via pre-computed embeddings |
+| **ontoskill** | MCP Tool — unified skill discovery and context retrieval (BM25 + optional semantic) |
 
 ---
 
@@ -98,14 +97,11 @@ Embeddings are **pre-computed per-skill at compile time** and downloaded optiona
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Tools:                                                          │
-│    search(query: str, top_k: int) → Vec<IntentMatch>    │
+│    ontoskill(q: str, top_k: int) → SkillContext | SearchResults │
 │       │                                                          │
-│       ├── 1. Load tokenizer.json + model.onnx                   │
-│       ├── 2. Safety-truncate query (max 512 chars)              │
-│       ├── 3. Tokenize query → input_ids, attention_mask         │
-│       ├── 4. ONNX inference → query embedding (384 dim)         │
-│       ├── 5. Cosine similarity vs pre-computed intents.json     │
-│       └── 6. Adaptive cutoff (min 0.4, gap 0.15) → top_k       │
+│       ├── If q matches a skill_id → returns full skill context  │
+│       ├── Otherwise → BM25 search (or semantic if features enabled)
+│       │    across intents, aliases, and nature descriptions      │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -179,19 +175,19 @@ ontoskills install obra/superpowers --with-embeddings
 
 The CLI downloads per-skill `intents.json` files alongside the skill TTLs. The MCP server discovers them automatically at startup by scanning the ontology tree — no centralized merge step needed.
 
-### MCP Tool: search (semantic mode)
+### MCP Tool: ontoskill (unified discovery + context)
 
 ```json
 {
-  "name": "search",
+  "name": "ontoskill",
   "arguments": {
-    "query": "create a pdf document",
+    "q": "create a pdf document",
     "top_k": 5
   }
 }
 ```
 
-Returns matching intents with hybrid scores (cosine similarity × trust-tier quality multiplier):
+When `q` matches a known skill ID, returns the full skill context (payload, knowledge nodes, code examples). Otherwise, searches across intents, aliases, and nature descriptions using BM25 (or semantic search when embeddings are enabled):
 
 ```json
 {
@@ -240,15 +236,11 @@ A compact JSON schema describing available classes and properties:
    → Knows all properties and conventions
 
 2. User: "I need to create a PDF"
-   → Agent calls: search(query: "create a pdf", top_k: 3)
-   → Returns: [{intent: "create_pdf", score: 0.92, skills: ["pdf"]}]
+   → Agent calls: ontoskill(q: "create a pdf", top_k: 3)
+   → Returns: full skill context for matching skill, or search results
+     with matched intents [{intent: "create_pdf", score: 0.92, skills: ["pdf"]}]
 
-3. Agent now knows intent = "create_pdf"
-   → Agent queries: SELECT ?skill WHERE { ?skill oc:resolvesIntent "create_pdf" }
-   → Returns: oc:pdf
-
-4. Agent calls: get_skill_context("pdf")
-   → Returns: full skill context with payload, dependencies, and knowledge nodes
+3. Agent now has full skill context — payload, dependencies, knowledge nodes, code examples
 ```
 
 ---
@@ -258,8 +250,8 @@ A compact JSON schema describing available classes and properties:
 | Metric | Target | Verification |
 |--------|--------|--------------|
 | Schema resource size | < 4KB | `test_schema_size` |
-| search latency (BM25) | < 5ms | Manual benchmark |
-| search latency (semantic) | < 50ms | Manual benchmark |
+| ontoskill latency (BM25) | < 5ms | Manual benchmark |
+| ontoskill latency (semantic) | < 50ms | Manual benchmark |
 | ONNX model size | ~90MB | Check file size |
 | Memory footprint (without embeddings) | < 50MB | Monitor with `top` |
 
@@ -291,7 +283,7 @@ core/
 mcp/
 ├── src/
 │   ├── embeddings.rs            # Rust embedding engine (ONNX inference + per-skill scan)
-│   ├── bm25_engine.rs           # BM25 keyword search (always available)
+│   ├── bm25_engine.rs           # BM25 knowledge node + section ranking (always available)
 │   ├── catalog.rs               # Catalog with trust tier quality multiplier
 │   ├── schema.rs                # Schema resource
 │   └── main.rs                  # MCP tool handlers

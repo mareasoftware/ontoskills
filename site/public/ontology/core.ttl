@@ -7,7 +7,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://ontoskills.sh/ontology> a owl:Ontology ;
-    dcterms:created "2026-04-21T00:45:09.450969" ;
+    dcterms:created "2026-05-02T13:45:30.283060" ;
     dcterms:description "Core TBox ontology for skill state transitions and execution" ;
     dcterms:title "OntoSkills Core Ontology" .
 
@@ -20,13 +20,17 @@ oc:AmbiguityTolerance a owl:Class ;
     rdfs:label "AmbiguityTolerance" ;
     rdfs:subClassOf oc:CognitiveBoundary .
 
-oc:AntiPattern a owl:Class ;
-    rdfs:label "AntiPattern" ;
-    rdfs:subClassOf oc:NormativeRule .
-
 oc:AssumptionBoundary a owl:Class ;
     rdfs:label "AssumptionBoundary" ;
     rdfs:subClassOf oc:CognitiveBoundary .
+
+oc:CodePattern a owl:Class ;
+    rdfs:label "CodePattern" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:Command a owl:Class ;
+    rdfs:label "Command" ;
+    rdfs:subClassOf oc:KnowledgeNode .
 
 oc:ComputeCost a owl:Class ;
     rdfs:label "ComputeCost" ;
@@ -114,6 +118,10 @@ oc:OperationFailed a owl:Class ;
     rdfs:subClassOf oc:State ;
     skos:prefLabel "OperationFailed" .
 
+oc:OutputFormat a owl:Class ;
+    rdfs:label "OutputFormat" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
 oc:PerformanceProfile a owl:Class ;
     rdfs:label "PerformanceProfile" ;
     rdfs:subClassOf oc:ExecutionPhysics .
@@ -130,6 +138,14 @@ oc:PostFlightValidation a owl:Class ;
 oc:PreFlightCheck a owl:Class ;
     rdfs:label "PreFlightCheck" ;
     rdfs:subClassOf oc:LifecycleHook .
+
+oc:Prerequisite a owl:Class ;
+    rdfs:label "Prerequisite" ;
+    rdfs:subClassOf oc:KnowledgeNode .
+
+oc:Procedure a owl:Class ;
+    rdfs:label "Procedure" ;
+    rdfs:subClassOf oc:KnowledgeNode .
 
 oc:RecoveryTactic a owl:Class ;
     rdfs:label "RecoveryTactic" ;
@@ -186,6 +202,13 @@ oc:appliesToContext a owl:DatatypeProperty ;
     rdfs:comment "When this rule applies" ;
     rdfs:domain oc:KnowledgeNode .
 
+oc:appliesToStep a owl:ObjectProperty ;
+    rdfs:label "applies to step" ;
+    rdfs:comment "Links a KnowledgeNode constraint to the WorkflowStep it constrains" ;
+    rdfs:domain oc:KnowledgeNode ;
+    rdfs:range oc:WorkflowStep ;
+    owl:inverseOf oc:hasStepConstraint .
+
 oc:blockType a owl:DatatypeProperty ;
     rdfs:label "block type" ;
     rdfs:comment "Discriminator string matching the Pydantic block_type literal" ;
@@ -209,7 +232,8 @@ oc:codeContext a owl:DatatypeProperty ;
 
 oc:codeLanguage a owl:DatatypeProperty ;
     rdfs:label "code language" ;
-    rdfs:comment "Programming language of the code block" ;
+    rdfs:comment "Programming language of a CodePattern node (also used for code blocks)",
+        "Programming language of the code block" ;
     rdfs:domain oc:CodeExample .
 
 oc:codePurpose a owl:DatatypeProperty ;
@@ -234,6 +258,12 @@ oc:contradicts a owl:ObjectProperty,
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill .
 
+oc:correctAlternative a owl:ObjectProperty ;
+    rdfs:label "correct alternative" ;
+    rdfs:comment "Links an AntiPattern to the Section or CodeExample showing the correct approach" ;
+    rdfs:domain oc:AntiPattern ;
+    owl:inverseOf oc:isAlternativeTo .
+
 oc:dependsOn a owl:AsymmetricProperty,
         owl:ObjectProperty ;
     rdfs:label "depends on" ;
@@ -250,6 +280,13 @@ oc:dependsOnSkill a owl:AsymmetricProperty,
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill ;
     owl:inverseOf oc:enablesSkill .
+
+oc:derivedFromSection a owl:ObjectProperty ;
+    rdfs:label "derived from section" ;
+    rdfs:comment "Links a KnowledgeNode to the Section it was inferred from" ;
+    rdfs:domain oc:KnowledgeNode ;
+    rdfs:range oc:Section ;
+    owl:inverseOf oc:isSourceOf .
 
 oc:differentia a owl:DatatypeProperty ;
     rdfs:label "differentia" ;
@@ -284,25 +321,25 @@ oc:expectedOutcome a owl:DatatypeProperty ;
 oc:fileHash a owl:DatatypeProperty ;
     rdfs:label "file hash" ;
     rdfs:comment "SHA-256 hash of file content" ;
-    rdfs:domain oc:FileResource ;
+    rdfs:domain oc:ReferenceFile ;
     rdfs:range xsd:string .
 
 oc:fileMimeType a owl:DatatypeProperty ;
     rdfs:label "file MIME type" ;
     rdfs:comment "MIME type of the file" ;
-    rdfs:domain oc:FileResource ;
+    rdfs:domain oc:ReferenceFile ;
     rdfs:range xsd:string .
 
 oc:filePath a owl:DatatypeProperty ;
     rdfs:label "file path" ;
     rdfs:comment "Relative path from skill directory" ;
-    rdfs:domain oc:FileResource ;
+    rdfs:domain oc:ReferenceFile ;
     rdfs:range xsd:string .
 
 oc:fileSize a owl:DatatypeProperty ;
     rdfs:label "file size" ;
     rdfs:comment "File size in bytes" ;
-    rdfs:domain oc:FileResource ;
+    rdfs:domain oc:ReferenceFile ;
     rdfs:range xsd:integer .
 
 oc:flowchartDescription a owl:DatatypeProperty ;
@@ -393,12 +430,6 @@ oc:hasExample a owl:ObjectProperty ;
     rdfs:comment "Links a skill to an input/output example" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Example .
-
-oc:hasExecutableScript a owl:ObjectProperty ;
-    rdfs:label "has executable script" ;
-    rdfs:comment "Links a skill to an executable script" ;
-    rdfs:domain oc:Skill ;
-    rdfs:range oc:ExecutableScript .
 
 oc:hasFlowchart a owl:ObjectProperty ;
     rdfs:label "has flowchart" ;
@@ -591,36 +622,6 @@ oc:rowCount a owl:DatatypeProperty ;
     rdfs:domain oc:Table ;
     rdfs:range xsd:integer .
 
-oc:scriptCommand a owl:DatatypeProperty ;
-    rdfs:label "script command" ;
-    rdfs:comment "Command template for executing the script" ;
-    rdfs:domain oc:ExecutableScript ;
-    rdfs:range xsd:string .
-
-oc:scriptExecutor a owl:DatatypeProperty ;
-    rdfs:label "script executor" ;
-    rdfs:comment "Executor for the script (python, bash, node, etc.)" ;
-    rdfs:domain oc:ExecutableScript ;
-    rdfs:range xsd:string .
-
-oc:scriptHasRequirement a owl:ObjectProperty ;
-    rdfs:label "script has requirement" ;
-    rdfs:comment "Links an executable script to its requirements" ;
-    rdfs:domain oc:ExecutableScript ;
-    rdfs:range oc:Requirement .
-
-oc:scriptIntent a owl:DatatypeProperty ;
-    rdfs:label "script intent" ;
-    rdfs:comment "Whether script should be executed or is read-only" ;
-    rdfs:domain oc:ExecutableScript ;
-    rdfs:range xsd:string .
-
-oc:scriptOutput a owl:DatatypeProperty ;
-    rdfs:label "script output" ;
-    rdfs:comment "Description of what the script produces" ;
-    rdfs:domain oc:ExecutableScript ;
-    rdfs:range xsd:string .
-
 oc:sectionLevel a owl:DatatypeProperty ;
     rdfs:label "section level" ;
     rdfs:comment "Header level 1-6" ;
@@ -661,7 +662,8 @@ oc:stepId a owl:DatatypeProperty ;
 
 oc:stepOrder a owl:DatatypeProperty ;
     rdfs:label "step order" ;
-    rdfs:comment "Position of this step in a linear procedure (1-based)" ;
+    rdfs:comment "Position of a Procedure node in sequence (also used for workflow steps)",
+        "Position of this step in a linear procedure (1-based)" ;
     rdfs:domain oc:WorkflowStep ;
     rdfs:range xsd:integer .
 
@@ -692,7 +694,8 @@ oc:templateType a owl:DatatypeProperty ;
 
 oc:templateVariables a owl:DatatypeProperty ;
     rdfs:label "template variables" ;
-    rdfs:comment "Variable placeholder name (repeatable)" ;
+    rdfs:comment "Variable placeholder name (repeatable)",
+        "Variable placeholders in an OutputFormat node (also used for templates)" ;
     rdfs:domain oc:Template .
 
 oc:textContent a owl:DatatypeProperty ;
@@ -735,9 +738,6 @@ oc:ExecutableSkill a owl:Class ;
     rdfs:comment "A skill with an executable code payload" ;
     rdfs:subClassOf oc:Skill .
 
-oc:FileResourceUnion rdf:first oc:ReferenceFile ;
-    rdf:rest ( oc:ExecutableScript ) .
-
 oc:FrontmatterBlock a owl:Class ;
     rdfs:label "Frontmatter Block" ;
     rdfs:comment "YAML frontmatter from the document header" ;
@@ -752,6 +752,10 @@ oc:Paragraph a owl:Class ;
     rdfs:label "Paragraph" ;
     rdfs:comment "Free-form text paragraph preserving inline formatting" ;
     rdfs:subClassOf oc:ContentBlock .
+
+oc:Requirement a owl:Class ;
+    rdfs:label "Requirement" ;
+    rdfs:comment "A generic requirement (tool, environment variable, etc.)" .
 
 oc:enables a owl:ObjectProperty ;
     rdfs:label "enables" ;
@@ -773,11 +777,17 @@ oc:extends a owl:ObjectProperty,
     rdfs:range oc:Skill ;
     owl:inverseOf oc:isExtendedBy .
 
+oc:hasStepConstraint a owl:ObjectProperty ;
+    rdfs:label "has step constraint" ;
+    rdfs:comment "Links a WorkflowStep to the KnowledgeNodes that constrain it" ;
+    rdfs:domain oc:WorkflowStep ;
+    rdfs:range oc:KnowledgeNode .
+
 oc:impartsKnowledge a owl:AsymmetricProperty,
         owl:IrreflexiveProperty,
         owl:ObjectProperty ;
     rdfs:label "imparts knowledge" ;
-    rdfs:comment "Links a skill to epistemic knowledge it imparts to the agent" ;
+    rdfs:comment "Links a skill to knowledge it imparts to the agent" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:KnowledgeNode ;
     rdfs:subPropertyOf oc:inheritsKnowledge .
@@ -786,11 +796,26 @@ oc:inheritsKnowledge a owl:ObjectProperty ;
     rdfs:label "inherits knowledge" ;
     owl:propertyChainAxiom ( oc:extends oc:impartsKnowledge ) .
 
+oc:isAlternativeTo a owl:ObjectProperty ;
+    rdfs:label "is alternative to" ;
+    rdfs:comment "Links a Section/CodeExample to the AntiPattern it corrects" ;
+    rdfs:range oc:AntiPattern .
+
 oc:isExtendedBy a owl:ObjectProperty ;
     rdfs:label "is extended by" ;
     rdfs:comment "Inverse of extends" ;
     rdfs:domain oc:Skill ;
     rdfs:range oc:Skill .
+
+oc:isSourceOf a owl:ObjectProperty ;
+    rdfs:label "is source of" ;
+    rdfs:comment "Links a Section to the KnowledgeNodes derived from it" ;
+    rdfs:domain oc:Section ;
+    rdfs:range oc:KnowledgeNode .
+
+oc:AntiPattern a owl:Class ;
+    rdfs:label "AntiPattern" ;
+    rdfs:subClassOf oc:NormativeRule .
 
 oc:BlockQuote a owl:Class ;
     rdfs:label "Block Quote" ;
@@ -800,10 +825,6 @@ oc:BlockQuote a owl:Class ;
 oc:Observability a owl:Class ;
     rdfs:label "Observability" ;
     rdfs:subClassOf oc:KnowledgeNode .
-
-oc:Requirement a owl:Class ;
-    rdfs:label "Requirement" ;
-    rdfs:comment "A generic requirement (tool, environment variable, etc.)" .
 
 oc:ResilienceTactic a owl:Class ;
     rdfs:label "ResilienceTactic" ;
@@ -838,10 +859,6 @@ oc:NormativeRule a owl:Class ;
     rdfs:label "NormativeRule" ;
     rdfs:subClassOf oc:KnowledgeNode .
 
-oc:ReferenceFile a owl:Class ;
-    rdfs:label "Reference File" ;
-    rdfs:comment "A reference file for progressive disclosure (e.g., API docs, examples)" .
-
 oc:SecurityGuardrail a owl:Class ;
     rdfs:label "SecurityGuardrail" ;
     rdfs:subClassOf oc:KnowledgeNode .
@@ -849,9 +866,6 @@ oc:SecurityGuardrail a owl:Class ;
 oc:StrategicInsight a owl:Class ;
     rdfs:label "StrategicInsight" ;
     rdfs:subClassOf oc:KnowledgeNode .
-
-oc:FileResource a owl:Class ;
-    owl:unionOf oc:FileResourceUnion .
 
 oc:Flowchart a owl:Class ;
     rdfs:label "Flowchart" ;
@@ -886,14 +900,14 @@ oc:CodeExample a owl:Class ;
     rdfs:comment "Inline code block extracted from skill markdown" ;
     rdfs:subClassOf oc:ContentBlock .
 
+oc:ReferenceFile a owl:Class ;
+    rdfs:label "Reference File" ;
+    rdfs:comment "A reference file for progressive disclosure (e.g., API docs, examples)" .
+
 oc:WorkflowStep a owl:Class ;
     rdfs:label "Workflow Step" ;
     rdfs:comment "A single step in a workflow with optional dependencies" ;
     rdfs:subClassOf oc:ContentBlock .
-
-oc:ExecutableScript a owl:Class ;
-    rdfs:label "Executable Script" ;
-    rdfs:comment "An executable script associated with a skill" .
 
 oc:Section a owl:Class ;
     rdfs:label "Section" ;
@@ -903,13 +917,13 @@ oc:ContentBlock a owl:Class ;
     rdfs:label "Content Block" ;
     rdfs:comment "Abstract superclass for all typed content blocks in a document" .
 
-oc:KnowledgeNode a owl:Class ;
-    rdfs:label "Knowledge Node" ;
-    rdfs:comment "Epistemic knowledge imparted by a skill to an agent" .
-
 oc:State a owl:Class ;
     rdfs:label "State" ;
     rdfs:comment "Abstract class representing a system state (precondition, outcome, or failure)" .
+
+oc:KnowledgeNode a owl:Class ;
+    rdfs:label "Knowledge Node" ;
+    rdfs:comment "Knowledge imparted by a skill to an agent — epistemic (rules, constraints) or operational (procedures, code patterns)" .
 
 oc:Skill a owl:Class ;
     rdfs:label "Skill" ;

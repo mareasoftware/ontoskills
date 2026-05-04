@@ -48,6 +48,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 _MCP_TOOL_NAMES = frozenset({
+    "ontoskill",
     "search",
     "get_skill_context",
     "evaluate_execution_plan",

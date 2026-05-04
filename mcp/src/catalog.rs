@@ -201,6 +201,14 @@ impl PayloadInfo {
     }
 }
 
+/// A link from a knowledge node to a related node (correct alternative or applicable step).
+#[derive(Debug, Clone, Serialize)]
+pub struct KnowledgeNodeLink {
+    pub property: String,       // "correctAlternative" or "appliesToStep"
+    pub target_title: String,   // e.g. "Use Formulas, Not Hardcoded Values"
+    pub target_type: String,    // "Section" | "CodeExample" | "WorkflowStep"
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct KnowledgeNodeInfo {
     #[serde(skip)]
@@ -227,6 +235,21 @@ pub struct KnowledgeNodeInfo {
     pub step_order: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_variables: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<KnowledgeNodeLink>,
+}
+
+/// A code example or table extracted from the skill's section tree.
+#[derive(Debug, Clone, Serialize)]
+pub struct SectionContent {
+    pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section_title: Option<String>,
+    pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section_order: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -236,6 +259,8 @@ pub struct SkillContextResult {
     pub payload: PayloadInfo,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub knowledge_nodes: Vec<KnowledgeNodeInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<SectionContent>,
     pub include_inherited_knowledge: bool,
 }
 
@@ -545,11 +570,13 @@ impl Catalog {
         let skill = self.get_skill(skill_id)?;
         let payload = self.get_skill_payload(skill_id)?;
         let knowledge_nodes = self.get_knowledge_nodes(skill_id, include_inherited_knowledge)?;
+        let sections = self.get_section_content(skill_id)?;
 
         Ok(SkillContextResult {
             skill,
             payload,
             knowledge_nodes,
+            sections,
             include_inherited_knowledge,
         })
     }
@@ -1032,7 +1059,7 @@ impl Catalog {
             PREFIX oc: <https://ontoskills.sh/ontology#>
             PREFIX dcterms: <http://purl.org/dc/terms/>
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-            SELECT DISTINCT ?sourceSkillId ?node ?nodeType ?nodeLabel ?directiveContent ?rationale ?appliesToContext ?severityLevel ?dimension ?codeLanguage ?stepOrder ?templateVar
+            SELECT DISTINCT ?sourceSkillId ?node ?nodeType ?nodeLabel ?directiveContent ?rationale ?appliesToContext ?severityLevel ?dimension ?codeLanguage ?stepOrder ?templateVar ?corrTitle ?corrType ?stepLabel
             WHERE {{
                 {source_binding}
                 ?node a ?nodeType ;
@@ -1049,6 +1076,17 @@ impl Catalog {
                 OPTIONAL {{ ?node oc:codeLanguage ?codeLanguage }}
                 OPTIONAL {{ ?node oc:stepOrder ?stepOrder }}
                 OPTIONAL {{ ?node oc:templateVariables ?templateVar }}
+                OPTIONAL {{
+                    ?node oc:correctAlternative ?corr .
+                    ?corr a ?corrType .
+                    OPTIONAL {{ ?corr oc:sectionTitle ?corrSecTitle . }}
+                    OPTIONAL {{ ?corr oc:codeContent ?corrCodeTitle . }}
+                    BIND(COALESCE(?corrSecTitle, ?corrCodeTitle) AS ?corrTitle)
+                }}
+                OPTIONAL {{
+                    ?node oc:appliesToStep ?step .
+                    ?step oc:stepLabel ?stepLabel .
+                }}
             }}
             ORDER BY ?sourceSkillId ?node
         "#,
@@ -1062,6 +1100,7 @@ impl Catalog {
 
         let mut by_uri: BTreeMap<String, KnowledgeNodeInfo> = BTreeMap::new();
         let mut template_vars_by_uri: HashMap<String, Vec<String>> = HashMap::new();
+        let mut links_by_uri: HashMap<String, Vec<KnowledgeNodeLink>> = HashMap::new();
 
         for row in self.select_rows(&query)? {
             let uri = row.required_iri("node")?;
@@ -1074,6 +1113,32 @@ impl Catalog {
                     .entry(uri.clone())
                     .or_default()
                     .push(tv);
+            }
+
+            // Accumulate links across duplicate rows
+            if let Some(corr_title) = row.optional_literal("corrTitle") {
+                let corr_type = row
+                    .optional_iri("corrType")
+                    .map(|value| compact_fragment(&value))
+                    .unwrap_or_else(|| "Section".to_string());
+                links_by_uri
+                    .entry(uri.clone())
+                    .or_default()
+                    .push(KnowledgeNodeLink {
+                        property: "correctAlternative".to_string(),
+                        target_title: corr_title,
+                        target_type: corr_type,
+                    });
+            }
+            if let Some(step_label) = row.optional_literal("stepLabel") {
+                links_by_uri
+                    .entry(uri.clone())
+                    .or_default()
+                    .push(KnowledgeNodeLink {
+                        property: "appliesToStep".to_string(),
+                        target_title: step_label,
+                        target_type: "WorkflowStep".to_string(),
+                    });
             }
 
             let candidate = KnowledgeNodeInfo {
@@ -1098,6 +1163,7 @@ impl Catalog {
                 code_language: row.optional_literal("codeLanguage"),
                 step_order: row.optional_i64("stepOrder"),
                 template_variables: None, // Set after deduplication
+                links: vec![],            // Set after deduplication
             };
 
             match by_uri.get(&uri) {
@@ -1108,7 +1174,7 @@ impl Catalog {
             }
         }
 
-        // Attach accumulated template_variables to each node
+        // Attach accumulated template_variables and links to each node
         let mut nodes: Vec<KnowledgeNodeInfo> = by_uri.into_values().collect();
         for node in &mut nodes {
             if let Some(vars) = template_vars_by_uri.remove(&node.uri) {
@@ -1116,9 +1182,96 @@ impl Catalog {
                     node.template_variables = Some(vars);
                 }
             }
+            if let Some(links) = links_by_uri.remove(&node.uri) {
+                node.links = links;
+            }
         }
 
         Ok(nodes)
+    }
+
+    /// Retrieve CodeExample and Table content from the skill's section tree.
+    ///
+    /// Only retrieves CodeExample (code blocks) and Table (reference tables).
+    /// Paragraphs and BulletLists are NOT retrieved because their content is
+    /// already captured by knowledge nodes' `directive_content`.
+    fn get_section_content(
+        &self,
+        skill_id: &str,
+    ) -> Result<Vec<SectionContent>, CatalogError> {
+        validate_skill_id(skill_id)?;
+        let record = self.resolve_skill_reference(skill_id)?;
+        let skill_uri = record.uri.clone();
+
+        let query = format!(
+            r#"
+            PREFIX oc: <https://ontoskills.sh/ontology#>
+            SELECT DISTINCT ?blockType ?codeContent ?tableMarkdown ?textContent ?language ?tableCaption ?sectionTitle ?sectionOrder
+            WHERE {{
+                <{skill_uri}> oc:hasSection ?s1 .
+                ?s1 (oc:hasSubsection)* ?section .
+                ?section oc:hasContent ?block .
+                ?block a ?blockType .
+                OPTIONAL {{ ?block oc:codeContent ?codeContent }}
+                OPTIONAL {{ ?block oc:tableMarkdown ?tableMarkdown }}
+                OPTIONAL {{ ?block oc:tableCaption ?tableCaption }}
+                OPTIONAL {{ ?block oc:textContent ?textContent }}
+                OPTIONAL {{ ?block oc:codeLanguage ?language }}
+                OPTIONAL {{ ?section oc:sectionTitle ?sectionTitle }}
+                OPTIONAL {{ ?section oc:sectionOrder ?sectionOrder }}
+                FILTER (?blockType IN (oc:CodeExample, oc:Table))
+            }}
+            ORDER BY ?sectionOrder ?blockType
+            "#
+        );
+
+        let mut results: Vec<SectionContent> = Vec::new();
+        for row in self.select_rows(&query)? {
+            let block_type = row
+                .optional_iri("blockType")
+                .map(|v| compact_fragment(&v))
+                .unwrap_or_default();
+
+            // CodeExample: use codeContent. Table: use tableMarkdown, fallback textContent.
+            let content = if block_type == "code_example" {
+                row.optional_literal("codeContent")
+            } else {
+                row.optional_literal("tableMarkdown")
+                    .or_else(|| row.optional_literal("textContent"))
+            };
+
+            let Some(content) = content else { continue };
+            if content.trim().is_empty() {
+                continue;
+            }
+
+            // For tables, prepend caption if available.
+            let final_content = if block_type == "table" {
+                if let Some(caption) = row.optional_literal("tableCaption") {
+                    if !caption.is_empty() {
+                        format!("{}\n{}", caption, content)
+                    } else {
+                        content
+                    }
+                } else {
+                    content
+                }
+            } else {
+                content
+            };
+
+            results.push(SectionContent {
+                content_type: block_type,
+                section_title: row.optional_literal("sectionTitle"),
+                content: final_content,
+                language: row.optional_literal("language"),
+                section_order: row.optional_i64("sectionOrder"),
+            });
+        }
+
+        results.sort_by_key(|s| s.section_order.unwrap_or(999));
+
+        Ok(results)
     }
 }
 

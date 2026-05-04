@@ -77,7 +77,7 @@ def _extract_metrics(result: dict) -> dict | None:
     return {
         "input_tokens": _get("input_tokens"),
         "output_tokens": _get("output_tokens"),
-        "total_latency_ms": _get("total_latency_ms", 0.0),
+        "total_latency_ms": _get("total_latency_ms", _get("latency_ms", 0.0)),
         "tool_calls": _get("tool_calls"),
         "turns": _get("turns"),
     }

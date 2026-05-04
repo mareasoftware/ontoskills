@@ -89,7 +89,7 @@ def generate_chart_data(
             "passed": sc.get("passed", r.get("passed", False)),
             "input_tokens": m.get("input_tokens", 0),
             "output_tokens": m.get("output_tokens", 0),
-            "latency_ms": m.get("latency_ms", 0) or m.get("total_latency_ms", 0),
+            "latency_ms": m.get("latency_ms") if m.get("latency_ms") is not None else m.get("total_latency_ms", 0),
             "tool_calls": m.get("tool_calls", 0),
             "cost_usd": m.get("cost_usd", 0),
             "num_turns": m.get("num_turns", 0) or m.get("turns", 0),

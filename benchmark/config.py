@@ -61,7 +61,9 @@ MODEL_PRICING = {
 
 def get_cost_usd(model_id: str, input_tokens: int, output_tokens: int) -> float:
     """Compute cost in USD for a given model and token usage."""
-    pricing = MODEL_PRICING[model_id]
+    pricing = MODEL_PRICING.get(model_id)
+    if pricing is None:
+        return 0.0
 
     if "input_per_mtok_le200k" in pricing:
         # Gemini 3.1 Pro tiered pricing
