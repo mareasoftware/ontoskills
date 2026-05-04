@@ -19,6 +19,9 @@ mcp/tests/fixtures/
 ontoskills/
 ontoskills/system/
 
+# Benchmark logs
+benchmark_results.log
+
 # Astro build cache
 .astro/
 
