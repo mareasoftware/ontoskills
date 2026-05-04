@@ -235,7 +235,7 @@ class PerPackageWrapper:
         # Check if agent has MCP tools.
         agent_tools = agent.get_tools()
         has_mcp = agent_tools is not None and any(
-            t.get("name") in ("search", "get_skill_context")
+            t.get("name") in ("ontoskill", "search", "get_skill_context")
             for t in agent_tools
         )
 

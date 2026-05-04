@@ -113,12 +113,12 @@ class TestMCPClient:
             client._proc = proc
 
             with patch.object(client, "_readline_with_timeout", return_value=json.dumps(response).encode() + b"\n"):
-                result = client.call_tool("search", {"query": "create pdf"})
+                result = client.call_tool("ontoskill", {"query": "create pdf"})
 
         written = proc.stdin.write.call_args[0][0]
         parsed = json.loads(written.decode("utf-8"))
         assert parsed["method"] == "tools/call"
-        assert parsed["params"]["name"] == "search"
+        assert parsed["params"]["name"] == "ontoskill"
         assert parsed["params"]["arguments"] == {"query": "create pdf"}
         assert result == {"content": [{"type": "text", "text": "ok"}]}
 
@@ -209,7 +209,7 @@ class TestAgentDispatch:
         tool_block = MagicMock()
         tool_block.type = "tool_use"
         tool_block.id = "tool_abc"
-        tool_block.name = "search"
+        tool_block.name = "ontoskill"
         tool_block.input = {"query": "test"}
 
         mock_response = MagicMock()
@@ -229,7 +229,7 @@ class TestAgentDispatch:
 
     def test_ontoskills_agent_tool_dispatch(self):
         """OntoSkillsAgent dispatches tool_use to MCP client and sends back tool_result."""
-        tool_response = _make_anthropic_tool_response("search", {"query": "pdf"}, tool_id="t1")
+        tool_response = _make_anthropic_tool_response("ontoskill", {"query": "pdf"}, tool_id="t1")
 
         # Second response: the final text answer after tool result
         final_response = _make_anthropic_text_response("Found skill: create_pdf")
@@ -256,7 +256,7 @@ class TestAgentDispatch:
                 result = agent.run("How to create a PDF?")
 
         # MCP tool was called
-        mock_client_instance.call_tool.assert_called_once_with("search", {"query": "pdf"})
+        mock_client_instance.call_tool.assert_called_once_with("ontoskill", {"query": "pdf"})
         # Result should contain the final answer
         assert "Found skill: create_pdf" in result.answer
         assert result.tool_calls == 1
@@ -264,7 +264,7 @@ class TestAgentDispatch:
 
     def test_ontoskills_agent_subprocess_crash(self):
         """Agent handles MCP subprocess crash gracefully."""
-        tool_response = _make_anthropic_tool_response("search", {"query": "pdf"}, tool_id="t1")
+        tool_response = _make_anthropic_tool_response("ontoskill", {"query": "pdf"}, tool_id="t1")
 
         with patch("benchmark.agents.base.anthropic.Anthropic") as MockClient:
             MockClient.return_value.messages.create.return_value = tool_response

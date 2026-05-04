@@ -6,7 +6,7 @@ The ontomcp server auto-detects this wire mode when the first message starts wit
 Usage:
     with MCPClient(ontology_root="/path/to/ontologies") as client:
         client.initialize()
-        result = client.call_tool("search", {"query": "create pdf"})
+        result = client.call_tool("ontoskill", {"q": "create pdf"})
 """
 
 from __future__ import annotations
@@ -283,7 +283,7 @@ class MCPClient:
         Parameters
         ----------
         name:
-            Tool name (e.g. ``"search"``, ``"get_skill_context"``).
+            Tool name (e.g. ``"ontoskill"``).
         arguments:
             Tool arguments dict.
 
@@ -358,10 +358,10 @@ if __name__ == "__main__":
             print(f"  - {tool_def['name']}: {tool_def['description'][:80]}...")
         print()
 
-        # Quick search test — use the first available tool if it differs
-        search_name = "search"
+        # Quick search test — use the first available tool
+        search_name = "ontoskill"
         for t in tools:
-            if "search" in t["name"].lower():
+            if "search" in t["name"].lower() or t["name"] == "ontoskill":
                 search_name = t["name"]
                 break
 

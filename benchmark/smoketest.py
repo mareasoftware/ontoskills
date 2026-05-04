@@ -65,28 +65,27 @@ def main() -> int:
             tools = client.list_tools()
             tool_names = [t["name"] for t in tools]
             print(f"  tools: {tool_names}")
-            expected = {"search", "get_skill_context", "evaluate_execution_plan", "query_epistemic_rules", "prefetch_knowledge"}
+            expected = {"ontoskill"}
             if set(tool_names) != expected:
                 print(f"  FAIL: expected {expected}, got {set(tool_names)}")
                 errors += 1
             else:
-                print("  OK: all 5 tools present")
+                print("  OK: ontoskill tool present")
             print()
 
-            # Step 4: Search for skills
+            # Step 4: Search for skills via ontoskill
             print("=== Step 4: Search skills ===")
-            search_result = client.call_tool("search", {"query": "excel", "limit": 3})
-            print(f"  search('excel'): {json.dumps(search_result, indent=2)[:500]}")
+            search_result = client.call_tool("ontoskill", {"q": "excel", "top_k": 3})
+            print(f"  ontoskill('excel'): {json.dumps(search_result, indent=2)[:500]}")
             if not search_result or not search_result.get("content"):
-                print("  FAIL: search returned no content")
+                print("  FAIL: ontoskill returned no content")
                 errors += 1
             else:
                 print("  OK: search returned results")
             print()
 
-            # Step 5: Get skill context
+            # Step 5: Get skill context via ontoskill
             print("=== Step 5: Get skill context ===")
-            # Try to extract a skill ID from search results
             skill_id = None
             try:
                 content = search_result.get("content", [])
@@ -99,33 +98,28 @@ def main() -> int:
                 pass
 
             if skill_id:
-                ctx_result = client.call_tool("get_skill_context", {"skill_id": skill_id})
-                print(f"  get_skill_context('{skill_id}'): {json.dumps(ctx_result, indent=2)[:500]}")
+                ctx_result = client.call_tool("ontoskill", {"q": skill_id})
+                print(f"  ontoskill('{skill_id}'): {json.dumps(ctx_result, indent=2)[:500]}")
                 print("  OK: got skill context")
             else:
-                # Compact responses are text, not JSON — extract skill_id from compact text.
                 text = content[0].get("text", "") if content else ""
                 for line in text.split("\n"):
                     if line.startswith("- "):
-                        # Compact format: "- skill_id [tier]: ..."
                         skill_id = line.split("- ")[1].split()[0]
                         break
                 if skill_id:
-                    ctx_result = client.call_tool("get_skill_context", {"skill_id": skill_id})
-                    print(f"  get_skill_context('{skill_id}') from compact text")
+                    ctx_result = client.call_tool("ontoskill", {"q": skill_id})
+                    print(f"  ontoskill('{skill_id}') from compact text")
                     print("  OK: got skill context")
                 else:
                     print(f"  SKIP: could not extract skill_id from search results")
             print()
 
-            # Step 6: Query epistemic rules
-            print("=== Step 6: Query epistemic rules ===")
-            rules_result = client.call_tool("query_epistemic_rules", {"limit": 3})
-            print(f"  query_epistemic_rules(limit=3): {json.dumps(rules_result, indent=2)[:500]}")
-            if rules_result and rules_result.get("content"):
-                print("  OK: epistemic rules returned")
-            else:
-                print("  WARN: no epistemic rules found")
+            # Step 6: List tools (verification step — ontoskill is the primary tool)
+            print("=== Step 6: Tool verification ===")
+            tools = client.list_tools()
+            print(f"  {len(tools)} tool(s) available: {[t['name'] for t in tools]}")
+            print("  OK: tools listed")
             print()
 
     except Exception as e:
