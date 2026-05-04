@@ -202,7 +202,7 @@ import json
 msgs = [
     {'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'e2e-test','version':'0.1'}}},
     {'jsonrpc':'2.0','method':'notifications/initialized'},
-    {'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'search','arguments':{'query':'$SEARCH_QUERY','top_k':3}}},
+    {'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'ontoskill','arguments':{'q':'$SEARCH_QUERY','top_k':3}}},
 ]
 with open('$INPUT_FILE', 'w') as f:
     for m in msgs:
