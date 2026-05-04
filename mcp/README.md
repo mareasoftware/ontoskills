@@ -34,6 +34,7 @@ The MCP server is intentionally focused on:
 - **Skill context retrieval** — Return execution payload, transitions, dependencies, and all knowledge nodes (epistemic + operational) in one call
 - **Planning** — Evaluate whether a skill or intent is executable from the current state set
 - **Epistemic retrieval** — Query normalized `KnowledgeNode` rules by kind, dimension, severity, and context
+- **Runtime memory** — Store and retrieve project/global memories as `KnowledgeNode` data in the same RDF graph
 
 The server does **not** execute skill payloads. Payload execution is delegated to the calling agent in its current runtime context.
 
@@ -71,10 +72,10 @@ flowchart LR
 
 | Tool | Purpose |
 |------|---------|
-| `search` | Search skills by keyword query, alias, or structured filters. Dispatches by parameter: `query` → BM25 keyword search (with optional semantic fallback), `alias` → alias resolution, otherwise → structured skill search |
-| `get_skill_context` | Return the complete execution context for a skill, including payload and all knowledge nodes (epistemic + operational) |
-| `evaluate_execution_plan` | Evaluate applicability and generate a plan for a target intent or skill |
-| `query_epistemic_rules` | Query normalized knowledge nodes across the ontology with guided filters |
+| `ontoskill` | Find or load a skill by exact id or natural language query. Query mode can include relevant runtime memories. |
+| `ontomemory` | Create, search, retrieve, update, archive/delete, and link runtime memories. |
+
+Compatibility tools such as `search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules`, and `prefetch_knowledge` remain callable for clients that already know them, but they are no longer advertised in `tools/list`.
 
 ---
 

@@ -53,7 +53,12 @@ pub fn compact_search(data: &Value) -> String {
                 .and_then(Value::as_array)
                 .map(|arr| arr.iter().filter_map(Value::as_str).take(3).collect())
                 .unwrap_or_default();
-            lines.push(format!("- {} (score={:.2}): {}", intent, score, skills.join(", ")));
+            lines.push(format!(
+                "- {} (score={:.2}): {}",
+                intent,
+                score,
+                skills.join(", ")
+            ));
         }
     }
 
@@ -72,7 +77,11 @@ pub fn compact_search(data: &Value) -> String {
     if mode == "alias" {
         if let Some(skills) = data.get("skills").and_then(Value::as_array) {
             for s in skills.iter().take(5) {
-                let sid = s.get("id").or_else(|| s.get("skill_id")).and_then(Value::as_str).unwrap_or("");
+                let sid = s
+                    .get("id")
+                    .or_else(|| s.get("skill_id"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
                 let tier = s.get("trust_tier").and_then(Value::as_str).unwrap_or("");
                 lines.push(format!("- {} [{}]", sid, tier));
             }
@@ -115,7 +124,11 @@ pub fn compact_context_with_query(
     if !skill.intents.is_empty() {
         lines.push(format!("Intents: {}", skill.intents.join("; ")));
     }
-    let reqs: Vec<&str> = skill.requirements.iter().map(|r| r.value.as_str()).collect();
+    let reqs: Vec<&str> = skill
+        .requirements
+        .iter()
+        .map(|r| r.value.as_str())
+        .collect();
     if !reqs.is_empty() {
         lines.push(format!("Requires: {}", reqs.join("; ")));
     }
@@ -286,11 +299,19 @@ pub fn compact_plan(plan: &ExecutionPlanEvaluation) -> String {
     }
 
     if !plan.missing_states.is_empty() {
-        lines.push(format!("Missing states: {}", plan.missing_states.join(", ")));
+        lines.push(format!(
+            "Missing states: {}",
+            plan.missing_states.join(", ")
+        ));
     }
 
     if !plan.dependency_warnings.is_empty() {
-        let warns: Vec<&str> = plan.dependency_warnings.iter().take(3).map(String::as_str).collect();
+        let warns: Vec<&str> = plan
+            .dependency_warnings
+            .iter()
+            .take(3)
+            .map(String::as_str)
+            .collect();
         lines.push(format!("Warnings: {}", warns.join("; ")));
     }
 
@@ -349,7 +370,7 @@ pub fn compact_epistemic_rules(nodes: &[KnowledgeNodeInfo]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::{RequirementInfo, SkillDetails, SkillType, PayloadInfo, PlanStep};
+    use crate::catalog::{PayloadInfo, PlanStep, RequirementInfo, SkillDetails, SkillType};
 
     fn make_node(
         kind: &str,
@@ -582,10 +603,38 @@ mod tests {
     #[test]
     fn test_compact_context_with_query_filters_nodes() {
         let nodes = vec![
-            make_node("anti_pattern", "Never trust user-provided file paths", Some("CRITICAL"), Some("Prevents path traversal"), Some("file handling"), None),
-            make_node("best_practice", "Use connection pooling for database", None, None, Some("database"), None),
-            make_node("heuristic", "Check file permissions before writing", Some("HIGH"), None, Some("file handling"), None),
-            make_node("heuristic", "Cache repeated API calls", None, None, Some("network"), None),
+            make_node(
+                "anti_pattern",
+                "Never trust user-provided file paths",
+                Some("CRITICAL"),
+                Some("Prevents path traversal"),
+                Some("file handling"),
+                None,
+            ),
+            make_node(
+                "best_practice",
+                "Use connection pooling for database",
+                None,
+                None,
+                Some("database"),
+                None,
+            ),
+            make_node(
+                "heuristic",
+                "Check file permissions before writing",
+                Some("HIGH"),
+                None,
+                Some("file handling"),
+                None,
+            ),
+            make_node(
+                "heuristic",
+                "Cache repeated API calls",
+                None,
+                None,
+                Some("network"),
+                None,
+            ),
         ];
 
         let ctx = SkillContextResult {
@@ -626,11 +675,27 @@ mod tests {
         };
 
         let engine = NodeBm25Engine::from_nodes("test", &nodes);
-        let result = compact_context_with_query("test", &ctx, Some("file path validation"), Some(&engine), None);
+        let result = compact_context_with_query(
+            "test",
+            &ctx,
+            Some("file path validation"),
+            Some(&engine),
+            None,
+        );
 
-        assert!(result.contains("file paths"), "Should contain file path node: {}", result);
-        assert!(!result.contains("connection pooling"), "Should NOT contain database node");
-        assert!(!result.contains("Cache repeated"), "Should NOT contain network node");
+        assert!(
+            result.contains("file paths"),
+            "Should contain file path node: {}",
+            result
+        );
+        assert!(
+            !result.contains("connection pooling"),
+            "Should NOT contain database node"
+        );
+        assert!(
+            !result.contains("Cache repeated"),
+            "Should NOT contain network node"
+        );
     }
 
     #[test]

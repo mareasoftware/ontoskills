@@ -9,7 +9,9 @@ use bm25::{Document, Language, SearchEngineBuilder};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::catalog::{quality_multiplier, Catalog, CatalogError, KnowledgeNodeInfo, SectionContent, SkillSummary};
+use crate::catalog::{
+    Catalog, CatalogError, KnowledgeNodeInfo, SectionContent, SkillSummary, quality_multiplier,
+};
 
 /// A single BM25 search result.
 #[derive(Debug, Serialize, Clone)]
@@ -104,7 +106,11 @@ impl Bm25Engine {
             .collect();
 
         // Sort by score descending
-        matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Apply adaptive cutoff
         let cutoff = adaptive_cutoff(&matches, 0.1, 0.15);
@@ -112,7 +118,6 @@ impl Bm25Engine {
 
         matches
     }
-
 }
 
 /// In-memory BM25 engine for ranking knowledge nodes within a skill.
@@ -128,7 +133,6 @@ pub struct NodeBm25Engine {
 impl NodeBm25Engine {
     /// Build a node-level BM25 engine from a skill's knowledge nodes.
     pub fn from_nodes(_skill_id: &str, nodes: &[KnowledgeNodeInfo]) -> Self {
-
         let mut documents = Vec::with_capacity(nodes.len());
 
         for (i, node) in nodes.iter().enumerate() {
@@ -379,7 +383,11 @@ mod tests {
 
     #[test]
     fn test_adaptive_cutoff_all_above_threshold() {
-        let matches = vec![fake_match("a", 0.9), fake_match("b", 0.8), fake_match("c", 0.7)];
+        let matches = vec![
+            fake_match("a", 0.9),
+            fake_match("b", 0.8),
+            fake_match("c", 0.7),
+        ];
         assert_eq!(adaptive_cutoff(&matches, 0.1, 0.15), 3);
     }
 
@@ -408,7 +416,11 @@ mod tests {
 
     use crate::catalog::KnowledgeNodeInfo;
 
-    fn make_test_node(content: &str, context: Option<&str>, rationale: Option<&str>) -> KnowledgeNodeInfo {
+    fn make_test_node(
+        content: &str,
+        context: Option<&str>,
+        rationale: Option<&str>,
+    ) -> KnowledgeNodeInfo {
         KnowledgeNodeInfo {
             uri: String::new(),
             label: None,
@@ -431,10 +443,26 @@ mod tests {
     #[test]
     fn test_node_bm25_ranks_relevant_higher() {
         let nodes = vec![
-            make_test_node("Always validate user input before processing files", Some("file handling"), None),
-            make_test_node("Use caching for repeated database queries", Some("database"), None),
-            make_test_node("Never trust user-provided file paths", Some("file handling"), Some("Prevents path traversal")),
-            make_test_node("Prefer streaming for large dataset downloads", Some("network"), None),
+            make_test_node(
+                "Always validate user input before processing files",
+                Some("file handling"),
+                None,
+            ),
+            make_test_node(
+                "Use caching for repeated database queries",
+                Some("database"),
+                None,
+            ),
+            make_test_node(
+                "Never trust user-provided file paths",
+                Some("file handling"),
+                Some("Prevents path traversal"),
+            ),
+            make_test_node(
+                "Prefer streaming for large dataset downloads",
+                Some("network"),
+                None,
+            ),
         ];
 
         let engine = NodeBm25Engine::from_nodes("test-skill", &nodes);
@@ -442,15 +470,18 @@ mod tests {
 
         assert!(!results.is_empty());
         let find_rank = |content_substring: &str| -> Option<usize> {
-            results.iter().position(|(idx, _)| {
-                nodes[*idx].directive_content.contains(content_substring)
-            })
+            results
+                .iter()
+                .position(|(idx, _)| nodes[*idx].directive_content.contains(content_substring))
         };
         let file_path_rank = find_rank("file paths").expect("file paths node should be found");
         // The database node may not appear in results at all (correctly filtered out),
         // or if it does, it should rank lower than the file paths node.
         if let Some(db_rank) = find_rank("database queries") {
-            assert!(file_path_rank < db_rank, "file paths node should rank higher than database node");
+            assert!(
+                file_path_rank < db_rank,
+                "file paths node should rank higher than database node"
+            );
         }
         // If database node is absent, file paths node still ranks first — that's correct.
     }
@@ -464,8 +495,16 @@ mod tests {
 
         let engine = NodeBm25Engine::from_nodes("test-skill", &nodes);
         let results = engine.rank_nodes("topic 0");
-        assert!(results.len() >= 10, "Should keep at least 10 nodes with bottom-percentile, got {}", results.len());
-        assert!(results.len() <= 15, "Should not exceed total nodes, got {}", results.len());
+        assert!(
+            results.len() >= 10,
+            "Should keep at least 10 nodes with bottom-percentile, got {}",
+            results.len()
+        );
+        assert!(
+            results.len() <= 15,
+            "Should not exceed total nodes, got {}",
+            results.len()
+        );
     }
 
     #[test]
@@ -478,7 +517,11 @@ mod tests {
         let engine = NodeBm25Engine::from_nodes("test-skill", &nodes);
         let results = engine.rank_nodes("topic 0");
         // All scored nodes should be returned since 5 <= min_keep(5)
-        assert!(results.len() <= 5, "Should keep all nodes when ≤10, got {}", results.len());
+        assert!(
+            results.len() <= 5,
+            "Should keep all nodes when ≤10, got {}",
+            results.len()
+        );
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! Provides a compact JSON schema describing classes, properties,
 //! and example queries for LLM agents.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Get the schema resource as JSON.
 ///
@@ -38,6 +38,10 @@ pub fn get_schema_resource() -> Value {
             "KnowledgeNode": {
                 "description": "Epistemic knowledge",
                 "properties": ["directiveContent", "appliesToContext", "hasRationale", "severityLevel"]
+            },
+            "Memory": {
+                "description": "Runtime knowledge remembered by the agent; subclass of KnowledgeNode",
+                "properties": ["memoryId", "memoryScope", "directiveContent", "dependsOnMemory", "supersedesMemory", "relatedToSkill", "confidence", "isArchived"]
             }
         },
         "properties": {
@@ -65,12 +69,33 @@ pub fn get_schema_resource() -> Value {
             "contradicts": {
                 "type": "IRI",
                 "description": "Mutually exclusive skill"
+            },
+            "memoryId": {
+                "type": "string",
+                "description": "Stable memory identifier"
+            },
+            "memoryScope": {
+                "type": "string",
+                "description": "Memory scope: global or project"
+            },
+            "dependsOnMemory": {
+                "type": "IRI",
+                "description": "Memory prerequisite or supporting memory"
+            },
+            "supersedesMemory": {
+                "type": "IRI",
+                "description": "Older memory replaced by this memory"
+            },
+            "relatedToSkill": {
+                "type": "IRI",
+                "description": "Skill this memory is relevant to"
             }
         },
         "example_queries": [
             "SELECT ?skill WHERE { ?skill oc:resolvesIntent \"create_pdf\" }",
             "SELECT ?skill WHERE { ?skill oc:requiresState oc:FileExists }",
-            "SELECT ?skill ?intent WHERE { ?skill oc:resolvesIntent ?intent }"
+            "SELECT ?skill ?intent WHERE { ?skill oc:resolvesIntent ?intent }",
+            "SELECT ?memory WHERE { ?memory a oc:Memory ; oc:memoryScope \"project\" }"
         ]
     })
 }
@@ -84,7 +109,11 @@ mod tests {
         let schema = get_schema_resource();
         let json_str = serde_json::to_string(&schema).unwrap();
         // Should be under 4KB uncompressed
-        assert!(json_str.len() < 4096, "Schema too large: {} bytes", json_str.len());
+        assert!(
+            json_str.len() < 4096,
+            "Schema too large: {} bytes",
+            json_str.len()
+        );
     }
 
     #[test]

@@ -168,7 +168,9 @@ impl EmbeddingEngine {
         }
 
         if intents.is_empty() {
-            eprintln!("Warning: No intent embeddings found — semantic search will return no results");
+            eprintln!(
+                "Warning: No intent embeddings found — semantic search will return no results"
+            );
         }
 
         Ok(Self {
@@ -228,7 +230,10 @@ impl EmbeddingEngine {
             entries.push((entry.intent, emb, entry.skills));
         }
 
-        Ok(LoadedIntents { dimension, intents: entries })
+        Ok(LoadedIntents {
+            dimension,
+            intents: entries,
+        })
     }
 
     /// Set trust tier mapping for hybrid scoring.
@@ -262,7 +267,11 @@ impl EmbeddingEngine {
     }
 
     /// Run ONNX inference to get query embedding.
-    fn infer_embedding(&mut self, input_ids: &[i64], attention_mask: &[i64]) -> Result<Array1<f32>> {
+    fn infer_embedding(
+        &mut self,
+        input_ids: &[i64],
+        attention_mask: &[i64],
+    ) -> Result<Array1<f32>> {
         let seq_len = input_ids.len();
 
         // Create input tensors as owned arrays
@@ -278,9 +287,11 @@ impl EmbeddingEngine {
             .map_err(|e| anyhow::anyhow!("Failed to create attention_mask tensor: {}", e))?;
 
         // Find input indices by name (not position)
-        let input_ids_idx = self.find_input_index("input_ids")
+        let input_ids_idx = self
+            .find_input_index("input_ids")
             .ok_or_else(|| anyhow::anyhow!("Model missing 'input_ids' input"))?;
-        let attention_mask_idx = self.find_input_index("attention_mask")
+        let attention_mask_idx = self
+            .find_input_index("attention_mask")
             .ok_or_else(|| anyhow::anyhow!("Model missing 'attention_mask' input"))?;
 
         // Check if model requires token_type_ids (common for BERT-like models)
@@ -291,7 +302,8 @@ impl EmbeddingEngine {
             let token_type_ids_array: Array2<i64> = Array2::zeros((1, seq_len));
             let token_type_ids_tensor = TensorRef::from_array_view(&token_type_ids_array)
                 .map_err(|e| anyhow::anyhow!("Failed to create token_type_ids tensor: {}", e))?;
-            let token_type_ids_idx = self.find_input_index("token_type_ids")
+            let token_type_ids_idx = self
+                .find_input_index("token_type_ids")
                 .ok_or_else(|| anyhow::anyhow!("Model missing 'token_type_ids' input"))?;
 
             // Run inference with token_type_ids
@@ -343,7 +355,8 @@ impl EmbeddingEngine {
                 if hidden != dimension {
                     anyhow::bail!(
                         "Model output dimension {} does not match expected embedding dimension {}",
-                        hidden, dimension
+                        hidden,
+                        dimension
                     );
                 }
 
@@ -437,7 +450,14 @@ impl EmbeddingEngine {
                 } else {
                     skills
                         .iter()
-                        .map(|s| quality_multiplier(self.trust_tiers.get(s).map(|t| t.as_str()).unwrap_or("verified")))
+                        .map(|s| {
+                            quality_multiplier(
+                                self.trust_tiers
+                                    .get(s)
+                                    .map(|t| t.as_str())
+                                    .unwrap_or("verified"),
+                            )
+                        })
                         .fold(0.0f32, f32::max)
                 };
                 let score = cosine * multiplier;
@@ -613,7 +633,10 @@ fn adaptive_cutoff(
     }
 
     // No gap found - include all above minimum threshold
-    scores.iter().position(|(s, _, _)| *s < min_threshold).unwrap_or(scores.len())
+    scores
+        .iter()
+        .position(|(s, _, _)| *s < min_threshold)
+        .unwrap_or(scores.len())
 }
 
 #[cfg(test)]
@@ -655,7 +678,12 @@ mod tests {
     fn test_validate_inputs_valid_minimal() {
         let inputs = vec!["input_ids".to_string(), "attention_mask".to_string()];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::Valid { has_token_type_ids: false });
+        assert_eq!(
+            result,
+            InputValidation::Valid {
+                has_token_type_ids: false
+            }
+        );
     }
 
     #[test]
@@ -666,34 +694,48 @@ mod tests {
             "token_type_ids".to_string(),
         ];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::Valid { has_token_type_ids: true });
+        assert_eq!(
+            result,
+            InputValidation::Valid {
+                has_token_type_ids: true
+            }
+        );
     }
 
     #[test]
     fn test_validate_inputs_missing_input_ids() {
         let inputs = vec!["attention_mask".to_string()];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::MissingRequired {
-            missing: vec!["input_ids".to_string()]
-        });
+        assert_eq!(
+            result,
+            InputValidation::MissingRequired {
+                missing: vec!["input_ids".to_string()]
+            }
+        );
     }
 
     #[test]
     fn test_validate_inputs_missing_attention_mask() {
         let inputs = vec!["input_ids".to_string()];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::MissingRequired {
-            missing: vec!["attention_mask".to_string()]
-        });
+        assert_eq!(
+            result,
+            InputValidation::MissingRequired {
+                missing: vec!["attention_mask".to_string()]
+            }
+        );
     }
 
     #[test]
     fn test_validate_inputs_missing_both_required() {
         let inputs: Vec<String> = vec![];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::MissingRequired {
-            missing: vec!["input_ids".to_string(), "attention_mask".to_string()]
-        });
+        assert_eq!(
+            result,
+            InputValidation::MissingRequired {
+                missing: vec!["input_ids".to_string(), "attention_mask".to_string()]
+            }
+        );
     }
 
     #[test]
@@ -704,9 +746,12 @@ mod tests {
             "position_ids".to_string(),
         ];
         let result = validate_model_inputs(&inputs);
-        assert_eq!(result, InputValidation::Unsupported {
-            unsupported: vec!["position_ids".to_string()]
-        });
+        assert_eq!(
+            result,
+            InputValidation::Unsupported {
+                unsupported: vec!["position_ids".to_string()]
+            }
+        );
     }
 
     #[test]
@@ -737,10 +782,7 @@ mod tests {
     #[test]
     fn test_adaptive_cutoff_all_below_threshold() {
         let empty = vec![];
-        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
-            (0.35, "a", &empty),
-            (0.30, "b", &empty),
-        ];
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![(0.35, "a", &empty), (0.30, "b", &empty)];
         assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 0);
     }
 
@@ -784,9 +826,7 @@ mod tests {
     #[test]
     fn test_adaptive_cutoff_single_result() {
         let empty = vec![];
-        let scores: Vec<(f32, &str, &Vec<String>)> = vec![
-            (0.85, "a", &empty),
-        ];
+        let scores: Vec<(f32, &str, &Vec<String>)> = vec![(0.85, "a", &empty)];
         assert_eq!(adaptive_cutoff(&scores, 0.4, 0.15), 1);
     }
 

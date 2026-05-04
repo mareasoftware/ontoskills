@@ -1,21 +1,23 @@
-mod catalog;
 mod bm25_engine;
+mod catalog;
 mod compact;
 #[cfg(feature = "embeddings")]
 mod embeddings;
+mod memory;
 mod schema;
 
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+use bm25_engine::Bm25Engine;
 use catalog::{
     Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
     SkillType,
 };
-use bm25_engine::Bm25Engine;
 #[cfg(feature = "embeddings")]
 use embeddings::EmbeddingEngine;
+use memory::{MemoryStore, compact_search_results};
 use schema::get_schema_resource;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -43,6 +45,10 @@ enum WireMode {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ontology_root = parse_ontology_root();
     let catalog = Catalog::load(&ontology_root)?;
+    let mut memory_store = MemoryStore::from_environment();
+    if let Err(err) = catalog.reload_memory_files(&memory_store.existing_ttl_paths()) {
+        eprintln!("[ontomcp] Warning: Failed to load memory graph: {}", err);
+    }
 
     // Build BM25 engine (always available — in-memory from Catalog data)
     let bm25_engine = Bm25Engine::from_catalog(&catalog).unwrap_or_else(|e| {
@@ -58,8 +64,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if embeddings_dir.join("model.onnx").exists() {
             match EmbeddingEngine::load(&embeddings_dir, ontology_root) {
                 Ok(engine) => {
-                    eprintln!("[ontomcp] Loaded embedding engine with {} intents",
-                        engine.intent_count());
+                    eprintln!(
+                        "[ontomcp] Loaded embedding engine with {} intents",
+                        engine.intent_count()
+                    );
                     Some(engine)
                 }
                 Err(e) => {
@@ -194,7 +202,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "resources/read" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let uri = request.params
+                let uri = request
+                    .params
                     .as_ref()
                     .and_then(|p| p.get("uri"))
                     .and_then(|u| u.as_str())
@@ -249,7 +258,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "tools/call" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let result = handle_tool_call(&catalog, &bm25_engine, embedding_engine.as_mut(), request.params.unwrap_or(Value::Null));
+                let result = handle_tool_call(
+                    &catalog,
+                    &mut memory_store,
+                    &bm25_engine,
+                    embedding_engine.as_mut(),
+                    request.params.unwrap_or(Value::Null),
+                );
                 match result {
                     Ok(result) => respond_ok(&mut writer, wire_mode, request.id, result)?,
                     Err(err) => respond_error(&mut writer, wire_mode, request.id, -32602, &err)?,
@@ -314,8 +329,10 @@ fn discover_ontology_root() -> Option<PathBuf> {
         .map(|home| home.join(".ontoskills").join("ontoskills"));
     if let Some(ref legacy) = legacy_home {
         if legacy.exists() && has_ontology_data(legacy) {
-            eprintln!("[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
-                legacy, home_default);
+            eprintln!(
+                "[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
+                legacy, home_default
+            );
             return Some(legacy.clone());
         }
     }
@@ -354,10 +371,7 @@ fn contains_ttl_recursive(path: &Path, max_depth: usize) -> bool {
             if contains_ttl_recursive(&entry_path, max_depth.saturating_sub(1)) {
                 return true;
             }
-        } else if entry_path
-            .extension()
-            .map_or(false, |ext| ext == "ttl")
-        {
+        } else if entry_path.extension().map_or(false, |ext| ext == "ttl") {
             return true;
         }
     }
@@ -451,8 +465,37 @@ fn do_search(
     Ok((structured, text))
 }
 
+fn skill_ids_from_search(value: &Value) -> Vec<String> {
+    let mut ids = Vec::new();
+    if let Some(results) = value.get("results").and_then(Value::as_array) {
+        for result in results {
+            if let Some(skill_id) = result.get("skill_id").and_then(Value::as_str) {
+                ids.push(skill_id.to_string());
+            }
+            if let Some(qualified_id) = result.get("qualified_id").and_then(Value::as_str) {
+                ids.push(qualified_id.to_string());
+            }
+        }
+    }
+    if let Some(matches) = value.get("matches").and_then(Value::as_array) {
+        for matched in matches {
+            if let Some(skills) = matched.get("skills").and_then(Value::as_array) {
+                for skill in skills {
+                    if let Some(skill_id) = skill.as_str() {
+                        ids.push(skill_id.to_string());
+                    }
+                }
+            }
+        }
+    }
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
 fn handle_tool_call(
     catalog: &Catalog,
+    memory_store: &mut MemoryStore,
     bm25_engine: &Bm25Engine,
     #[cfg(feature = "embeddings")] embedding_engine: Option<&mut EmbeddingEngine>,
     #[cfg(not(feature = "embeddings"))] _embedding_engine: Option<&mut ()>,
@@ -483,10 +526,7 @@ fn handle_tool_call(
     let (structured, compact_text) = match tool_name {
         "ontoskill" => {
             let q = required_string(&arguments, "q")?;
-            let top_k = arguments
-                .get("top_k")
-                .and_then(Value::as_u64)
-                .unwrap_or(5) as usize;
+            let top_k = arguments.get("top_k").and_then(Value::as_u64).unwrap_or(5) as usize;
 
             // Try exact skill_id lookup first.
             let ctx_result = catalog.get_skill_context(q, true);
@@ -502,17 +542,46 @@ fn handle_tool_call(
                 }
                 Err(_) => {
                     // Not a skill_id — treat as search query.
-                    let (structured, text) = do_search(
-                        q, top_k, bm25_engine,
+                    let (mut structured, mut text) = do_search(
+                        q,
+                        top_k,
+                        bm25_engine,
                         #[cfg(feature = "embeddings")]
                         embedding_engine,
                         #[cfg(not(feature = "embeddings"))]
                         None,
                         use_compact,
                     )?;
+                    let skill_ids = skill_ids_from_search(&structured);
+                    let memories = memory_store.relevant_memories_for_query(q, &skill_ids, 5);
+                    if !memories.is_empty() {
+                        if let Value::Object(ref mut object) = structured {
+                            object.insert("related_memories".to_string(), json!(memories));
+                        }
+                        if use_compact {
+                            text.push_str("\n\n");
+                            text.push_str(&compact_search_results("Relevant Memories", &memories));
+                        } else {
+                            text = serde_json::to_string_pretty(&structured).unwrap_or_default();
+                        }
+                    }
                     (structured, text)
                 }
             }
+        }
+        "ontomemory" => {
+            let result = memory_store.handle_action(&arguments)?;
+            if result.changed {
+                catalog
+                    .reload_memory_files(&memory_store.existing_ttl_paths())
+                    .map_err(public_error)?;
+            }
+            let text = if use_compact {
+                result.compact_text
+            } else {
+                serde_json::to_string_pretty(&result.structured).unwrap_or_default()
+            };
+            (result.structured, text)
         }
         // Internal tools — not in tool_definitions() but kept for prefetch_knowledge
         // and backward compatibility with existing clients.
@@ -529,12 +598,11 @@ fn handle_tool_call(
                     .get("query")
                     .and_then(Value::as_str)
                     .ok_or_else(|| "query required".to_string())?;
-                let top_k = arguments
-                    .get("top_k")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(5) as usize;
+                let top_k = arguments.get("top_k").and_then(Value::as_u64).unwrap_or(5) as usize;
                 do_search(
-                    query, top_k, bm25_engine,
+                    query,
+                    top_k,
+                    bm25_engine,
                     #[cfg(feature = "embeddings")]
                     embedding_engine,
                     #[cfg(not(feature = "embeddings"))]
@@ -585,9 +653,19 @@ fn handle_tool_call(
             let text = if use_compact {
                 match query {
                     Some(q) if !q.is_empty() => {
-                        let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(&skill_id, &ctx.knowledge_nodes);
-                        let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
-                        compact::compact_context_with_query(&skill_id, &ctx, Some(&q), Some(&node_engine), Some(&section_engine))
+                        let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(
+                            &skill_id,
+                            &ctx.knowledge_nodes,
+                        );
+                        let section_engine =
+                            crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
+                        compact::compact_context_with_query(
+                            &skill_id,
+                            &ctx,
+                            Some(&q),
+                            Some(&node_engine),
+                            Some(&section_engine),
+                        )
                     }
                     _ => compact::compact_context(&skill_id, &ctx),
                 }
@@ -663,26 +741,28 @@ fn handle_prefetch(
     arguments: &Value,
     use_compact: bool,
 ) -> Result<Value, String> {
-    let max_skills = optional_usize(arguments, "max_skills")
-        .unwrap_or(3)
-        .min(5);
+    let max_skills = optional_usize(arguments, "max_skills").unwrap_or(3).min(5);
 
     // Capture the query string (if any) for node-level BM25 ranking.
-    let query_opt: Option<String> = arguments.get("query").and_then(Value::as_str).map(String::from);
+    let query_opt: Option<String> = arguments
+        .get("query")
+        .and_then(Value::as_str)
+        .map(String::from);
 
     // Determine skill IDs: either explicitly provided or via search.
-    let skill_ids: Vec<String> = if let Some(ids) = arguments.get("skill_ids").and_then(Value::as_array) {
-        ids.iter()
-            .filter_map(Value::as_str)
-            .map(String::from)
-            .take(max_skills)
-            .collect()
-    } else if let Some(query) = &query_opt {
-        let results = bm25_engine.search(query, max_skills);
-        results.into_iter().map(|r| r.skill_id).collect()
-    } else {
-        return Err("prefetch_knowledge requires either 'query' or 'skill_ids'".to_string());
-    };
+    let skill_ids: Vec<String> =
+        if let Some(ids) = arguments.get("skill_ids").and_then(Value::as_array) {
+            ids.iter()
+                .filter_map(Value::as_str)
+                .map(String::from)
+                .take(max_skills)
+                .collect()
+        } else if let Some(query) = &query_opt {
+            let results = bm25_engine.search(query, max_skills);
+            results.into_iter().map(|r| r.skill_id).collect()
+        } else {
+            return Err("prefetch_knowledge requires either 'query' or 'skill_ids'".to_string());
+        };
 
     if skill_ids.is_empty() {
         return Ok(build_response(
@@ -698,8 +778,10 @@ fn handle_prefetch(
         match catalog.get_skill_context(sid, true) {
             Ok(ctx) => {
                 structured_skills.push(json!(ctx));
-                let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
-                let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
+                let node_engine =
+                    crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
+                let section_engine =
+                    crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
                 sections.push(compact::compact_context_with_query(
                     sid,
                     &ctx,
@@ -906,6 +988,71 @@ fn tool_definitions() -> Vec<Value> {
                     "top_k": { "type": "integer", "description": "Max results for search mode (default 5)", "default": 5 }
                 },
                 "required": ["q"]
+            }),
+        ),
+        tool(
+            "ontomemory",
+            "Read and manipulate runtime memories in the shared OntoSkills knowledge graph. Use action=remember/search/get/update/forget/link.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["remember", "search", "get", "update", "forget", "link"]
+                    },
+                    "content": { "type": "string", "description": "Memory content for action=remember or action=update." },
+                    "memory_id": { "type": "string", "description": "Memory id for get/update/forget/link." },
+                    "memory_type": {
+                        "type": "string",
+                        "enum": ["procedure", "correction", "anti_pattern", "preference", "fact"],
+                        "default": "fact"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "enum": ["project", "global", "both"],
+                        "description": "Write actions accept project/global. Search accepts project/global/both.",
+                        "default": "project"
+                    },
+                    "query": { "type": "string", "description": "Natural language search query for action=search." },
+                    "applies_to_context": { "type": "string" },
+                    "rationale": { "type": "string" },
+                    "severity_level": {
+                        "type": "string",
+                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
+                    "source": { "type": "string" },
+                    "related_skill_id": { "type": "string" },
+                    "related_skill_ids": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "depends_on_memory_ids": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "include_dependencies": { "type": "boolean", "default": false },
+                    "include_superseded": { "type": "boolean", "default": false },
+                    "include_archived": { "type": "boolean", "default": false },
+                    "is_archived": { "type": "boolean" },
+                    "hard_delete": { "type": "boolean", "default": false },
+                    "relation": {
+                        "type": "string",
+                        "enum": ["depends_on_memory", "supersedes_memory", "related_to_skill"]
+                    },
+                    "target_id": { "type": "string" },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+                    "format": {
+                        "type": "string",
+                        "enum": ["compact", "raw"],
+                        "default": "compact"
+                    }
+                },
+                "required": ["action"]
             }),
         ),
     ]

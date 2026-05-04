@@ -9,8 +9,8 @@ use oxigraph::io::RdfFormat;
 use oxigraph::model::Term;
 use oxigraph::sparql::{QueryResults, SparqlEvaluator};
 use oxigraph::store::Store;
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
 
 use walkdir::WalkDir;
 
@@ -204,9 +204,9 @@ impl PayloadInfo {
 /// A link from a knowledge node to a related node (correct alternative or applicable step).
 #[derive(Debug, Clone, Serialize)]
 pub struct KnowledgeNodeLink {
-    pub property: String,       // "correctAlternative" or "appliesToStep"
-    pub target_title: String,   // e.g. "Use Formulas, Not Hardcoded Values"
-    pub target_type: String,    // "Section" | "CodeExample" | "WorkflowStep"
+    pub property: String,     // "correctAlternative" or "appliesToStep"
+    pub target_title: String, // e.g. "Use Formulas, Not Hardcoded Values"
+    pub target_type: String,  // "Section" | "CodeExample" | "WorkflowStep"
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -453,7 +453,13 @@ impl Catalog {
                 }
 
                 load_turtle_file(&store, path)?;
-                collect_skill_records_from_file(path, ontology_root, &registry_lookup, &mut skill_index, &base_uri)?;
+                collect_skill_records_from_file(
+                    path,
+                    ontology_root,
+                    &registry_lookup,
+                    &mut skill_index,
+                    &base_uri,
+                )?;
                 loaded_any = true;
             }
         }
@@ -471,6 +477,27 @@ impl Catalog {
             base_uri,
             skill_index,
         })
+    }
+
+    pub fn reload_memory_files(&self, paths: &[PathBuf]) -> Result<(), CatalogError> {
+        self.store
+            .update(
+                r#"
+                PREFIX oc: <https://ontoskills.sh/ontology#>
+                DELETE WHERE {
+                    ?memory a oc:Memory .
+                    ?memory ?p ?o .
+                }
+                "#,
+            )
+            .map_err(|err| CatalogError::Oxigraph(err.to_string()))?;
+
+        for path in paths {
+            if path.exists() {
+                load_turtle_file(&self.store, path)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn search_skills(
@@ -950,10 +977,14 @@ impl Catalog {
 
     pub fn resolve_alias(&self, alias: &str) -> Result<Vec<SkillSummary>, CatalogError> {
         // Validate alias: only allow alphanumeric, dash, underscore, space
-        if !alias.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ' ') {
-            return Err(CatalogError::InvalidInput(
-                format!("Alias contains invalid characters: '{}'. Only alphanumeric, dash, underscore, and space are allowed.", alias)
-            ));
+        if !alias
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ' ')
+        {
+            return Err(CatalogError::InvalidInput(format!(
+                "Alias contains invalid characters: '{}'. Only alphanumeric, dash, underscore, and space are allowed.",
+                alias
+            )));
         }
 
         let mut results = Vec::new();
@@ -1195,10 +1226,7 @@ impl Catalog {
     /// Only retrieves CodeExample (code blocks) and Table (reference tables).
     /// Paragraphs and BulletLists are NOT retrieved because their content is
     /// already captured by knowledge nodes' `directive_content`.
-    fn get_section_content(
-        &self,
-        skill_id: &str,
-    ) -> Result<Vec<SectionContent>, CatalogError> {
+    fn get_section_content(&self, skill_id: &str) -> Result<Vec<SectionContent>, CatalogError> {
         validate_skill_id(skill_id)?;
         let record = self.resolve_skill_reference(skill_id)?;
         let skill_uri = record.uri.clone();
@@ -1379,8 +1407,14 @@ impl Catalog {
         for record in &self.skill_index {
             let details = self.get_skill(&record.qualified_id)?;
             let matches = match relation {
-                "oc:yieldsState" => details.yields_state.iter().any(|value| value == state_uri || value == &self.compact_uri(state_uri)),
-                "oc:requiresState" => details.requires_state.iter().any(|value| value == state_uri || value == &self.compact_uri(state_uri)),
+                "oc:yieldsState" => details
+                    .yields_state
+                    .iter()
+                    .any(|value| value == state_uri || value == &self.compact_uri(state_uri)),
+                "oc:requiresState" => details
+                    .requires_state
+                    .iter()
+                    .any(|value| value == state_uri || value == &self.compact_uri(state_uri)),
                 _ => false,
             };
             if !matches {
@@ -1683,7 +1717,13 @@ fn load_manifest_tree(
     }
 
     load_turtle_file(store, &canonical)?;
-    collect_skill_records_from_file(&canonical, ontology_root, registry_lookup, skill_index, base_uri)?;
+    collect_skill_records_from_file(
+        &canonical,
+        ontology_root,
+        registry_lookup,
+        skill_index,
+        base_uri,
+    )?;
 
     let content = std::fs::read_to_string(&canonical)?;
     for imported in parse_import_paths(&content, ontology_root) {
@@ -1727,7 +1767,10 @@ fn parse_import_paths(content: &str, ontology_root: &Path) -> Vec<PathBuf> {
                 if local_path.exists() {
                     imports.push(local_path);
                 } else {
-                    eprintln!("Warning: https import https://{} not found locally at {:?}", raw_url, local_path);
+                    eprintln!(
+                        "Warning: https import https://{} not found locally at {:?}",
+                        raw_url, local_path
+                    );
                 }
             }
         }
@@ -1809,7 +1852,8 @@ fn collect_skill_records_from_file(
             // Support both prefixed (oc:skill_xxx) and full IRI (<https://...#skill_xxx>)
             if subject.starts_with("oc:skill_") {
                 // Use the runtime base_uri instead of DEFAULT_BASE_URI
-                last_subject_uri = Some(format!("{}{}", base_uri, subject.trim_start_matches("oc:")));
+                last_subject_uri =
+                    Some(format!("{}{}", base_uri, subject.trim_start_matches("oc:")));
             } else if subject.starts_with('<') && subject.contains("#skill_") {
                 // Full IRI: <https://ontoskills.sh/ontology#skill_xxx>
                 last_subject_uri = Some(subject.trim_matches(|c| c == '<' || c == '>').to_string());
@@ -1868,7 +1912,11 @@ fn build_skill_record(
     let rel = module_path
         .strip_prefix(ontology_root)
         .ok()
-        .and_then(|path| path.components().next().map(|c| c.as_os_str().to_string_lossy().to_string()));
+        .and_then(|path| {
+            path.components()
+                .next()
+                .map(|c| c.as_os_str().to_string_lossy().to_string())
+        });
     let trust_tier = match rel.as_deref() {
         Some("author") => "verified",
         _ => "local",
@@ -2357,7 +2405,10 @@ oc:skill_disabled a oc:Skill, oc:DeclarativeSkill ;
         fs::create_dir_all(root.join("author").join("marea/office").join("skills")).unwrap();
         fs::create_dir_all(root.join("xlsx")).unwrap();
         fs::write(
-            root.join("author").join("marea/office").join("skills").join("xlsx.ttl"),
+            root.join("author")
+                .join("marea/office")
+                .join("skills")
+                .join("xlsx.ttl"),
             format!(
                 r#"
 @prefix oc: <{base}> .

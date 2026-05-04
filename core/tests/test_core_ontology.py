@@ -475,6 +475,51 @@ class TestKnowledgeNodeProperties:
         assert (oc.severityLevel, RDFS.domain, oc.KnowledgeNode) in core_ontology
 
 
+class TestMemoryOntology:
+    """Tests for runtime memory ontology terms."""
+
+    @pytest.fixture
+    def core_ontology(self, tmp_path):
+        output_path = tmp_path / "core.ttl"
+        return create_core_ontology(output_path)
+
+    @pytest.fixture
+    def oc(self):
+        return get_oc_namespace()
+
+    def test_memory_is_knowledge_node(self, core_ontology, oc):
+        assert (oc.Memory, RDF.type, OWL.Class) in core_ontology
+        assert (oc.Memory, RDFS.subClassOf, oc.KnowledgeNode) in core_ontology
+
+    def test_memory_subclasses_exist(self, core_ontology, oc):
+        for class_name in [
+            "ProcedureMemory",
+            "CorrectionMemory",
+            "AntiPatternMemory",
+            "PreferenceMemory",
+            "FactMemory",
+        ]:
+            assert (oc[class_name], RDF.type, OWL.Class) in core_ontology
+            assert (oc[class_name], RDFS.subClassOf, oc.Memory) in core_ontology
+
+    def test_memory_properties_exist(self, core_ontology, oc):
+        for prop_name in [
+            "memoryId",
+            "memoryScope",
+            "createdAt",
+            "updatedAt",
+            "confidence",
+            "isArchived",
+            "source",
+        ]:
+            assert (oc[prop_name], RDF.type, OWL.DatatypeProperty) in core_ontology
+            assert (oc[prop_name], RDFS.domain, oc.Memory) in core_ontology
+
+        for prop_name in ["dependsOnMemory", "supersedesMemory", "relatedToSkill"]:
+            assert (oc[prop_name], RDF.type, OWL.ObjectProperty) in core_ontology
+            assert (oc[prop_name], RDFS.domain, oc.Memory) in core_ontology
+
+
 class TestKnowledgeRBoxAxioms:
     """Tests for RBox axioms for knowledge inheritance."""
 

@@ -86,6 +86,58 @@ def _add_knowledge_rbox(g: Graph, oc: Namespace) -> None:
     g.add((chain_second, RDF.rest, RDF.nil))
 
 
+def _add_memory_model(g: Graph, oc: Namespace) -> None:
+    """Add runtime memory classes and properties."""
+
+    g.add((oc.Memory, RDF.type, OWL.Class))
+    g.add((oc.Memory, RDFS.subClassOf, oc.KnowledgeNode))
+    g.add((oc.Memory, RDFS.label, Literal("Memory")))
+    g.add((oc.Memory, RDFS.comment, Literal(
+        "Runtime knowledge remembered by an agent, stored as part of the shared knowledge graph"
+    )))
+
+    for class_name, label, comment in [
+        ("ProcedureMemory", "Procedure Memory", "A remembered procedure or how-to"),
+        ("CorrectionMemory", "Correction Memory", "A remembered correction to apply in future work"),
+        ("AntiPatternMemory", "Anti-pattern Memory", "A remembered mistake or pattern to avoid"),
+        ("PreferenceMemory", "Preference Memory", "A remembered user or project preference"),
+        ("FactMemory", "Fact Memory", "A remembered fact or contextual note"),
+    ]:
+        class_uri = oc[class_name]
+        g.add((class_uri, RDF.type, OWL.Class))
+        g.add((class_uri, RDFS.subClassOf, oc.Memory))
+        g.add((class_uri, RDFS.label, Literal(label)))
+        g.add((class_uri, RDFS.comment, Literal(comment)))
+
+    for prop_name, label, comment, range_uri in [
+        ("memoryId", "memory id", "Stable identifier for a memory", XSD.string),
+        ("memoryScope", "memory scope", "Scope for a memory: global or project", XSD.string),
+        ("createdAt", "created at", "Creation timestamp for a memory", XSD.dateTime),
+        ("updatedAt", "updated at", "Last update timestamp for a memory", XSD.dateTime),
+        ("confidence", "confidence", "Confidence score between 0.0 and 1.0", XSD.decimal),
+        ("isArchived", "is archived", "Whether a memory is archived", XSD.boolean),
+        ("source", "source", "Source or reason this memory was recorded", XSD.string),
+    ]:
+        prop_uri = oc[prop_name]
+        g.add((prop_uri, RDF.type, OWL.DatatypeProperty))
+        g.add((prop_uri, RDFS.domain, oc.Memory))
+        g.add((prop_uri, RDFS.range, range_uri))
+        g.add((prop_uri, RDFS.label, Literal(label)))
+        g.add((prop_uri, RDFS.comment, Literal(comment)))
+
+    for prop_name, label, comment, range_uri in [
+        ("dependsOnMemory", "depends on memory", "Memory prerequisite or supporting memory", oc.Memory),
+        ("supersedesMemory", "supersedes memory", "Older memory replaced by this memory", oc.Memory),
+        ("relatedToSkill", "related to skill", "Skill this memory is relevant to", oc.Skill),
+    ]:
+        prop_uri = oc[prop_name]
+        g.add((prop_uri, RDF.type, OWL.ObjectProperty))
+        g.add((prop_uri, RDFS.domain, oc.Memory))
+        g.add((prop_uri, RDFS.range, range_uri))
+        g.add((prop_uri, RDFS.label, Literal(label)))
+        g.add((prop_uri, RDFS.comment, Literal(comment)))
+
+
 def _add_extracted_block_classes(g: Graph, oc: Namespace) -> None:
     """Add LLM-extracted content block classes (CodeExample, Table, Flowchart, Template) and their properties."""
 
@@ -540,6 +592,9 @@ def create_core_ontology(output_path: Optional[Path] = None) -> Graph:
 
     # Add RBox axioms for knowledge inheritance
     _add_knowledge_rbox(g, oc)
+
+    # Add runtime memory model
+    _add_memory_model(g, oc)
 
     # Add operational knowledge node types and properties
     _add_operational_node_types(g, oc)
