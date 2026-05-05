@@ -269,11 +269,13 @@ class SkillsBenchWrapper:
     def _build_agent_env(skill_nudge: str) -> dict[str, str]:
         """Build agent environment dict with API key and provider vars."""
         agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
-        agent_env["CLAUDE_CODE_SIMPLE"] = "1"
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         if api_key:
             agent_env["ANTHROPIC_API_KEY"] = api_key
             agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
+            # BenchFlow's opencode registry maps BFLOW_BASE_URL → OPENAI_BASE_URL.
+            # Override with Anthropic key so opencode uses the right provider.
+            agent_env["OPENAI_API_KEY"] = api_key
         base_url = os.environ.get("ANTHROPIC_BASE_URL")
         if base_url:
             agent_env["ANTHROPIC_BASE_URL"] = base_url
