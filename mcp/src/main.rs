@@ -26,7 +26,7 @@ const SERVER_NAME: &str = "ontomcp";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-11-25";
 const SUPPORTED_PROTOCOLS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_INSTRUCTIONS: &str = "Use ontoskill for skill discovery and exact skill context. Use ontomemory for remembered user/project knowledge, preferences, facts, procedures, corrections, and prior decisions. Before answering questions about remembered context, call ontomemory search with scope=both; use action=list, omit query, or query=\"*\" to list memories.";
+const SERVER_INSTRUCTIONS: &str = "Use ontoskill for skill discovery and exact skill context. Use ontomemory for remembered user/project knowledge, preferences, facts, procedures, corrections, and prior decisions. To inspect remembered context, call ontomemory with action=list and scope=both. To retrieve by topic, call ontomemory with action=search, scope=both, and a specific query.";
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -993,14 +993,14 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "ontomemory",
-            "Manage remembered user/project knowledge: preferences, facts, procedures, corrections, decisions, and notes. Use list to inspect memories, search for a specific query, remember to store, get by id, update, forget, or link a memory to a skill.",
+            "Manage remembered user/project knowledge: preferences, facts, procedures, corrections, decisions, and notes. Use action=list to inspect all memories, action=search with query for retrieval, action=remember to store, action=get by id, action=update, action=forget, or action=link to relate a memory to a skill.",
             json!({
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
                         "enum": ["remember", "search", "list", "get", "update", "forget", "link"],
-                        "description": "CRUD action. list shows memories; search uses query; forget archives unless hard_delete=true."
+                        "description": "CRUD action. Use list to show memories without a query; search requires query intent; forget archives unless hard_delete=true. Runtime also accepts aliases like ls, all, show, list_all, find, add, save, delete."
                     },
                     "content": { "type": "string", "description": "Memory text for remember/update." },
                     "memory_id": { "type": "string", "description": "Memory id for get/update/forget/link." },
@@ -1018,7 +1018,7 @@ fn tool_definitions() -> Vec<Value> {
                     },
                     "query": {
                         "type": "string",
-                        "description": "Search text. Omit or use '*' to list."
+                        "description": "Search text for action=search. For listing all memories prefer action=list; query='*' is also accepted."
                     },
                     "related_skill_id": { "type": "string", "description": "Skill id for remember/search/link." },
                     "limit": { "type": "integer", "description": "Max search/list results.", "minimum": 1, "maximum": 100 },

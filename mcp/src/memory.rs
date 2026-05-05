@@ -116,7 +116,8 @@ impl MemoryStore {
 
     pub fn handle_action(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
         let action = required_string(arguments, "action")?;
-        match action {
+        let normalized_action = normalize_action(action)?;
+        match normalized_action {
             "remember" => self.remember(arguments),
             "search" | "list" => self.search_action(arguments),
             "get" => self.get_action(arguments),
@@ -1247,6 +1248,20 @@ fn required_string<'a>(value: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("Missing required string field '{key}'"))
 }
 
+fn normalize_action(action: &str) -> Result<&'static str, String> {
+    match action.trim().to_ascii_lowercase().as_str() {
+        "remember" | "add" | "save" => Ok("remember"),
+        "search" | "find" | "query" => Ok("search"),
+        "list" | "ls" | "all" | "show" | "list_all" | "list-all" | "list memories"
+        | "list_memories" | "show memories" | "show_memories" => Ok("list"),
+        "get" | "read" | "show_memory" => Ok("get"),
+        "update" | "edit" => Ok("update"),
+        "forget" | "archive" | "delete" => Ok("forget"),
+        "link" | "relate" => Ok("link"),
+        other => Err(format!("Unknown ontomemory action: {other}")),
+    }
+}
+
 fn optional_string(value: &Value, key: &str) -> Option<String> {
     value
         .get(key)
@@ -1489,6 +1504,37 @@ mod tests {
             global.structured["memory"]["memory_id"]
         );
         assert_eq!(memories[0]["scope"], "global");
+    }
+
+    #[test]
+    fn list_action_accepts_agent_friendly_aliases() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let remembered = store
+            .handle_action(&json!({
+                "action": "REMEMBER",
+                "content": "Prefer action=list when showing all memories",
+                "memory_type": "procedure",
+                "scope": "global"
+            }))
+            .unwrap();
+
+        for action in ["LIST", "list_all", "show memories", "all", "ls"] {
+            let listed = store
+                .handle_action(&json!({
+                    "action": action,
+                    "scope": "global",
+                    "limit": 100
+                }))
+                .unwrap();
+            let memories = listed.structured["memories"].as_array().unwrap();
+            assert_eq!(memories.len(), 1);
+            assert_eq!(
+                memories[0]["memory_id"],
+                remembered.structured["memory"]["memory_id"]
+            );
+        }
     }
 
     #[test]
