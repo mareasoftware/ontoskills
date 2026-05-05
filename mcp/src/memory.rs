@@ -746,6 +746,7 @@ fn serialize_record(record: &MemoryRecord) -> String {
     ));
     for skill_id in &record.related_skill_ids {
         lines.push(format!("    oc:relatedToSkill {} ;", skill_ref(skill_id)));
+        push_literal(&mut lines, "oc:relatedSkillId", skill_id);
     }
     for memory_id in &record.depends_on_memory_ids {
         lines.push(format!(
@@ -819,6 +820,8 @@ fn parse_memory_block(lines: &[String]) -> Option<MemoryRecord> {
         updated_at: String::new(),
         is_archived: false,
     };
+    let mut related_skill_exact_ids = Vec::new();
+    let mut related_skill_fallback_ids = Vec::new();
 
     for line in lines {
         if line.contains("oc:memoryId ") {
@@ -845,9 +848,13 @@ fn parse_memory_block(lines: &[String]) -> Option<MemoryRecord> {
             record.is_archived = extract_literal(line)
                 .map(|value| value == "true")
                 .unwrap_or(false);
+        } else if line.contains("oc:relatedSkillId ") {
+            if let Some(value) = extract_literal(line) {
+                related_skill_exact_ids.push(value);
+            }
         } else if line.contains("oc:relatedToSkill ") {
             if let Some(value) = extract_prefixed_object(line, "oc:skill_") {
-                record.related_skill_ids.push(desanitize_ref(&value));
+                related_skill_fallback_ids.push(desanitize_ref(&value));
             }
         } else if line.contains("oc:dependsOnMemory ") {
             if let Some(value) = extract_prefixed_object(line, "oc:mem_") {
@@ -867,6 +874,11 @@ fn parse_memory_block(lines: &[String]) -> Option<MemoryRecord> {
     if record.memory_id.is_empty() || record.content.is_empty() {
         return None;
     }
+    record.related_skill_ids = if related_skill_exact_ids.is_empty() {
+        related_skill_fallback_ids
+    } else {
+        related_skill_exact_ids
+    };
     normalize_id_list(&mut record.related_skill_ids);
     normalize_id_list(&mut record.depends_on_memory_ids);
     normalize_id_list(&mut record.supersedes_memory_ids);
@@ -1431,29 +1443,32 @@ mod tests {
         let dir = tempdir().unwrap();
         let mut store =
             MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
-        let skill_id = "marea/search";
-        store
-            .handle_action(&json!({
-                "action": "remember",
-                "content": "Roundtrip skill relation",
-                "related_skill_id": skill_id
-            }))
-            .unwrap();
+        for skill_id in ["marea/search", "test-skill", "snake_case"] {
+            store
+                .handle_action(&json!({
+                    "action": "remember",
+                    "content": format!("Roundtrip skill relation for {skill_id}"),
+                    "related_skill_id": skill_id
+                }))
+                .unwrap();
+        }
 
         store.reload().unwrap();
 
-        let matches = store
-            .handle_action(&json!({
-                "action": "search",
-                "scope": "both",
-                "related_skill_id": skill_id
-            }))
-            .unwrap();
-        assert_eq!(matches.structured["memories"].as_array().unwrap().len(), 1);
-        assert_eq!(
-            matches.structured["memories"][0]["related_skill_ids"],
-            json!([skill_id])
-        );
+        for skill_id in ["marea/search", "test-skill", "snake_case"] {
+            let matches = store
+                .handle_action(&json!({
+                    "action": "search",
+                    "scope": "both",
+                    "related_skill_id": skill_id
+                }))
+                .unwrap();
+            assert_eq!(matches.structured["memories"].as_array().unwrap().len(), 1);
+            assert_eq!(
+                matches.structured["memories"][0]["related_skill_ids"],
+                json!([skill_id])
+            );
+        }
     }
 
     #[test]
