@@ -119,8 +119,14 @@ impl MemoryStore {
         let normalized_action = normalize_action(action)?;
         match normalized_action {
             "remember" => self.remember(arguments),
-            "search" | "list" => self.search_action(arguments),
-            "get" => self.get_action(arguments),
+            "search" | "list" => {
+                self.reload()?;
+                self.search_action(arguments)
+            }
+            "get" => {
+                self.reload()?;
+                self.get_action(arguments)
+            }
             "update" => self.update(arguments),
             "forget" => self.forget(arguments),
             "link" => self.link(arguments),
@@ -129,11 +135,12 @@ impl MemoryStore {
     }
 
     pub fn relevant_memories_for_query(
-        &self,
+        &mut self,
         query: &str,
         related_skill_ids: &[String],
         limit: usize,
-    ) -> Vec<MemorySearchResult> {
+    ) -> Result<Vec<MemorySearchResult>, String> {
+        self.reload()?;
         let mut params = MemorySearchParams::default();
         params.query = Some(query.to_string());
         params.scope = "both".to_string();
@@ -161,7 +168,7 @@ impl MemoryStore {
             });
             results.truncate(limit.min(MAX_LIMIT));
         }
-        results
+        Ok(results)
     }
 
     fn remember(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
@@ -1792,5 +1799,49 @@ mod tests {
         assert!(ttl.contains("first memory"));
         assert!(ttl.contains("external memory"));
         assert!(ttl.contains("second memory"));
+    }
+
+    #[test]
+    fn read_actions_reload_external_writes_from_other_agents() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("memories");
+        let mut agent_a = MemoryStore::load(root.clone(), "project-a".to_string()).unwrap();
+        let mut agent_b = MemoryStore::load(root, "project-a".to_string()).unwrap();
+
+        let remembered = agent_a
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Shared memory should be visible without restarting agents",
+                "memory_type": "fact",
+                "scope": "global"
+            }))
+            .unwrap();
+        let memory_id = remembered.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let listed = agent_b
+            .handle_action(&json!({
+                "action": "list",
+                "scope": "global",
+                "format": "raw"
+            }))
+            .unwrap();
+        assert_eq!(
+            listed.structured["memories"][0]["memory_id"],
+            json!(memory_id)
+        );
+
+        let fetched = agent_b
+            .handle_action(&json!({
+                "action": "get",
+                "memory_id": memory_id
+            }))
+            .unwrap();
+        assert_eq!(
+            fetched.structured["memory"]["content"],
+            "Shared memory should be visible without restarting agents"
+        );
     }
 }

@@ -554,7 +554,7 @@ fn handle_tool_call(
                         use_compact,
                     )?;
                     let skill_ids = skill_ids_from_search(&structured);
-                    let memories = memory_store.relevant_memories_for_query(q, &skill_ids, 5);
+                    let memories = memory_store.relevant_memories_for_query(q, &skill_ids, 5)?;
                     if !memories.is_empty() {
                         if let Value::Object(ref mut object) = structured {
                             object.insert("memories".to_string(), json!(memories));
