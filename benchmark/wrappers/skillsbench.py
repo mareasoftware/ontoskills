@@ -416,6 +416,9 @@ class SkillsBenchWrapper:
         Splits Trial lifecycle using public API so we can inject
         ontomcp binary + TTL files + .mcp_config.json between
         start() and install_agent().
+
+        Overrides the prompt nudge to mention the ``ontoskill`` MCP tool
+        instead of ``~/.claude/skills`` (which does not exist in MCP mode).
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -423,12 +426,30 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        agent_env = self._build_agent_env(skill_nudge)
+        # Build MCP-specific prompt: read instruction.md and prepend
+        # an MCP tool nudge.  Disable BenchFlow's built-in skill_nudge
+        # because it mentions ~/.claude/skills which doesn't exist here.
+        instr_path = task_path / "instruction.md"
+        instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
+
+        if skill_nudge and task.get("skill_ids"):
+            names = ", ".join(task["skill_ids"])
+            snippet = task["skill_ids"][0]
+            nudge = (
+                f"Skills available via the ontoskill tool: {names}. "
+                f"Call ontoskill(q=\"{snippet}\") to load its full context, "
+                f"or use ontoskill(q=\"your task description\") to discover "
+                f"relevant skills."
+            )
+            instruction = nudge + "\n\n" + instruction
+
+        agent_env = self._build_agent_env("")  # disable BenchFlow's skill_nudge
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
             agent="opencode",
             model="glm-5.1",
+            prompts=[instruction],
             jobs_dir=str(jobs_dir),
             environment="docker",
             agent_env=agent_env,
