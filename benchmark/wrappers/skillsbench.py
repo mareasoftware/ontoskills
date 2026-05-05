@@ -37,6 +37,45 @@ from benchmark.agents.base import AgentResult, BaseAgent
 
 logger = logging.getLogger(__name__)
 
+# Fix opencode's skill_paths in BenchFlow registry — the default
+# '$HOME/.opencode/skills' is not a path opencode reads from.
+# opencode reads from ~/.claude/skills/ and ~/.agents/skills/.
+# We register both so skills are found regardless of path preference.
+try:
+    from benchflow.agents.registry import register_agent
+
+    register_agent(
+        name="opencode",
+        launch_cmd="opencode acp",
+        install_cmd=(
+            "set -o pipefail; export DEBIAN_FRONTEND=noninteractive; "
+            "NODE_OK=0; "
+            "if command -v node >/dev/null 2>&1; then "
+            "  NODE_VER=$(node -e 'console.log(process.versions.node.split(\".\")[0])' 2>/dev/null || echo 0); "
+            "  [ \"$NODE_VER\" -ge 22 ] 2>/dev/null && NODE_OK=1; "
+            "fi; "
+            "if [ \"$NODE_OK\" = 0 ]; then "
+            "  apt-get update -qq && apt-get install -y -qq curl ca-certificates && "
+            "  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && "
+            "  apt-get install -y -qq nodejs; "
+            "fi >/dev/null 2>&1 && "
+            "( command -v opencode >/dev/null 2>&1 || npm install -g opencode-ai@latest >/dev/null 2>&1 ) && "
+            "command -v opencode >/dev/null 2>&1"
+        ),
+        requires_env=[],
+        env_mapping={"BENCHFLOW_PROVIDER_BASE_URL": "OPENAI_BASE_URL"},
+        supports_skills=True,
+        skill_paths=[
+            "$HOME/.claude/skills",
+            "$HOME/.agents/skills",
+            "$HOME/.opencode/skills",
+        ],
+        disallow_web_tools_launch_suffix=None,
+    )
+    logger.info("Registered opencode agent with corrected skill_paths")
+except Exception:
+    pass
+
 # Tasks with exotic base images or multi-container setups that won't build.
 _SKIP_TASKS = {
     "fix-build-agentops",       # bugswarm/cached-images — needs CI cache
