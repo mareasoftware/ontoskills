@@ -1537,6 +1537,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn link_accepts_legacy_aliases_and_get_include_links() {
         let dir = tempdir().unwrap();
         let mut store =
