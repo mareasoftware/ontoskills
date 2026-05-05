@@ -381,8 +381,11 @@ impl MemoryStore {
         let memory_id = required_string(arguments, "memory_id")?;
         let relation = optional_string(arguments, "relation")
             .or_else(|| optional_string(arguments, "link_type"))
+            .or_else(|| {
+                optional_string(arguments, "related_skill_id").map(|_| "related_to_skill".to_string())
+            })
             .ok_or_else(|| {
-                "Missing required string field 'relation' (or legacy alias 'link_type')".to_string()
+                "Missing required string field 'relation' (or legacy alias 'link_type'); use related_skill_id for simple skill links".to_string()
             })?;
         let relation = relation.as_str();
         let target_id = link_target(arguments, relation)?;
@@ -1636,6 +1639,33 @@ mod tests {
         assert_eq!(
             explicit_flag.structured["memory"]["depends_on_memory_ids"],
             json!([dependency_id])
+        );
+    }
+
+    #[test]
+    fn link_accepts_simple_related_skill_id() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let source = store
+            .handle_action(&json!({ "action": "remember", "content": "source memory" }))
+            .unwrap();
+        let source_id = source.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let linked = store
+            .handle_action(&json!({
+                "action": "link",
+                "memory_id": source_id,
+                "related_skill_id": "test-skill"
+            }))
+            .unwrap();
+
+        assert_eq!(
+            linked.structured["memory"]["related_skill_ids"],
+            json!(["test-skill"])
         );
     }
 
