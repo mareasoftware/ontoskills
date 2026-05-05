@@ -26,6 +26,7 @@ const SERVER_NAME: &str = "ontomcp";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-11-25";
 const SUPPORTED_PROTOCOLS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+const SERVER_INSTRUCTIONS: &str = "Use ontoskill for skill discovery and exact skill context. Use ontomemory for remembered user/project knowledge, preferences, facts, procedures, corrections, and prior decisions. Before answering questions about remembered context, call ontomemory search with scope=both; use action=list, omit query, or query=\"*\" to list memories.";
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -152,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "listChanged": false
                         }
                     },
-                    "instructions": "Use the consolidated OntoSkills tools to discover skills, retrieve full skill context, evaluate execution plans, and query epistemic rules."
+                    "instructions": SERVER_INSTRUCTIONS
                 });
                 respond_ok(&mut writer, wire_mode, request.id, result)?;
             }
@@ -992,72 +993,80 @@ fn tool_definitions() -> Vec<Value> {
         ),
         tool(
             "ontomemory",
-            "Read and manipulate runtime memories in the shared OntoSkills knowledge graph. Use action=remember/search/get/update/forget/link.",
+            "Store, retrieve, update, archive, and link remembered user/project knowledge: preferences, facts, procedures, corrections, prior decisions, and contextual notes. Use scope=global for cross-project user memories and scope=project for this project. Use action=list, omit query, or query='*' to list memories.",
             json!({
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["remember", "search", "get", "update", "forget", "link"]
+                        "enum": ["remember", "search", "list", "get", "update", "forget", "link"],
+                        "description": "remember stores a new fact/preference/procedure/correction; search retrieves memories with BM25 or lists when query is omitted/'*'; list lists memories matching filters; get loads by memory_id; update modifies a memory; forget archives by default and hard deletes only with hard_delete=true; link relates memories to memories or skills."
                     },
-                    "content": { "type": "string", "description": "Memory content for action=remember or action=update." },
-                    "memory_id": { "type": "string", "description": "Memory id for get/update/forget/link." },
+                    "content": { "type": "string", "description": "Memory text for remember/update. Use this for durable user or project knowledge, not transient chat." },
+                    "memory_id": { "type": "string", "description": "Memory id for get, update, forget, or link." },
                     "memory_type": {
                         "type": "string",
                         "enum": ["procedure", "correction", "anti_pattern", "preference", "fact"],
-                        "default": "fact"
+                        "default": "fact",
+                        "description": "Kind of remembered knowledge. Use preference for user/project preferences, procedure for recurring steps, correction for fixes to apply later, anti_pattern for things to avoid, and fact for contextual notes."
                     },
                     "scope": {
                         "type": "string",
                         "enum": ["project", "global", "both"],
-                        "description": "Write actions accept project/global. Search accepts project/global/both.",
+                        "description": "Write actions accept project/global and default to project. Search/list accept project/global/both and default to both. Use global for cross-project user memories.",
                         "default": "project"
                     },
                     "query": {
                         "type": "string",
-                        "description": "Natural language search query for action=search. Omit query, use an empty string, or use '*' to list memories matching the filters."
+                        "description": "BM25 search text for action=search. Omit query, use an empty string, or use '*' to list memories matching filters instead of keyword-searching."
                     },
-                    "applies_to_context": { "type": "string" },
-                    "rationale": { "type": "string" },
+                    "applies_to_context": { "type": "string", "description": "Optional context where the memory applies." },
+                    "rationale": { "type": "string", "description": "Why this memory matters or should be reused." },
                     "severity_level": {
                         "type": "string",
-                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                        "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+                        "description": "Optional importance/risk marker; case-insensitive input is normalized."
                     },
                     "confidence": {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 1
+                        "maximum": 1,
+                        "description": "Optional confidence from 0.0 to 1.0."
                     },
-                    "source": { "type": "string" },
+                    "source": { "type": "string", "description": "Optional source or provenance for the remembered knowledge." },
                     "min_confidence": {
                         "type": "number",
                         "minimum": 0,
-                        "maximum": 1
+                        "maximum": 1,
+                        "description": "Search/list filter: only return memories with confidence at or above this value."
                     },
-                    "related_skill_id": { "type": "string" },
+                    "related_skill_id": { "type": "string", "description": "Skill id to associate on remember or filter on search/list; also a compatibility alias for link target when relation=related_to_skill." },
                     "related_skill_ids": {
                         "type": "array",
-                        "items": { "type": "string" }
+                        "items": { "type": "string" },
+                        "description": "Skill ids this memory is relevant to."
                     },
                     "depends_on_memory_ids": {
                         "type": "array",
-                        "items": { "type": "string" }
+                        "items": { "type": "string" },
+                        "description": "Memory ids this memory depends on."
                     },
-                    "include_dependencies": { "type": "boolean", "default": false },
-                    "include_superseded": { "type": "boolean", "default": false },
+                    "include_dependencies": { "type": "boolean", "description": "For get: include dependency links.", "default": false },
+                    "include_superseded": { "type": "boolean", "description": "For get: include superseded links.", "default": false },
                     "include_links": {
                         "type": "boolean",
-                        "description": "Compatibility alias for include_dependencies/include_superseded.",
+                        "description": "For get: compatibility shortcut for include_dependencies and include_superseded unless those flags are explicitly set.",
                         "default": false
                     },
-                    "include_archived": { "type": "boolean", "default": false },
-                    "is_archived": { "type": "boolean" },
-                    "hard_delete": { "type": "boolean", "default": false },
+                    "include_archived": { "type": "boolean", "description": "Search/list filter: include archived memories.", "default": false },
+                    "is_archived": { "type": "boolean", "description": "For update: set archived state." },
+                    "hard_delete": { "type": "boolean", "description": "For forget: false archives, true permanently removes.", "default": false },
                     "relation": {
                         "type": "string",
-                        "enum": ["depends_on_memory", "supersedes_memory", "related_to_skill"]
+                        "enum": ["depends_on_memory", "supersedes_memory", "related_to_skill"],
+                        "description": "Relation type for action=link."
                     },
-                    "target_id": { "type": "string" },
+                    "target_id": { "type": "string", "description": "Target memory id or skill id for action=link." },
                     "link_type": {
                         "type": "string",
                         "description": "Compatibility alias for relation.",
@@ -1067,7 +1076,7 @@ fn tool_definitions() -> Vec<Value> {
                         "type": "string",
                         "description": "Compatibility alias for target_id for memory-memory links."
                     },
-                    "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+                    "limit": { "type": "integer", "description": "Maximum search/list results, capped at 100.", "minimum": 1, "maximum": 100 },
                     "format": {
                         "type": "string",
                         "enum": ["compact", "raw"],
@@ -1133,6 +1142,13 @@ oc:skill_test a oc:Skill, oc:DeclarativeSkill ;
     }
 
     #[test]
+    fn initialize_instructions_explain_memory_usage() {
+        assert!(SERVER_INSTRUCTIONS.contains("Use ontomemory"));
+        assert!(SERVER_INSTRUCTIONS.contains("scope=both"));
+        assert!(SERVER_INSTRUCTIONS.contains("action=list"));
+    }
+
+    #[test]
     fn ontomemory_schema_exposes_memory_filters_and_aliases() {
         let tools = tool_definitions();
         let ontomemory = tools
@@ -1158,6 +1174,30 @@ oc:skill_test a oc:Skill, oc:DeclarativeSkill ;
                 "missing schema field {field}"
             );
         }
+        assert_eq!(
+            properties["action"]["enum"],
+            json!([
+                "remember", "search", "list", "get", "update", "forget", "link"
+            ])
+        );
+        assert!(
+            properties["query"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("'*'")
+        );
+        assert!(
+            properties["scope"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("Search/list")
+        );
+        assert!(
+            ontomemory["description"]
+                .as_str()
+                .unwrap()
+                .contains("remembered user/project knowledge")
+        );
     }
 
     #[test]

@@ -118,7 +118,7 @@ impl MemoryStore {
         let action = required_string(arguments, "action")?;
         match action {
             "remember" => self.remember(arguments),
-            "search" => self.search_action(arguments),
+            "search" | "list" => self.search_action(arguments),
             "get" => self.get_action(arguments),
             "update" => self.update(arguments),
             "forget" => self.forget(arguments),
@@ -1447,6 +1447,45 @@ mod tests {
         let memories = wildcard.structured["memories"].as_array().unwrap();
         assert_eq!(memories.len(), 1);
         assert_eq!(memories[0]["memory_id"], memory_id);
+    }
+
+    #[test]
+    fn list_action_lists_filtered_memories() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let global = store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "The user's favorite color is yellow",
+                "memory_type": "preference",
+                "scope": "global"
+            }))
+            .unwrap();
+        store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Run cargo test before committing",
+                "memory_type": "procedure",
+                "scope": "project"
+            }))
+            .unwrap();
+
+        let listed = store
+            .handle_action(&json!({
+                "action": "list",
+                "scope": "global",
+                "limit": 100
+            }))
+            .unwrap();
+
+        let memories = listed.structured["memories"].as_array().unwrap();
+        assert_eq!(memories.len(), 1);
+        assert_eq!(
+            memories[0]["memory_id"],
+            global.structured["memory"]["memory_id"]
+        );
+        assert_eq!(memories[0]["scope"], "global");
     }
 
     #[test]
