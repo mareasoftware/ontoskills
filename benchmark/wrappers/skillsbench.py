@@ -383,7 +383,10 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write .mcp_config.json to WORKDIR.
+        # Write .mcp_config.json to the container's WORKDIR.
+        result = await env.exec("pwd", timeout_sec=10)
+        cwd = (result.stdout or "").strip() or "/root"
+        mcp_dst = f"{cwd}/.mcp_config.json"
         mcp_config = json.dumps({
             "mcpServers": {
                 "ontoskills": {
@@ -399,11 +402,11 @@ class SkillsBenchWrapper:
             f.write(mcp_config)
             config_tmp = f.name
         try:
-            await env.upload_file(config_tmp, ".mcp_config.json")
+            await env.upload_file(config_tmp, mcp_dst)
         finally:
             os.unlink(config_tmp)
 
-        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json")
+        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json at %s", mcp_dst)
 
     async def _run_acp_mcp_trial(
         self,
