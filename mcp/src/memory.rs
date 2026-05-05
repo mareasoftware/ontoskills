@@ -968,7 +968,7 @@ fn extract_prefixed_object(line: &str, prefix: &str) -> Option<String> {
     if raw.is_empty() {
         None
     } else {
-        Some(raw.replace('_', "-"))
+        Some(raw.to_string())
     }
 }
 
