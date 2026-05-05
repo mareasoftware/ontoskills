@@ -556,11 +556,11 @@ fn handle_tool_call(
                     let memories = memory_store.relevant_memories_for_query(q, &skill_ids, 5);
                     if !memories.is_empty() {
                         if let Value::Object(ref mut object) = structured {
-                            object.insert("related_memories".to_string(), json!(memories));
+                            object.insert("memories".to_string(), json!(memories));
                         }
                         if use_compact {
                             text.push_str("\n\n");
-                            text.push_str(&compact_search_results("Relevant Memories", &memories));
+                            text.push_str(&compact_search_results("Relevant memories", &memories));
                         } else {
                             text = serde_json::to_string_pretty(&structured).unwrap_or_default();
                         }
@@ -1026,6 +1026,11 @@ fn tool_definitions() -> Vec<Value> {
                         "maximum": 1
                     },
                     "source": { "type": "string" },
+                    "min_confidence": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    },
                     "related_skill_id": { "type": "string" },
                     "related_skill_ids": {
                         "type": "array",
@@ -1037,6 +1042,11 @@ fn tool_definitions() -> Vec<Value> {
                     },
                     "include_dependencies": { "type": "boolean", "default": false },
                     "include_superseded": { "type": "boolean", "default": false },
+                    "include_links": {
+                        "type": "boolean",
+                        "description": "Compatibility alias for include_dependencies/include_superseded.",
+                        "default": false
+                    },
                     "include_archived": { "type": "boolean", "default": false },
                     "is_archived": { "type": "boolean" },
                     "hard_delete": { "type": "boolean", "default": false },
@@ -1045,6 +1055,15 @@ fn tool_definitions() -> Vec<Value> {
                         "enum": ["depends_on_memory", "supersedes_memory", "related_to_skill"]
                     },
                     "target_id": { "type": "string" },
+                    "link_type": {
+                        "type": "string",
+                        "description": "Compatibility alias for relation.",
+                        "enum": ["depends_on_memory", "supersedes_memory", "related_to_skill"]
+                    },
+                    "target_memory_id": {
+                        "type": "string",
+                        "description": "Compatibility alias for target_id for memory-memory links."
+                    },
                     "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
                     "format": {
                         "type": "string",
@@ -1064,4 +1083,187 @@ fn tool(name: &str, description: &str, input_schema: Value) -> Value {
         "description": description,
         "inputSchema": input_schema,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    fn write_minimal_ontology(root: &Path) {
+        fs::create_dir_all(root).unwrap();
+        fs::write(
+            root.join("index.ttl"),
+            r#"
+@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+oc:skill_test a oc:Skill, oc:DeclarativeSkill ;
+    dcterms:identifier "test-skill" ;
+    oc:nature "Test skill" ;
+    oc:resolvesIntent "test deployment bucket" .
+"#,
+        )
+        .unwrap();
+    }
+
+    fn test_runtime() -> (tempfile::TempDir, Catalog, MemoryStore, Bm25Engine) {
+        let dir = tempdir().unwrap();
+        let ontology_root = dir.path().join("ontologies");
+        write_minimal_ontology(&ontology_root);
+        let catalog = Catalog::load(&ontology_root).unwrap();
+        let memory_store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let bm25_engine = Bm25Engine::from_catalog(&catalog).unwrap();
+        (dir, catalog, memory_store, bm25_engine)
+    }
+
+    #[test]
+    fn public_tool_list_is_exactly_ontoskill_and_ontomemory() {
+        let names = tool_definitions()
+            .iter()
+            .filter_map(|tool| tool.get("name").and_then(Value::as_str))
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["ontoskill", "ontomemory"]);
+    }
+
+    #[test]
+    fn ontomemory_schema_exposes_memory_filters_and_aliases() {
+        let tools = tool_definitions();
+        let ontomemory = tools
+            .iter()
+            .find(|tool| tool.get("name").and_then(Value::as_str) == Some("ontomemory"))
+            .unwrap();
+        let properties = ontomemory
+            .pointer("/inputSchema/properties")
+            .and_then(Value::as_object)
+            .unwrap();
+
+        for field in [
+            "min_confidence",
+            "include_links",
+            "link_type",
+            "target_memory_id",
+            "related_skill_id",
+            "relation",
+            "target_id",
+        ] {
+            assert!(
+                properties.contains_key(field),
+                "missing schema field {field}"
+            );
+        }
+    }
+
+    #[test]
+    fn ontoskill_exact_lookup_does_not_include_memories() {
+        let (_dir, catalog, mut memory_store, bm25_engine) = test_runtime();
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the blue deployment bucket",
+                    "related_skill_id": "test-skill"
+                }
+            }),
+        )
+        .unwrap();
+
+        let exact = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontoskill", "arguments": { "q": "test-skill" } }),
+        )
+        .unwrap();
+
+        assert!(exact["structuredContent"].get("memories").is_none());
+        assert!(
+            !exact["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Relevant memories")
+        );
+    }
+
+    #[test]
+    fn ontoskill_query_includes_relevant_non_archived_memories() {
+        let (_dir, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let archived = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the archived blue deployment bucket"
+                }
+            }),
+        )
+        .unwrap();
+        let archived_id = archived["structuredContent"]["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "forget",
+                    "memory_id": archived_id
+                }
+            }),
+        )
+        .unwrap();
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the active blue deployment bucket"
+                }
+            }),
+        )
+        .unwrap();
+
+        let result = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontoskill", "arguments": { "q": "blue deployment bucket" } }),
+        )
+        .unwrap();
+
+        let memories = result["structuredContent"]["memories"].as_array().unwrap();
+        assert_eq!(memories.len(), 1);
+        assert_eq!(
+            memories[0]["content"],
+            "Use the active blue deployment bucket"
+        );
+        assert!(
+            result["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Relevant memories")
+        );
+    }
 }

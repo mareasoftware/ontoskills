@@ -39,6 +39,63 @@ pub struct Bm25Engine {
     skills: HashMap<String, SkillSummary>,
 }
 
+/// Searchable memory document used by the dedicated memory BM25 engine.
+pub struct MemoryBm25Document {
+    pub memory_id: String,
+    pub contents: String,
+}
+
+/// A single BM25 memory search result.
+#[derive(Debug, Serialize, Clone)]
+pub struct MemoryBm25Match {
+    pub memory_id: String,
+    pub score: f32,
+}
+
+/// In-memory BM25 search engine for runtime memories.
+pub struct MemoryBm25Engine {
+    engine: bm25::SearchEngine<String>,
+}
+
+impl MemoryBm25Engine {
+    pub fn from_documents(documents: Vec<MemoryBm25Document>) -> Self {
+        let documents = documents
+            .into_iter()
+            .map(|document| Document {
+                id: document.memory_id,
+                contents: document.contents,
+            })
+            .collect::<Vec<_>>();
+        let engine = if documents.is_empty() {
+            SearchEngineBuilder::<String>::with_avgdl(10.0).build()
+        } else {
+            SearchEngineBuilder::<String>::with_documents(Language::English, documents).build()
+        };
+        Self { engine }
+    }
+
+    pub fn search(&self, query: &str, limit: usize) -> Vec<MemoryBm25Match> {
+        let mut matches = self
+            .engine
+            .search(query, limit.saturating_mul(2).max(limit))
+            .into_iter()
+            .filter(|result| result.score > 0.0)
+            .map(|result| MemoryBm25Match {
+                memory_id: result.document.id,
+                score: result.score,
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        matches.truncate(limit);
+        matches
+    }
+}
+
 impl Bm25Engine {
     /// Build a BM25 engine from the Catalog's loaded skill data.
     ///

@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bm25::{Document, Language, SearchEngineBuilder};
+use crate::bm25_engine::{MemoryBm25Document, MemoryBm25Engine};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -29,11 +30,8 @@ pub struct MemoryRecord {
     pub confidence: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub related_skill_ids: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub depends_on_memory_ids: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub supersedes_memory_ids: Vec<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -166,6 +164,7 @@ impl MemoryStore {
     }
 
     fn remember(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
+        self.reload()?;
         let content = validated_content(required_string(arguments, "content")?)?;
         let scope = optional_string(arguments, "scope").unwrap_or_else(|| "project".to_string());
         validate_write_scope(&scope)?;
@@ -237,6 +236,9 @@ impl MemoryStore {
         params.severity_level = optional_string(arguments, "severity_level")
             .map(|value| normalize_severity(&value))
             .transpose()?;
+        params.min_confidence = optional_f64(arguments, "min_confidence")
+            .map(validate_confidence)
+            .transpose()?;
         params.include_archived = optional_bool(arguments, "include_archived").unwrap_or(false);
         params.limit = optional_usize(arguments, "limit")
             .unwrap_or(DEFAULT_LIMIT)
@@ -256,22 +258,36 @@ impl MemoryStore {
         let memory = self
             .find(memory_id)
             .ok_or_else(|| format!("Memory not found: {memory_id}"))?;
+        let include_links = optional_bool(arguments, "include_links");
+        let include_dependencies = include_links
+            .or_else(|| optional_bool(arguments, "include_dependencies"))
+            .unwrap_or(false);
+        let include_superseded = include_links
+            .or_else(|| optional_bool(arguments, "include_superseded"))
+            .unwrap_or(false);
+        let mut visible_memory = memory.clone();
+        if !include_dependencies {
+            visible_memory.depends_on_memory_ids.clear();
+        }
+        if !include_superseded {
+            visible_memory.supersedes_memory_ids.clear();
+        }
         let mut related = Vec::new();
-        if optional_bool(arguments, "include_dependencies").unwrap_or(false) {
+        if include_dependencies {
             for dep_id in &memory.depends_on_memory_ids {
                 if let Some(dep) = self.find(dep_id) {
                     related.push(dep.clone());
                 }
             }
         }
-        if optional_bool(arguments, "include_superseded").unwrap_or(false) {
+        if include_superseded {
             for old_id in &memory.supersedes_memory_ids {
                 if let Some(old) = self.find(old_id) {
                     related.push(old.clone());
                 }
             }
         }
-        let mut text = compact_one("Memory", memory);
+        let mut text = compact_one("Memory", &visible_memory);
         if !related.is_empty() {
             text.push_str("\n\nRelated:\n");
             for record in &related {
@@ -283,12 +299,13 @@ impl MemoryStore {
             text.truncate(text.trim_end().len());
         }
         Ok(MemoryActionResult::unchanged(
-            json!({ "memory": memory, "related": related }),
+            json!({ "memory": visible_memory, "related": related }),
             text,
         ))
     }
 
     fn update(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
+        self.reload()?;
         let memory_id = required_string(arguments, "memory_id")?;
         let Some(index) = self
             .records
@@ -333,6 +350,7 @@ impl MemoryStore {
     }
 
     fn forget(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
+        self.reload()?;
         let memory_id = required_string(arguments, "memory_id")?;
         let hard_delete = optional_bool(arguments, "hard_delete").unwrap_or(false);
         let Some(index) = self
@@ -359,9 +377,15 @@ impl MemoryStore {
     }
 
     fn link(&mut self, arguments: &Value) -> Result<MemoryActionResult, String> {
+        self.reload()?;
         let memory_id = required_string(arguments, "memory_id")?;
-        let relation = required_string(arguments, "relation")?;
-        let target_id = required_string(arguments, "target_id")?.trim();
+        let relation = optional_string(arguments, "relation")
+            .or_else(|| optional_string(arguments, "link_type"))
+            .ok_or_else(|| {
+                "Missing required string field 'relation' (or legacy alias 'link_type')".to_string()
+            })?;
+        let relation = relation.as_str();
+        let target_id = link_target(arguments, relation)?;
         if target_id.is_empty() {
             return Err("target_id cannot be empty".to_string());
         }
@@ -375,13 +399,13 @@ impl MemoryStore {
 
         match relation {
             "depends_on_memory" => {
-                push_unique(&mut self.records[index].depends_on_memory_ids, target_id)
+                push_unique(&mut self.records[index].depends_on_memory_ids, &target_id)
             }
             "supersedes_memory" => {
-                push_unique(&mut self.records[index].supersedes_memory_ids, target_id)
+                push_unique(&mut self.records[index].supersedes_memory_ids, &target_id)
             }
             "related_to_skill" => {
-                push_unique(&mut self.records[index].related_skill_ids, target_id)
+                push_unique(&mut self.records[index].related_skill_ids, &target_id)
             }
             other => return Err(format!("Unknown memory relation: {other}")),
         }
@@ -428,6 +452,17 @@ impl MemoryStore {
             })
             .filter(|record| {
                 params
+                    .min_confidence
+                    .map(|minimum| {
+                        record
+                            .confidence
+                            .map(|value| value >= minimum)
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(true)
+            })
+            .filter(|record| {
+                params
                     .applies_to_context
                     .as_deref()
                     .map(|needle| {
@@ -450,30 +485,28 @@ impl MemoryStore {
         }
 
         let mut scored: Vec<MemorySearchResult> = if let Some(query) = params.query.as_deref() {
-            let docs: Vec<Document<usize>> = candidates
+            let docs = candidates
                 .iter()
-                .enumerate()
-                .map(|(idx, record)| Document {
-                    id: idx,
+                .map(|record| MemoryBm25Document {
+                    memory_id: record.memory_id.clone(),
                     contents: searchable_text(record),
                 })
                 .collect();
-            let engine =
-                SearchEngineBuilder::<usize>::with_documents(Language::English, docs).build();
-            let mut scores: HashMap<usize, f32> = engine
+            let engine = MemoryBm25Engine::from_documents(docs);
+            let mut scores: HashMap<String, f32> = engine
                 .search(query, candidates.len() * 2)
                 .into_iter()
-                .filter(|result| result.score > 0.0)
-                .map(|result| (result.document.id, result.score))
+                .map(|result| (result.memory_id, result.score))
                 .collect();
             candidates
                 .iter()
-                .enumerate()
-                .filter_map(|(idx, record)| {
-                    scores.remove(&idx).map(|score| MemorySearchResult {
-                        memory: (*record).clone(),
-                        score: score + memory_quality_bonus(record),
-                    })
+                .filter_map(|record| {
+                    scores
+                        .remove(&record.memory_id)
+                        .map(|score| MemorySearchResult {
+                            memory: (*record).clone(),
+                            score: score + memory_quality_bonus(record),
+                        })
                 })
                 .collect()
         } else {
@@ -563,6 +596,7 @@ struct MemorySearchParams {
     applies_to_context: Option<String>,
     severity_level: Option<String>,
     include_archived: bool,
+    min_confidence: Option<f64>,
     limit: usize,
 }
 
@@ -636,8 +670,34 @@ fn write_memory_file(path: &Path, records: &[MemoryRecord]) -> Result<(), String
         output.push_str(&serialize_record(record));
         output.push('\n');
     }
-    fs::write(path, output)
+    atomic_write(path, output.as_bytes())
         .map_err(|err| format!("Failed to write memory file {}: {err}", path.display()))
+}
+
+fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("memories.ttl");
+    let temp_path = parent.join(format!(
+        ".{file_name}.{}.tmp",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    {
+        let mut file = File::create(&temp_path)?;
+        file.write_all(content)?;
+        file.sync_all()?;
+    }
+    fs::rename(&temp_path, path)?;
+    if let Ok(dir) = OpenOptions::new().read(true).open(parent) {
+        let _ = dir.sync_all();
+    }
+    Ok(())
 }
 
 fn serialize_record(record: &MemoryRecord) -> String {
@@ -668,8 +728,18 @@ fn serialize_record(record: &MemoryRecord) -> String {
         ));
     }
     push_optional_literal(&mut lines, "oc:source", record.source.as_deref());
-    push_literal(&mut lines, "oc:createdAt", &record.created_at);
-    push_literal(&mut lines, "oc:updatedAt", &record.updated_at);
+    push_typed_literal(
+        &mut lines,
+        "oc:createdAt",
+        &record.created_at,
+        "xsd:dateTime",
+    );
+    push_typed_literal(
+        &mut lines,
+        "oc:updatedAt",
+        &record.updated_at,
+        "xsd:dateTime",
+    );
     lines.push(format!(
         "    oc:isArchived \"{}\"^^xsd:boolean ;",
         record.is_archived
@@ -818,6 +888,15 @@ fn push_literal(lines: &mut Vec<String>, predicate: &str, value: &str) {
     lines.push(format!("    {} \"{}\" ;", predicate, escape_literal(value)));
 }
 
+fn push_typed_literal(lines: &mut Vec<String>, predicate: &str, value: &str, datatype: &str) {
+    lines.push(format!(
+        "    {} \"{}\"^^{} ;",
+        predicate,
+        escape_literal(value),
+        datatype
+    ));
+}
+
 fn push_optional_literal(lines: &mut Vec<String>, predicate: &str, value: Option<&str>) {
     if let Some(value) = value {
         if !value.trim().is_empty() {
@@ -901,10 +980,7 @@ fn skill_ref(skill_id: &str) -> String {
     if skill_id.starts_with("http://") || skill_id.starts_with("https://") {
         format!("<{}>", skill_id)
     } else {
-        format!(
-            "oc:skill_{}",
-            sanitize_ref(skill_id.rsplit('/').next().unwrap_or(skill_id))
-        )
+        format!("oc:skill_{}", sanitize_ref(skill_id))
     }
 }
 
@@ -1020,11 +1096,38 @@ fn scope_matches(filter: &str, scope: &str) -> bool {
 }
 
 fn now_stamp() -> String {
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or(0);
-    format!("unix:{seconds}")
+    timestamp_from_unix_nanos(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0),
+    )
+}
+
+fn timestamp_from_unix_nanos(nanos: u128) -> String {
+    let seconds = (nanos / 1_000_000_000) as i64;
+    let subsecond_nanos = (nanos % 1_000_000_000) as u32;
+    let days = seconds.div_euclid(86_400);
+    let seconds_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    let hour = seconds_of_day / 3_600;
+    let minute = (seconds_of_day % 3_600) / 60;
+    let second = seconds_of_day % 60;
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{subsecond_nanos:09}Z")
+}
+
+fn civil_from_days(days_since_unix_epoch: i64) -> (i64, i64, i64) {
+    let z = days_since_unix_epoch + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    let year = y + if month <= 2 { 1 } else { 0 };
+    (year, month, day)
 }
 
 fn generate_memory_id(content: &str, scope: &str) -> String {
@@ -1062,6 +1165,9 @@ fn searchable_text(record: &MemoryRecord) -> String {
     }
     if let Some(source) = &record.source {
         parts.push(source.clone());
+    }
+    if let Some(severity) = &record.severity_level {
+        parts.push(severity.clone());
     }
     parts.extend(record.related_skill_ids.iter().cloned());
     parts.join(" ")
@@ -1145,6 +1251,26 @@ fn optional_usize(value: &Value, key: &str) -> Option<usize> {
 
 fn optional_f64(value: &Value, key: &str) -> Option<f64> {
     value.get(key).and_then(Value::as_f64)
+}
+
+fn link_target(arguments: &Value, relation: &str) -> Result<String, String> {
+    let target = optional_string(arguments, "target_id")
+        .or_else(|| {
+            if relation == "related_to_skill" {
+                optional_string(arguments, "related_skill_id")
+            } else {
+                optional_string(arguments, "target_memory_id")
+            }
+        })
+        .ok_or_else(|| match relation {
+            "related_to_skill" => {
+                "Missing required string field 'target_id' (or legacy alias 'related_skill_id')"
+                    .to_string()
+            }
+            _ => "Missing required string field 'target_id' (or legacy alias 'target_memory_id')"
+                .to_string(),
+        })?;
+    Ok(target.trim().to_string())
 }
 
 fn string_list(value: &Value, key: &str) -> Vec<String> {
@@ -1249,5 +1375,159 @@ mod tests {
             }))
             .unwrap();
         assert_eq!(visible.structured["memories"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn serialized_ttl_uses_ontoskills_namespace_and_typed_dates() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let result = store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Keep ontology predicates aligned",
+                "memory_type": "procedure",
+                "rationale": "RDF validators depend on canonical predicates",
+                "confidence": 0.9,
+                "severity_level": "high",
+                "related_skill_id": "marea/search"
+            }))
+            .unwrap();
+        let memory_id = result.structured["memory"]["memory_id"].as_str().unwrap();
+        store
+            .handle_action(&json!({
+                "action": "link",
+                "memory_id": memory_id,
+                "relation": "depends_on_memory",
+                "target_id": "mem-parent"
+            }))
+            .unwrap();
+
+        let ttl = fs::read_to_string(store.project_path()).unwrap();
+        assert!(ttl.contains("@prefix oc: <https://ontoskills.sh/ontology#>"));
+        assert!(ttl.contains("a oc:Memory, oc:ProcedureMemory"));
+        assert!(ttl.contains("oc:hasRationale"));
+        assert!(!ttl.contains("oc:rationale"));
+        assert!(ttl.contains("^^xsd:dateTime"));
+        assert!(!ttl.contains("unix:"));
+        assert!(ttl.contains("oc:relatedToSkill oc:skill_marea_search"));
+        assert!(ttl.contains("oc:dependsOnMemory oc:mem_mem_parent"));
+    }
+
+    #[test]
+    fn min_confidence_and_case_insensitive_severity_filter_search() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let high = store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Escalate destructive data corrections",
+                "confidence": 0.95,
+                "severity_level": "high"
+            }))
+            .unwrap();
+        store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Log routine cleanup reminders",
+                "confidence": 0.6,
+                "severity_level": "LOW"
+            }))
+            .unwrap();
+
+        let matches = store
+            .handle_action(&json!({
+                "action": "search",
+                "scope": "both",
+                "severity_level": "HIGH",
+                "min_confidence": 0.9
+            }))
+            .unwrap();
+        let memories = matches.structured["memories"].as_array().unwrap();
+        assert_eq!(memories.len(), 1);
+        assert_eq!(
+            memories[0]["memory_id"],
+            high.structured["memory"]["memory_id"]
+        );
+    }
+
+    #[test]
+    fn link_accepts_legacy_aliases_and_get_include_links() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let source = store
+            .handle_action(&json!({ "action": "remember", "content": "source memory" }))
+            .unwrap();
+        let source_id = source.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let dependency = store
+            .handle_action(&json!({ "action": "remember", "content": "dependency memory" }))
+            .unwrap();
+        let dependency_id = dependency.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        store
+            .handle_action(&json!({
+                "action": "link",
+                "memory_id": source_id,
+                "link_type": "depends_on_memory",
+                "target_memory_id": dependency_id
+            }))
+            .unwrap();
+
+        let without_links = store
+            .handle_action(&json!({
+                "action": "get",
+                "memory_id": source_id,
+                "include_links": false
+            }))
+            .unwrap();
+        assert_eq!(
+            without_links.structured["memory"]["depends_on_memory_ids"],
+            json!([])
+        );
+
+        let with_links = store
+            .handle_action(&json!({
+                "action": "get",
+                "memory_id": source_id,
+                "include_links": true
+            }))
+            .unwrap();
+        assert_eq!(
+            with_links.structured["memory"]["depends_on_memory_ids"],
+            json!([dependency_id])
+        );
+    }
+
+    #[test]
+    fn reload_before_write_preserves_external_file_changes() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        store
+            .handle_action(&json!({ "action": "remember", "content": "first memory" }))
+            .unwrap();
+
+        let mut external = store.clone();
+        external.reload().unwrap();
+        external
+            .handle_action(&json!({ "action": "remember", "content": "external memory" }))
+            .unwrap();
+
+        store
+            .handle_action(&json!({ "action": "remember", "content": "second memory" }))
+            .unwrap();
+
+        let ttl = fs::read_to_string(store.project_path()).unwrap();
+        assert!(ttl.contains("first memory"));
+        assert!(ttl.contains("external memory"));
+        assert!(ttl.contains("second memory"));
     }
 }

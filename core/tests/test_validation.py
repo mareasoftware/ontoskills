@@ -1,7 +1,7 @@
 """Tests for SHACL validation module."""
 
 import pytest
-from rdflib import Graph, Namespace, Literal, RDF
+from rdflib import Graph, Namespace, Literal, RDF, XSD
 
 
 def test_validate_skill_graph_empty_graph():
@@ -280,3 +280,95 @@ def test_knowledge_node_shape_target_objects_of():
     result = validate_skill_graph(g)
     assert not result.conforms
     assert "directiveContent" in result.results_text or "appliesToContext" in result.results_text
+
+
+# ============================================================================
+# Memory SHACL VALIDATION TESTS
+# ============================================================================
+
+
+def add_valid_memory(g: Graph, oc: Namespace, memory_id: str = "mem_test"):
+    """Add a valid runtime memory node to a graph."""
+    memory_uri = oc[f"mem_{memory_id}"]
+    g.add((memory_uri, RDF.type, oc.Memory))
+    g.add((memory_uri, RDF.type, oc.FactMemory))
+    g.add((memory_uri, oc.memoryId, Literal(memory_id)))
+    g.add((memory_uri, oc.memoryScope, Literal("project")))
+    g.add((memory_uri, oc.directiveContent, Literal("Remember deterministic project ids.")))
+    g.add((memory_uri, oc.createdAt, Literal("2026-05-04T12:00:00Z", datatype=XSD.dateTime)))
+    g.add((memory_uri, oc.updatedAt, Literal("2026-05-04T12:00:00Z", datatype=XSD.dateTime)))
+    g.add((memory_uri, oc.confidence, Literal("0.9", datatype=XSD.decimal)))
+    g.add((memory_uri, oc.isArchived, Literal(False)))
+    return memory_uri
+
+
+def test_memory_validation_with_required_fields_passes():
+    """A runtime memory with required fields should pass without skill metadata."""
+    from compiler.validator import validate_skill_graph
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+    add_valid_memory(g, oc)
+
+    result = validate_skill_graph(g)
+    assert result.conforms is True
+
+
+def test_memory_validation_without_skill_passes():
+    """Memory should not require Skill fields such as resolvesIntent."""
+    from compiler.validator import validate_skill_graph
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+    memory_uri = add_valid_memory(g, oc, "standalone")
+
+    assert (memory_uri, RDF.type, oc.Skill) not in g
+    result = validate_skill_graph(g)
+    assert result.conforms is True
+
+
+def test_memory_validation_missing_memory_id_fails():
+    """A Memory without memoryId should fail the MemoryShape."""
+    from compiler.validator import validate_skill_graph
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+    memory_uri = add_valid_memory(g, oc, "missing_id")
+    g.remove((memory_uri, oc.memoryId, None))
+
+    result = validate_skill_graph(g)
+    assert result.conforms is False
+    assert "memoryId" in result.results_text
+
+
+def test_memory_validation_invalid_scope_fails():
+    """memoryScope must be project or global."""
+    from compiler.validator import validate_skill_graph
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+    memory_uri = add_valid_memory(g, oc, "bad_scope")
+    g.set((memory_uri, oc.memoryScope, Literal("workspace")))
+
+    result = validate_skill_graph(g)
+    assert result.conforms is False
+    assert "memoryScope" in result.results_text
+
+
+def test_memory_validation_invalid_confidence_fails():
+    """confidence must be between 0 and 1."""
+    from compiler.validator import validate_skill_graph
+    from compiler.config import BASE_URI
+
+    g = Graph()
+    oc = Namespace(BASE_URI)
+    memory_uri = add_valid_memory(g, oc, "bad_confidence")
+    g.set((memory_uri, oc.confidence, Literal("1.5", datatype=XSD.decimal)))
+
+    result = validate_skill_graph(g)
+    assert result.conforms is False
+    assert "confidence" in result.results_text
