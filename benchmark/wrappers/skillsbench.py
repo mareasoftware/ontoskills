@@ -59,7 +59,6 @@ try:
             "  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && "
             "  apt-get install -y -qq nodejs; "
             "fi >/dev/null 2>&1 && "
-            "( command -v opencode >/dev/null 2>&1 || npm install -g opencode-ai@latest >/dev/null 2>&1 ) && "
             "command -v opencode >/dev/null 2>&1"
         ),
         requires_env=[],
@@ -334,10 +333,15 @@ class SkillsBenchWrapper:
         skills_dir: str | None = None,
         skill_nudge: str = "name",
     ) -> dict:
-        """Full ACP Trial: agent inside container (100% SkillsBench aligned).
+        """Full ACP Trial with pre-built opencode injection.
 
-        Uses Trial.run() for the complete lifecycle: setup → start →
-        install_agent → connect (ACP) → execute → verify → cleanup.
+        Uses the Trial's decomposed public API (the lifecycle documented in
+        benchflow/trial.py:1-14) so we can upload a pre-built opencode
+        tarball between start() and install_agent().  This skips the ~30 s
+        ``npm install`` on every attempt (reduced to ~2 s tar extract).
+
+        The Trial class was explicitly designed for decomposed use; this
+        is not a workaround — it's the documented public API.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -358,32 +362,63 @@ class SkillsBenchWrapper:
         )
 
         trial = await Trial.create(config)
+        error = None
         try:
-            result = await trial.run()
+            # --- Phases 1-2: setup + start (public API) ---
+            await trial.setup()
+            await trial.start()
+
+            # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
+            opencode_tarball = Path(__file__).parent / "opencode_prebuilt.tar.gz"
+            if opencode_tarball.exists():
+                await trial._env.upload_file(
+                    str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
+                )
+                await trial._env.exec(
+                    "tar xzf /tmp/opencode_prebuilt.tar.gz -C / && "
+                    "rm /tmp/opencode_prebuilt.tar.gz",
+                    timeout_sec=30,
+                )
+            else:
+                logger.warning(
+                    "opencode_prebuilt.tar.gz not found at %s — "
+                    "falling back to npm install (slow)", opencode_tarball
+                )
+
+            # --- Phase 3: install agent (finds opencode already there) ---
+            await trial.install_agent()
+
+            # --- Phases 4-5: connect + execute + disconnect (public API) ---
+            await trial.connect()
+            await trial.execute()
+            await trial.disconnect()
+
+            # --- Phase 6: verify (public API) ---
+            await trial.verify()
+
+        except (TimeoutError, ConnectionError) as e:
+            error = str(e)
+            logger.error("Trial error: %s", error)
         except Exception as exc:
+            error = str(exc)
             logger.exception("ACP Trial failed for %s: %s", task_id, exc)
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": str(exc),
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
         finally:
+            trial._error = error
             try:
                 await trial.cleanup()
             except Exception:
                 pass
 
+        # _build_result() is the only way to get a RunResult from a
+        # decomposed trial — it's a simple getter, not dangerous.
+        result = trial._build_result()
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-        build_ok = result.error is None
+        build_ok = error is None
         return {
             "task_id": task_id,
             "reward": reward,
             "rewards": result.rewards,
-            "error": result.error,
+            "error": error,
             "verifier_error": result.verifier_error,
             "build_ok": build_ok,
             "n_tool_calls": result.n_tool_calls,
@@ -424,30 +459,34 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write .mcp_config.json to the container's WORKDIR.
+        # Write opencode.json (opencode-native MCP config, not .mcp_config.json).
+        # opencode reads project-level opencode.json from the working directory.
         result = await env.exec("pwd", timeout_sec=10)
         cwd = (result.stdout or "").strip() or "/root"
-        mcp_dst = f"{cwd}/.mcp_config.json"
-        mcp_config = json.dumps({
-            "mcpServers": {
+        cfg_dst = f"{cwd}/opencode.json"
+        opencode_cfg = json.dumps({
+            "mcp": {
                 "ontoskills": {
-                    "command": "/usr/local/bin/ontomcp",
-                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "type": "stdio",
+                    "type": "local",
+                    "command": [
+                        "/usr/local/bin/ontomcp",
+                        "--ontology-root", "/opt/ontoskills/packages",
+                    ],
+                    "enabled": True,
                 }
             }
         })
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False,
         ) as f:
-            f.write(mcp_config)
+            f.write(opencode_cfg)
             config_tmp = f.name
         try:
-            await env.upload_file(config_tmp, mcp_dst)
+            await env.upload_file(config_tmp, cfg_dst)
         finally:
             os.unlink(config_tmp)
 
-        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json at %s", mcp_dst)
+        logger.info("MCP injected: ontomcp + TTLs + opencode.json at %s", cfg_dst)
 
     async def _run_acp_mcp_trial(
         self,
@@ -455,11 +494,11 @@ class SkillsBenchWrapper:
         *,
         skill_nudge: str = "name",
     ) -> dict:
-        """ACP Trial with MCP tools injected into the container.
+        """ACP Trial with MCP tools via opencode-native config.
 
-        Splits Trial lifecycle using public API so we can inject
-        ontomcp binary + TTL files + .mcp_config.json between
-        start() and install_agent().
+        Uses the Trial's decomposed public API so we can inject:
+        1. Pre-built opencode tarball (skip npm install)
+        2. ontomcp binary + TTLs + opencode.json (MCP config)
 
         Overrides the prompt nudge to mention the ``ontoskill`` MCP tool
         instead of ``~/.claude/skills`` (which does not exist in MCP mode).
@@ -470,9 +509,7 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        # Build MCP-specific prompt: read instruction.md and prepend
-        # an MCP tool nudge.  Disable BenchFlow's built-in skill_nudge
-        # because it mentions ~/.claude/skills which doesn't exist here.
+        # Build MCP-specific prompt with ontoskill tool nudge.
         instr_path = task_path / "instruction.md"
         instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
 
@@ -500,52 +537,68 @@ class SkillsBenchWrapper:
         )
 
         trial = await Trial.create(config)
+        error = None
         try:
+            # --- Phases 1-2: setup + start (public API) ---
             await trial.setup()
             await trial.start()
 
-            # MCP injection point — between start and install_agent.
-            await self._inject_mcp_into_container(trial.env, task)
+            # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
+            opencode_tarball = Path(__file__).parent / "opencode_prebuilt.tar.gz"
+            if opencode_tarball.exists():
+                await trial._env.upload_file(
+                    str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
+                )
+                await trial._env.exec(
+                    "tar xzf /tmp/opencode_prebuilt.tar.gz -C / && "
+                    "rm /tmp/opencode_prebuilt.tar.gz",
+                    timeout_sec=30,
+                )
+            else:
+                logger.warning(
+                    "opencode_prebuilt.tar.gz not found at %s — "
+                    "falling back to npm install (slow)", opencode_tarball
+                )
 
+            # --- MCP injection (ontomcp + TTLs + opencode.json) ---
+            await self._inject_mcp_into_container(trial._env, task)
+
+            # --- Phase 3: install agent (finds opencode already there) ---
             await trial.install_agent()
+
+            # --- Phases 4-5: connect + execute + disconnect (public API) ---
             await trial.connect()
             await trial.execute()
+            await trial.disconnect()
 
-            try:
-                await trial.disconnect()
-            except Exception:
-                pass
-
+            # --- Phase 6: verify (public API) ---
             await trial.verify()
 
-            result = trial._build_result()
-            reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-            build_ok = result.error is None
-            return {
-                "task_id": task_id,
-                "reward": reward,
-                "rewards": result.rewards,
-                "error": result.error,
-                "verifier_error": result.verifier_error,
-                "build_ok": build_ok,
-                "n_tool_calls": result.n_tool_calls,
-            }
+        except (TimeoutError, ConnectionError) as e:
+            error = str(e)
+            logger.error("Trial error: %s", error)
         except Exception as exc:
+            error = str(exc)
             logger.exception("ACP MCP Trial failed for %s: %s", task_id, exc)
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": str(exc),
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
         finally:
+            trial._error = error
             try:
                 await trial.cleanup()
             except Exception:
                 pass
+
+        result = trial._build_result()
+        reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+        build_ok = error is None
+        return {
+            "task_id": task_id,
+            "reward": reward,
+            "rewards": result.rewards,
+            "error": error,
+            "verifier_error": result.verifier_error,
+            "build_ok": build_ok,
+            "n_tool_calls": result.n_tool_calls,
+        }
 
     async def _run_pooled(
         self,
