@@ -259,11 +259,11 @@ impl MemoryStore {
             .find(memory_id)
             .ok_or_else(|| format!("Memory not found: {memory_id}"))?;
         let include_links = optional_bool(arguments, "include_links");
-        let include_dependencies = include_links
-            .or_else(|| optional_bool(arguments, "include_dependencies"))
+        let include_dependencies = optional_bool(arguments, "include_dependencies")
+            .or(include_links)
             .unwrap_or(false);
-        let include_superseded = include_links
-            .or_else(|| optional_bool(arguments, "include_superseded"))
+        let include_superseded = optional_bool(arguments, "include_superseded")
+            .or(include_links)
             .unwrap_or(false);
         let mut visible_memory = memory.clone();
         if !include_dependencies {
@@ -847,15 +847,19 @@ fn parse_memory_block(lines: &[String]) -> Option<MemoryRecord> {
                 .unwrap_or(false);
         } else if line.contains("oc:relatedToSkill ") {
             if let Some(value) = extract_prefixed_object(line, "oc:skill_") {
-                record.related_skill_ids.push(value);
+                record.related_skill_ids.push(desanitize_ref(&value));
             }
         } else if line.contains("oc:dependsOnMemory ") {
             if let Some(value) = extract_prefixed_object(line, "oc:mem_") {
-                record.depends_on_memory_ids.push(value);
+                record
+                    .depends_on_memory_ids
+                    .push(desanitize_memory_ref(&value));
             }
         } else if line.contains("oc:supersedesMemory ") {
             if let Some(value) = extract_prefixed_object(line, "oc:mem_") {
-                record.supersedes_memory_ids.push(value);
+                record
+                    .supersedes_memory_ids
+                    .push(desanitize_memory_ref(&value));
             }
         }
     }
@@ -968,8 +972,16 @@ fn extract_prefixed_object(line: &str, prefix: &str) -> Option<String> {
     if raw.is_empty() {
         None
     } else {
-        Some(raw.replace('_', "-"))
+        Some(raw.to_string())
     }
+}
+
+fn desanitize_ref(value: &str) -> String {
+    value.replace('_', "/")
+}
+
+fn desanitize_memory_ref(value: &str) -> String {
+    value.replace('_', "-")
 }
 
 fn memory_ref(memory_id: &str) -> String {
@@ -1415,6 +1427,36 @@ mod tests {
     }
 
     #[test]
+    fn related_skill_ids_roundtrip_across_reload() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let skill_id = "marea/search";
+        store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Roundtrip skill relation",
+                "related_skill_id": skill_id
+            }))
+            .unwrap();
+
+        store.reload().unwrap();
+
+        let matches = store
+            .handle_action(&json!({
+                "action": "search",
+                "scope": "both",
+                "related_skill_id": skill_id
+            }))
+            .unwrap();
+        assert_eq!(matches.structured["memories"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            matches.structured["memories"][0]["related_skill_ids"],
+            json!([skill_id])
+        );
+    }
+
+    #[test]
     fn min_confidence_and_case_insensitive_severity_filter_search() {
         let dir = tempdir().unwrap();
         let mut store =
@@ -1453,6 +1495,48 @@ mod tests {
     }
 
     #[test]
+    fn include_links_false_does_not_override_explicit_link_flags() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let source = store
+            .handle_action(&json!({ "action": "remember", "content": "source memory" }))
+            .unwrap();
+        let source_id = source.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let dependency = store
+            .handle_action(&json!({ "action": "remember", "content": "dependency memory" }))
+            .unwrap();
+        let dependency_id = dependency.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        store
+            .handle_action(&json!({
+                "action": "link",
+                "memory_id": source_id,
+                "link_type": "depends_on_memory",
+                "target_memory_id": dependency_id
+            }))
+            .unwrap();
+
+        let explicit_flag = store
+            .handle_action(&json!({
+                "action": "get",
+                "memory_id": source_id,
+                "include_links": false,
+                "include_dependencies": true
+            }))
+            .unwrap();
+        assert_eq!(
+            explicit_flag.structured["memory"]["depends_on_memory_ids"],
+            json!([dependency_id])
+        );
+    }
+
     fn link_accepts_legacy_aliases_and_get_include_links() {
         let dir = tempdir().unwrap();
         let mut store =
