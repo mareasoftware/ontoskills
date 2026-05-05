@@ -269,6 +269,7 @@ class SkillsBenchWrapper:
     def _build_agent_env(skill_nudge: str) -> dict[str, str]:
         """Build agent environment dict with API key and provider vars."""
         agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
+        agent_env["CLAUDE_CODE_SIMPLE"] = "1"
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         if api_key:
             agent_env["ANTHROPIC_API_KEY"] = api_key
@@ -307,7 +308,7 @@ class SkillsBenchWrapper:
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="claude-agent-acp",
+            agent="opencode",
             model="glm-5.1",
             jobs_dir=str(jobs_dir),
             environment="docker",
@@ -426,7 +427,7 @@ class SkillsBenchWrapper:
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="claude-agent-acp",
+            agent="opencode",
             model="glm-5.1",
             jobs_dir=str(jobs_dir),
             environment="docker",
@@ -1023,7 +1024,7 @@ class SkillsBenchWrapper:
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="claude-agent-acp",
+            agent="opencode",
             model="glm-5.1",
             jobs_dir=str(jobs_dir),
             environment="docker",
