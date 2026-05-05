@@ -8,6 +8,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$REPO_ROOT"
 LOG_FILE="$REPO_ROOT/benchmark_results.log"
 
 # Source env vars if .env exists
@@ -21,7 +22,7 @@ MAX_TASKS="${3:-10}"
 
 COMMON_ARGS="--max-tasks $MAX_TASKS --model glm-5.1 --attempts $ATTEMPTS"
 COMMON_ARGS="$COMMON_ARGS --workers $WORKERS"
-COMMON_ARGS="$COMMON_ARGS --skillsbench-repo ~/.ontoskills/skillsbench"
+COMMON_ARGS="$COMMON_ARGS --skillsbench-repo $HOME/.ontoskills/skillsbench"
 COMMON_ARGS="$COMMON_ARGS --output-dir benchmark/results -v"
 
 echo "=== RUN 1: baseline+nohints ===" >> "$LOG_FILE"
