@@ -226,7 +226,7 @@ impl MemoryStore {
 
     fn search_action(&self, arguments: &Value) -> Result<MemoryActionResult, String> {
         let mut params = MemorySearchParams::default();
-        params.query = optional_string(arguments, "query");
+        params.query = normalized_search_query(optional_string(arguments, "query"));
         params.scope = optional_string(arguments, "scope").unwrap_or_else(|| "both".to_string());
         params.memory_type = optional_string(arguments, "memory_type")
             .map(|value| normalize_memory_type(&value))
@@ -1251,6 +1251,22 @@ fn optional_string(value: &Value, key: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
+fn normalized_search_query(value: Option<String>) -> Option<String> {
+    value.and_then(|query| {
+        let trimmed = query.trim();
+        if trimmed.is_empty()
+            || matches!(
+                trimmed.to_ascii_lowercase().as_str(),
+                "*" | "all" | "list all" | "everything" | "tutto" | "tutte" | "tutti"
+            )
+        {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
 fn optional_nonempty_string(value: &Value, key: &str) -> Option<String> {
     optional_string(value, key).and_then(|value| {
         let trimmed = value.trim();
@@ -1399,6 +1415,38 @@ mod tests {
             }))
             .unwrap();
         assert_eq!(visible.structured["memories"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn wildcard_search_lists_filtered_memories() {
+        let dir = tempdir().unwrap();
+        let mut store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let remembered = store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "The user's favorite color is yellow",
+                "memory_type": "preference",
+                "scope": "global"
+            }))
+            .unwrap();
+        let memory_id = remembered.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let wildcard = store
+            .handle_action(&json!({
+                "action": "search",
+                "query": "*",
+                "scope": "global",
+                "limit": 100
+            }))
+            .unwrap();
+
+        let memories = wildcard.structured["memories"].as_array().unwrap();
+        assert_eq!(memories.len(), 1);
+        assert_eq!(memories[0]["memory_id"], memory_id);
     }
 
     #[test]

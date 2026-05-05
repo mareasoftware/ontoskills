@@ -1013,7 +1013,10 @@ fn tool_definitions() -> Vec<Value> {
                         "description": "Write actions accept project/global. Search accepts project/global/both.",
                         "default": "project"
                     },
-                    "query": { "type": "string", "description": "Natural language search query for action=search." },
+                    "query": {
+                        "type": "string",
+                        "description": "Natural language search query for action=search. Omit query, use an empty string, or use '*' to list memories matching the filters."
+                    },
                     "applies_to_context": { "type": "string" },
                     "rationale": { "type": "string" },
                     "severity_level": {
