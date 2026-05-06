@@ -34,7 +34,7 @@ import BenchmarkReact from '../../components/benchmark/BenchmarkApp.tsx';
       <div class="section-shell">
         <h2>核心问题</h2>
         <p>像 Claude Code 这样的 AI 编程代理依赖技能文档来完成专业任务——生成 DOCX 文件、处理 PDF、分析金融数据。如今，这些技能以纯 Markdown 文件（<code>SKILL.md</code>）的形式提供。代理必须阅读原始文本并自行提取指令、启发式规则和反模式。</p>
-        <p><strong>OntoSkills</strong> 采用了不同的方法：技能知识被编译成结构化的 OWL 2 本体，通过 MCP 工具传递。代理使用 <code>search</code>、<code>get_skill_context</code>、<code>evaluate_execution_plan</code> 和 <code>query_epistemic_rules</code> 四个工具——接收带有严重性评级和执行计划评估的类型化知识节点。</p>
+        <p><strong>OntoSkills</strong> 采用了不同的方法：技能知识被编译成结构化的 OWL 2 本体，通过单一 MCP 工具（<code>ontoskill</code>）传递。代理查询技能知识——接收带有严重性评级、带解释的反模式和精选代码示例的类型化知识节点。</p>
         <p>哪种方法效果更好？</p>
       </div>
     </section>
@@ -59,9 +59,9 @@ import BenchmarkReact from '../../components/benchmark/BenchmarkApp.tsx';
           <div class="method-card glass-panel">
             <h3>实验设置</h3>
             <table class="setup-table">
-              <tr><td>代理</td><td>Claude Code CLI（<code>--print --bare</code> 模式）</td></tr>
+              <tr><td>代理</td><td>Claude Code（<code>claude</code> CLI 原生二进制）</td></tr>
               <tr><td>模型</td><td>glm-5.1（通过 API 代理）</td></tr>
-              <tr><td>任务数</td><td>10（seed=7），来自 70+ 个可用任务池</td></tr>
+              <tr><td>任务数</td><td>10，来自 70+ 个可用任务池</td></tr>
               <tr><td>评分</td><td>Docker + pytest CTRF 报告</td></tr>
             </table>
           </div>
@@ -69,13 +69,18 @@ import BenchmarkReact from '../../components/benchmark/BenchmarkApp.tsx';
 
         <div class="mode-grid">
           <div class="mode-card">
+            <span class="mode-label" style="color: var(--accent-cyan);">基线</span>
+            <p>仅代理 — 无技能文档。测量代理在每项任务上的原始性能。</p>
+          </div>
+          <div class="mode-vs">vs</div>
+          <div class="mode-card">
             <span class="mode-label" style="color: var(--accent-purple);">传统模式</span>
-            <p>技能文档以 SKILL.md 文件形式放置在 <code>.claude/skills/</code> 中。代理使用原生文件读取功能——与生产环境完全一致。</p>
+            <p>技能文档以 SKILL.md 文件形式放置在 <code>~/.claude/skills/</code> 中。代理使用原生文件读取功能。</p>
           </div>
           <div class="mode-vs">vs</div>
           <div class="mode-card">
             <span class="mode-label" style="color: var(--accent-cyan);">OntoSkills MCP</span>
-            <p>技能编译为 OWL 2 本体，通过 MCP 工具（<code>search</code>、<code>get_skill_context</code>）发现技能。结构化查询替代文本阅读。</p>
+            <p>技能编译为 OWL 2 本体，通过 <code>ontoskill</code> MCP 工具查询结构化知识。</p>
           </div>
         </div>
         <p class="note">相同的代理、相同的模型、相同的提示。唯一的区别是<strong>技能知识的传递方式</strong>。</p>
@@ -125,7 +130,7 @@ import BenchmarkReact from '../../components/benchmark/BenchmarkApp.tsx';
         <div class="cta-box">
           <p style="margin-bottom: 12px;">所有基准测试代码均为开源。您可以自行运行：</p>
           <div class="command-shell">
-            <code>python benchmark/run.py --benchmark skillsbench --mode claudecode --max-tasks 25 --model glm-5.1 --seed 7</code>
+            <code>python benchmark/run.py --mode acp --max-tasks 25 --model glm-5.1 --attempts 5 --workers 2</code>
           </div>
         </div>
       </div>
