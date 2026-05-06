@@ -10,16 +10,21 @@ Rust-based local MCP (Model Context Protocol) server for the OntoSkills ecosyste
 
 ## Overview
 
-OntoMCP is the **runtime layer** of OntoSkills. It loads compiled ontologies (`.ttl` files) into an in-memory RDF graph and provides blazing-fast SPARQL queries to AI agents via the Model Context Protocol.
+OntoMCP is the **runtime layer** of OntoSkills. It loads compiled ontologies (`.ttl` files) and OntoMemory runtime memories into an in-memory RDF graph, then provides blazing-fast SPARQL queries, memory operations, and a local OntoGraph viewer to AI agents via the Model Context Protocol.
 
 ```mermaid
 flowchart LR
-    AGENT["AI Agent<br/>━━━━━━━━━━<br/>Claude Code<br/>Cursor<br/>Other MCP clients"] <-->|"SPARQL queries"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust runtime<br/>in-memory graph"]
+    AGENT["AI Agent<br/>━━━━━━━━━━<br/>Claude Code<br/>Cursor<br/>Other MCP clients"] <-->|"SPARQL + tools"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust runtime<br/>in-memory graph"]
     MCP <-->|"loads"| TTL[".ttl files<br/>━━━━━━━━━━<br/>ontoskills/<br/>compiled ontologies"]
+    AGENT -->|"remember/search/edit"| MEM["OntoMemory<br/>━━━━━━━━━━<br/>project/global<br/>memory nodes"]
+    MEM -->|"writes .ttl"| MCP
+    MCP -->|"serves"| GRAPH["OntoGraph<br/>━━━━━━━━━━<br/>local 3D graph UI"]
 
     style AGENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
     style MCP fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
     style TTL fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
+    style MEM fill:#faa338,stroke:#2a2a3e,color:#0d0d14
+    style GRAPH fill:#26c7bd,stroke:#2a2a3e,color:#0d0d14
 ```
 
 **SKILL.md files DO NOT EXIST in the agent's context.** Only compiled `.ttl` artifacts are loaded.
@@ -34,7 +39,8 @@ The MCP server is intentionally focused on:
 - **Skill context retrieval** — Return execution payload, transitions, dependencies, and all knowledge nodes (epistemic + operational) in one call
 - **Planning** — Evaluate whether a skill or intent is executable from the current state set
 - **Epistemic retrieval** — Query normalized `KnowledgeNode` rules by kind, dimension, severity, and context
-- **Runtime memory** — Store and retrieve project/global memories as `KnowledgeNode` data in the same RDF graph
+- **Runtime memory** — Store, retrieve, edit, relate, dedupe, and recluster project/global memories as `KnowledgeNode` data in the same RDF graph
+- **Graph visualization** — Start OntoGraph, the local 3D viewer/editor for skills, knowledge nodes, states, memories, intents, topics, and relationships
 
 The server does **not** execute skill payloads. Payload execution is delegated to the calling agent in its current runtime context.
 
@@ -44,17 +50,20 @@ The server does **not** execute skill payloads. Payload execution is delegated t
 
 ```mermaid
 flowchart LR
-    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>4 tools<br/>search, context, plan, rules"]
+    CLIENT["MCP Client<br/>━━━━━━━━━━<br/>Claude Code<br/>stdio transport"] -->|"tools/call"| TOOLS["MCP Tools<br/>━━━━━━━━━━<br/>ontoskill<br/>ontomemory<br/>ontograph"]
     TOOLS -->|"BM25 search"| BM25["BM25 Engine<br/>━━━━━━━━━━<br/>in-memory<br/>keyword search"]
     TOOLS -->|"SPARQL"| SPARQL["oxigraph<br/>━━━━━━━━━━<br/>SPARQL 1.1 engine<br/>in-memory store"]
-    BM25 -->|"builds from"| GRAPH["RDF Graph<br/>━━━━━━━━━━<br/>Loaded .ttl files<br/>OntoSkills catalog"]
+    BM25 -->|"builds from"| GRAPH["Runtime RDF Graph<br/>━━━━━━━━━━<br/>Skill ontology<br/>memory graph<br/>topic clusters"]
     SPARQL -->|"query"| GRAPH
+    TOOLS -->|"CRUD + links"| MEMORY["OntoMemory Store<br/>━━━━━━━━━━<br/>project/global .ttl"]
+    MEMORY -->|"merges into"| GRAPH
 
     style CLIENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
     style TOOLS fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
     style BM25 fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
     style SPARQL fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
     style GRAPH fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
+    style MEMORY fill:#faa338,stroke:#2a2a3e,color:#0d0d14
 ```
 
 ### Why Rust?
@@ -73,9 +82,72 @@ flowchart LR
 | Tool | Purpose |
 |------|---------|
 | `ontoskill` | Find or load a skill by exact id or natural language query. Query mode can include relevant runtime memories. |
-| `ontomemory` | Create, search, retrieve, update, archive/delete, and link runtime memories. |
+| `ontomemory` | Create, associate, search/list/get, update, link/unlink, archive/delete, and recluster runtime memories. |
+| `ontograph` | Start, inspect, or stop the local OntoGraph web UI. |
 
 Compatibility tools such as `search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules`, and `prefetch_knowledge` remain callable for clients that already know them, but they are no longer advertised in `tools/list`.
+
+### `ontomemory`
+
+`ontomemory` manages remembered user/project knowledge as graph nodes. Agents may call `remember` with only `content`; by default the server decomposes compound thoughts into atomic memories, auto-associates them with skills, intents, topics, contexts, and nearby memories, deduplicates similar records, and avoids isolated nodes.
+
+| Action | Purpose |
+|--------|---------|
+| `remember` | Save one or more memories. Defaults: `scope=project`, `auto_associate=true`, `decompose=true`, `dedupe_policy=merge`, `isolation_policy=auto_link`, `auto_link_related=true`. |
+| `associate` | Preview the association/decomposition plan without saving. |
+| `search` / `list` | Retrieve memories by text, scope, skill, confidence, archive state, or limit. Search uses deterministic local BM25. |
+| `get` | Load one memory, optionally including dependency and superseded records with `include_links`, `include_dependencies`, or `include_superseded`. |
+| `update` | Replace editable fields and relationship arrays on an existing memory. |
+| `link` / `unlink` | Add or remove one explicit graph relation. |
+| `forget` | Archive a memory, or permanently remove it with `hard_delete=true`. |
+| `recluster` | Recalculate topic clusters and generic memory links for saved memories. Defaults to dry run unless `apply=true`. |
+
+Memory relationship arguments and link relations:
+
+| Relation | Meaning |
+|----------|---------|
+| `related_to_skill` | The memory applies to a compiled skill. |
+| `related_to_intent` | The memory applies to an intent string. |
+| `related_to_topic` | The memory belongs to a deterministic topic cluster. Memories may have multiple topics, which creates bridge memories across clusters. |
+| `related_to_memory` | The memory is thematically similar to another memory, without implying sequence. |
+| `depends_on_memory` | The memory depends on a supporting/prerequisite memory; this forms operational chains. |
+| `supersedes_memory` | The memory replaces or corrects an older memory. |
+
+Important behavior:
+
+- **Dedupe**: `dedupe_policy=merge` merges similar memories by default. Use `reject` to fail on duplicates or `allow` to keep them.
+- **Anti-isolation**: `isolation_policy=auto_link` attaches new memories to skills, intents, topics, or nearby memories. Use `reject` to fail isolated memories or `inbox` to place them in an unclassified topic.
+- **Bridge memories**: memories can carry multiple `related_topic_ids`, so one remembered decision can connect otherwise separate topic clusters.
+- **Recluster**: `{"action":"recluster","dry_run":true}` previews changes. `{"action":"recluster","apply":true}` persists recalculated `related_topic_ids` and `related_memory_ids`.
+- **Embeddings**: memory clustering v1 is deterministic and local. Embeddings are optional for skill discovery and are not required for `ontomemory`.
+
+Primary RDF predicates:
+
+| RDF predicate | JSON field / relation |
+|---------------|-----------------------|
+| `oc:memoryId` | `memory_id` |
+| `oc:memoryScope` | `scope` |
+| `oc:directiveContent` | `content` |
+| `oc:relatedToSkill` / `oc:relatedSkillId` | `related_skill_ids`, `related_to_skill` |
+| `oc:relatedIntent` | `related_intents`, `related_to_intent` |
+| `oc:relatedTopic` | `related_topic_ids`, `related_to_topic` |
+| `oc:relatedToMemory` | `related_memory_ids`, `related_to_memory` |
+| `oc:dependsOnMemory` | `depends_on_memory_ids`, `depends_on_memory` |
+| `oc:supersedesMemory` | `supersedes_memory_ids`, `supersedes_memory` |
+| `oc:confidence`, `oc:isArchived`, `oc:createdAt`, `oc:updatedAt` | metadata fields |
+
+Example:
+
+```json
+{
+  "action": "remember",
+  "content": "For this project, release notes depend on the changelog and supersede older draft summaries.",
+  "memory_type": "procedure",
+  "related_intents": ["write_release_notes"],
+  "depends_on_memory_ids": ["mem_changelog_source"],
+  "supersedes_memory_ids": ["mem_old_release_summary"]
+}
+```
 
 ---
 
@@ -237,8 +309,13 @@ cargo run --manifest-path mcp/Cargo.toml -- graph --ontology-root ./ontoskills
 
 By default the viewer binds to `127.0.0.1:8787` and tries following ports if
 the preferred port is busy. The UI shows skills, knowledge nodes, states,
-memories, and their relations. Skills are read-only; memories can be created,
-edited, archived, hard-deleted, and linked to skills.
+memories, intents, topics, and their relations. Skills are read-only; memories
+can be created, edited, archived, hard-deleted, and linked to skills, intents,
+topics, and other memories.
+
+OntoGraph highlights memory chains (`depends_on_memory`, `supersedes_memory`),
+topic clusters, bridge memories, and incoming/outgoing relationships for the
+selected node.
 
 Agents can also call the `ontograph` MCP tool:
 

@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-**OntoSkills** 是一个面向确定性智能体的神经符号技能平台。它将 `SKILL.md` 源文件转换为经过验证的 OWL 2 本体，通过本地 MCP 运行时提供已编译的技能，并通过 OntoStore 分发已发布的包。
+**OntoSkills** 是一个面向确定性智能体的神经符号技能平台。它将 `SKILL.md` 源文件转换为经过验证的 OWL 2 本体，通过本地 MCP 运行时提供已编译技能和运行时记忆，并通过 OntoStore 分发已发布的包。
 
 ---
 
@@ -57,7 +57,9 @@ OntoSkills 使用 **描述逻辑 (OWL 2)** 将技能转换为形式化本体：
 ### 运行时
 
 - **OntoMCP** 从 `ontoskills/` 加载已编译的 `.ttl` 文件
-- 智能体通过 MCP 协议使用 SPARQL 查询
+- **OntoMemory** 将项目/全局运行时记忆保存为图感知 `KnowledgeNode` 数据
+- 智能体通过 SPARQL 和 MCP 工具查询技能与记忆
+- **OntoGraph** 提供本地查看器/编辑器，用于技能、知识节点、状态、记忆、意图、主题和关系
 - OntoStore 默认内置
 - 第三方商店可以通过 `store add-source` 显式添加
 
@@ -76,6 +78,8 @@ OntoSkills 使用 **描述逻辑 (OWL 2)** 将技能转换为形式化本体：
 | **安全管道** | 深度防御：正则表达式模式 + LLM 审查恶意内容 |
 | **静态检查** | 检测死状态、循环依赖、重复意图 |
 | **漂移检测** | 本体版本之间的语义差异 |
+| **OntoMemory** | 持久化项目/全局记忆节点，支持主题聚类、记忆链、去重和 `recluster` 回填 |
+| **OntoGraph** | 本地 3D 运行时图查看器和记忆编辑器 |
 
 ---
 
@@ -101,6 +105,8 @@ OntoSkills 使用 **描述逻辑 (OWL 2)** 将技能转换为形式化本体：
 | **OntoCore** | Python | `SKILL.md` 源文件的技能编译器 |
 | **OntoMCP** | Rust | 统一的 ontoskill 工具（搜索 + 上下文检索） |
 | **OntoStore** | GitHub 仓库 | 官方编译技能商店 |
+| **OntoMemory** | Rust/RDF | 面向项目/全局知识的持久化运行时记忆 |
+| **OntoGraph** | Rust/Web | 由 OntoMCP 提供的本地图查看器和记忆编辑器 |
 | `skills/` | Markdown | 人工编写的源技能 |
 | `ontoskills/` | Turtle | 编译后的本体产物 |
 
@@ -124,6 +130,7 @@ OntoSkills 使用 **描述逻辑 (OWL 2)** 将技能转换为形式化本体：
 - **[CLI](/zh/docs/cli/)** — 了解托管命令界面
 - **[OntoStore](/zh/ontostore/)** — 浏览可安装的商店技能
 - **[OntoCore](/zh/docs/ontocore/)** — 安装编译器以使用自定义技能
+- **[OntoMemory](/zh/docs/ontomemory/)** — 使用图感知的持久化运行时记忆
 - **[商店](/zh/docs/store/)** — 了解官方和第三方商店如何工作
 - **[架构](/zh/docs/architecture/)** — 深入了解系统设计
 - **[知识提取](/zh/docs/knowledge-extraction/)** — 理解知识节点

@@ -46,7 +46,7 @@ export default {
   },
   products: {
     title: 'Products',
-    subtitle: 'Three components. One deterministic pipeline.',
+    subtitle: 'Four components. One deterministic pipeline.',
     items: [
       {
         name: 'OntoCore',
@@ -63,8 +63,14 @@ export default {
       {
         name: 'OntoMCP',
         description: 'The runtime. MCP server that bridges agents to ontological knowledge.',
-        features: ['Claude Code ready', 'SPARQL queries', 'Skill execution'],
+        features: ['Claude Code ready', 'SPARQL queries', 'OntoGraph viewer'],
         link: '/docs/mcp/',
+      },
+      {
+        name: 'OntoMemory',
+        description: 'The memory layer. Persistent graph memory for project and global context.',
+        features: ['Topic clustering', 'Memory chains', 'Bridge memories'],
+        link: '/docs/ontomemory/',
       },
     ],
   },

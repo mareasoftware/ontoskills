@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  Neuro-symbolic architecture for the Agentic Web — <span style="color:#00bf63;font-weight:bold">OntoCore</span> • <span style="color:#2196F3;font-weight:bold">OntoMCP</span> • <span style="color:#9333EA;font-weight:bold">OntoStore</span>
+  Neuro-symbolic architecture for the Agentic Web — <span style="color:#00bf63;font-weight:bold">OntoCore</span> • <span style="color:#2196F3;font-weight:bold">OntoMCP</span> • <span style="color:#9333EA;font-weight:bold">OntoStore</span> • <span style="color:#faa338;font-weight:bold">OntoMemory</span>
 </p>
 
 <p align="center">
@@ -51,12 +51,17 @@ OntoSkills transforms natural language skill definitions into **validated OWL 2 
 ```mermaid
 flowchart LR
     CORE["OntoCore<br/>━━━━━━━━━━<br/>SKILL.md → .ttl<br/>LLM + SHACL"] -->|"compiles"| CENTER["OntoSkills<br/>━━━━━━━━━━<br/>OWL 2 Ontologies<br/>.ttl artifacts"]
-    CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>in-memory graph"]
+    CENTER -->|"loads"| MCP["OntoMCP<br/>━━━━━━━━━━<br/>Rust SPARQL<br/>runtime graph"]
     MCP <-->|"queries"| AGENT["AI Agent<br/>━━━━━━━━━━<br/>Deterministic<br/>reasoning"]
+    AGENT -->|"remembers"| MEMORY["OntoMemory<br/>━━━━━━━━━━<br/>Runtime memory<br/>graph-aware nodes"]
+    MEMORY -->|"backfills"| MCP
+    MCP -->|"visualizes"| GRAPH["OntoGraph<br/>━━━━━━━━━━<br/>Local 3D viewer<br/>memory editor"]
 
     style CORE fill:#e91e63,stroke:#2a2a3e,color:#f0f0f5
     style CENTER fill:#abf9cc,stroke:#2a2a3e,color:#0d0d14
     style MCP fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
+    style MEMORY fill:#faa338,stroke:#2a2a3e,color:#0d0d14
+    style GRAPH fill:#26c7bd,stroke:#2a2a3e,color:#0d0d14
     style AGENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
 ```
 
@@ -97,9 +102,26 @@ ontocore compile
 | Component | Language | Description |
 |-----------|----------|-------------|
 | **OntoCore** | Python | Neuro-symbolic compiler: SKILL.md → OWL 2 ontology |
-| **OntoMCP** | Rust | MCP server with sub-ms SPARQL queries |
+| **OntoMCP** | Rust | MCP server with sub-ms SPARQL queries, runtime memory APIs, and OntoGraph |
 | **OntoStore** | GitHub | Versioned skill registry |
+| **OntoMemory** | Rust/RDF | Persistent project/global memory as graph-aware `KnowledgeNode` data |
+| **OntoGraph** | Rust/Web | Local 3D viewer and editor for skills, states, memories, intents, topics, and relationships |
 | **CLI** | Node.js | One-command installer (`npx ontoskills`) |
+
+---
+
+## Runtime Memories
+
+OntoMemory stores remembered project and global knowledge as editable graph nodes, not loose text notes. Memories are `oc:Memory` nodes and subclasses of `oc:KnowledgeNode`, so agents can retrieve them through the same runtime graph used for compiled skills.
+
+- Memories can link directly to skills, intents, topic clusters, and other memories.
+- `depends_on_memory` represents operational chains where one memory relies on another.
+- `supersedes_memory` records corrections and newer versions.
+- `related_to_memory` captures thematic similarity without implying sequence.
+- Topic clustering is deterministic and local in v1; embeddings are optional for skill discovery, not required for memory clustering.
+- `recluster` backfills saved memories by recalculating topic clusters and generic memory links.
+
+OntoGraph is the local graph UI for inspecting that runtime graph. It shows skills, knowledge nodes, states, memories, intents, and topics, and includes a full memory editor with incoming/outgoing relationships, memory chains, and topic clusters.
 
 ---
 
@@ -108,6 +130,7 @@ ontocore compile
 - **[Overview](https://ontoskills.sh/docs/overview/)** — What is OntoSkills and why it matters
 - **[Getting Started](https://ontoskills.sh/docs/getting-started/)** — Installation and first steps
 - **[Architecture](https://ontoskills.sh/docs/architecture/)** — How the system works
+- **[OntoMemory](https://ontoskills.sh/docs/ontomemory/)** — Persistent runtime memory and graph relationships
 - **[Knowledge Extraction](https://ontoskills.sh/docs/knowledge-extraction/)** — Extracting value from skills
 - **[OntoStore](https://ontoskills.sh/ontostore/)** — Browse and install skills
 - **[Roadmap](https://ontoskills.sh/docs/roadmap/)** — Development phases
