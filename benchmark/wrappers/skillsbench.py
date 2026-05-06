@@ -425,12 +425,15 @@ class SkillsBenchWrapper:
                 raise FileNotFoundError(
                     f"claude binary not found at {_CLAUDE_BIN_PATH}"
                 )
+            logger.info("Claude: uploading binary (%d MB) for %s",
+                        os.path.getsize(_CLAUDE_BIN_PATH) // (1024*1024), task_id)
             await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
+            logger.info("Claude: binary uploaded, chmod for %s", task_id)
             await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
 
-            # Deploy skills via BenchFlow (copies SKILL.md files to
-            # ~/.claude/skills/ inside the container).
+            logger.info("Claude: deploying skills for %s", task_id)
             await trial.install_agent()
+            logger.info("Claude: skills deployed for %s", task_id)
 
             # Build instruction with skill nudge.
             instruction = _build_claude_instruction(task, skill_nudge)
