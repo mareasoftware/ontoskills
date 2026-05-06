@@ -227,6 +227,27 @@ With explicit ontology path:
 cargo run --manifest-path mcp/Cargo.toml -- --ontology-root ./ontoskills
 ```
 
+### OntoGraph Viewer
+
+Start the local 3D knowledge graph UI:
+
+```bash
+cargo run --manifest-path mcp/Cargo.toml -- graph --ontology-root ./ontoskills
+```
+
+By default the viewer binds to `127.0.0.1:8787` and tries following ports if
+the preferred port is busy. The UI shows skills, knowledge nodes, states,
+memories, and their relations. Skills are read-only; memories can be created,
+edited, archived, hard-deleted, and linked to skills.
+
+Agents can also call the `ontograph` MCP tool:
+
+```json
+{ "action": "start" }
+```
+
+It returns the local URL to open in a browser.
+
 ---
 
 ## One-Command Bootstrap

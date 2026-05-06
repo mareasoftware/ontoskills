@@ -110,7 +110,7 @@ fn mcp_server_handles_agent_style_memory_calls() {
         .iter()
         .filter_map(|tool| tool["name"].as_str())
         .collect::<Vec<_>>();
-    assert_eq!(tool_names, vec!["ontoskill", "ontomemory"]);
+    assert_eq!(tool_names, vec!["ontoskill", "ontomemory", "ontograph"]);
 
     let remembered = mcp.request(
         "tools/call",

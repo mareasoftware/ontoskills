@@ -479,6 +479,17 @@ impl Catalog {
         })
     }
 
+    pub fn all_skill_ids(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self
+            .skill_index
+            .iter()
+            .map(|record| record.id.clone())
+            .collect();
+        ids.sort();
+        ids.dedup();
+        ids
+    }
+
     pub fn reload_memory_files(&self, paths: &[PathBuf]) -> Result<(), CatalogError> {
         self.store
             .update(
