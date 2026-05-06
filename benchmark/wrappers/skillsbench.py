@@ -37,12 +37,22 @@ from benchmark.agents.base import AgentResult, BaseAgent
 
 logger = logging.getLogger(__name__)
 
-# Fix opencode's skill_paths in BenchFlow registry — the default
-# '$HOME/.opencode/skills' is not a path opencode reads from.
-# opencode reads from ~/.claude/skills/ and ~/.agents/skills/.
-# We register both so skills are found regardless of path preference.
+# Register claude agent — uses the native claude CLI (not ACP) because it
+# correctly handles tool calling with the glm-5.1 model, unlike opencode.
 try:
     from benchflow.agents.registry import register_agent
+
+    register_agent(
+        name="claude",
+        launch_cmd="true",  # not used (we run via exec, not ACP)
+        install_cmd="command -v claude >/dev/null 2>&1",
+        requires_env=[],
+        env_mapping={},
+        supports_skills=True,
+        skill_paths=["$HOME/.claude/skills"],
+        disallow_web_tools_launch_suffix=None,
+    )
+    logger.info("Registered claude agent (native CLI, not ACP)")
 
     register_agent(
         name="opencode",
@@ -74,6 +84,50 @@ try:
     logger.info("Registered opencode agent with corrected skill_paths")
 except Exception:
     pass
+
+# Path to the standalone claude binary (238 MB ELF, works in Ubuntu 24.04).
+_CLAUDE_BIN_PATH = os.path.expanduser("~/.local/share/claude/versions/2.1.128")
+
+
+def _build_claude_instruction(
+    task: dict,
+    skill_nudge: str,
+    *,
+    mcp: bool = False,
+) -> str:
+    """Build the instruction prompt for claude CLI with optional skill nudge."""
+    task_path = Path(task["task_dir"])
+    instr_path = task_path / "instruction.md"
+    instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
+
+    if skill_nudge and task.get("skill_ids"):
+        names = ", ".join(task["skill_ids"])
+        if mcp:
+            snippet = task["skill_ids"][0]
+            nudge = (
+                f"Skills available via the ontoskill tool: {names}. "
+                f"Call ontoskill(q=\"{snippet}\") to load its full context, "
+                f"or use ontoskill(q=\"your task description\") to discover "
+                f"relevant skills."
+            )
+        else:
+            nudge = (
+                f"Skills available at ~/.claude/skills: {names}. "
+                f"Read them with the Read tool before starting."
+            )
+        instruction = nudge + "\n\n" + instruction
+
+    return instruction
+
+
+def _parse_claude_num_turns(stdout: str) -> int:
+    """Parse num_turns from claude JSON output (last line)."""
+    for line in reversed(stdout.strip().split("\n")):
+        try:
+            return json.loads(line).get("num_turns", 0)
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return 0
 
 # Tasks with exotic base images or multi-container setups that won't build.
 _SKIP_TASKS = {
@@ -333,15 +387,13 @@ class SkillsBenchWrapper:
         skills_dir: str | None = None,
         skill_nudge: str = "name",
     ) -> dict:
-        """Full ACP Trial with pre-built opencode injection.
+        """Run claude CLI inside the container (native CLI, not ACP).
 
-        Uses the Trial's decomposed public API (the lifecycle documented in
-        benchflow/trial.py:1-14) so we can upload a pre-built opencode
-        tarball between start() and install_agent().  This skips the ~30 s
-        ``npm install`` on every attempt (reduced to ~2 s tar extract).
-
-        The Trial class was explicitly designed for decomposed use; this
-        is not a workaround — it's the documented public API.
+        BenchFlow Trial handles Docker lifecycle.  We upload the standalone
+        claude binary, deploy skills via BenchFlow's install_agent, then
+        run claude directly via ``env.exec()``.  This avoids ACP entirely
+        and uses the native claude CLI which correctly handles tool calling
+        with the glm-5.1 model.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -353,7 +405,7 @@ class SkillsBenchWrapper:
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="opencode",
+            agent="claude",
             model="glm-5.1",
             jobs_dir=str(jobs_dir),
             environment="docker",
@@ -364,36 +416,37 @@ class SkillsBenchWrapper:
         trial = await Trial.create(config)
         error = None
         try:
-            # --- Phases 1-2: setup + start (public API) ---
             await trial.setup()
             await trial.start()
 
-            # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
-            opencode_tarball = Path(__file__).parent.parent / "opencode_prebuilt.tar.gz"
-            if opencode_tarball.exists():
-                await trial._env.upload_file(
-                    str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
+            # Upload standalone claude binary (238 MB ELF).
+            if not os.path.exists(_CLAUDE_BIN_PATH):
+                raise FileNotFoundError(
+                    f"claude binary not found at {_CLAUDE_BIN_PATH}"
                 )
-                await trial._env.exec(
-                    "tar xzf /tmp/opencode_prebuilt.tar.gz -C / && "
-                    "rm /tmp/opencode_prebuilt.tar.gz",
-                    timeout_sec=30,
-                )
-            else:
-                logger.warning(
-                    "opencode_prebuilt.tar.gz not found at %s — "
-                    "falling back to npm install (slow)", opencode_tarball
-                )
+            await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
+            await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
 
-            # --- Phase 3: install agent (finds opencode already there) ---
+            # Deploy skills via BenchFlow (copies SKILL.md files to
+            # ~/.claude/skills/ inside the container).
             await trial.install_agent()
 
-            # --- Phases 4-5: connect + execute + disconnect (public API) ---
-            await trial.connect()
-            await trial.execute()
-            await trial.disconnect()
+            # Build instruction with skill nudge.
+            instruction = _build_claude_instruction(task, skill_nudge)
 
-            # --- Phase 6: verify (public API) ---
+            # Run claude CLI.
+            api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+            base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+            cmd = (
+                f"ANTHROPIC_API_KEY='{api_key}' "
+                f"ANTHROPIC_BASE_URL='{base_url}' "
+                f"ANTHROPIC_MODEL=glm-5.1 "
+                f"claude -p {shlex.quote(instruction)} "
+                f"--output-format json --print --verbose --max-turns 50"
+            )
+            result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
+            trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
+
             await trial.verify()
 
         except (TimeoutError, ConnectionError) as e:
@@ -401,7 +454,7 @@ class SkillsBenchWrapper:
             logger.error("Trial error: %s", error)
         except Exception as exc:
             error = str(exc)
-            logger.exception("ACP Trial failed for %s: %s", task_id, exc)
+            logger.exception("Claude trial failed for %s: %s", task_id, exc)
         finally:
             trial._error = error
             try:
@@ -409,8 +462,6 @@ class SkillsBenchWrapper:
             except Exception:
                 pass
 
-        # _build_result() is the only way to get a RunResult from a
-        # decomposed trial — it's a simple getter, not dangerous.
         result = trial._build_result()
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
         build_ok = error is None
@@ -459,34 +510,30 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write opencode.json (opencode-native MCP config, not .mcp_config.json).
-        # opencode reads project-level opencode.json from the working directory.
+        # Write .mcp_config.json (Claude Code native MCP config).
         result = await env.exec("pwd", timeout_sec=10)
         cwd = (result.stdout or "").strip() or "/root"
-        cfg_dst = f"{cwd}/opencode.json"
-        opencode_cfg = json.dumps({
-            "mcp": {
+        cfg_dst = f"{cwd}/.mcp_config.json"
+        mcp_config = json.dumps({
+            "mcpServers": {
                 "ontoskills": {
-                    "type": "local",
-                    "command": [
-                        "/usr/local/bin/ontomcp",
-                        "--ontology-root", "/opt/ontoskills/packages",
-                    ],
-                    "enabled": True,
+                    "command": "/usr/local/bin/ontomcp",
+                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
+                    "type": "stdio",
                 }
             }
         })
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False,
         ) as f:
-            f.write(opencode_cfg)
+            f.write(mcp_config)
             config_tmp = f.name
         try:
             await env.upload_file(config_tmp, cfg_dst)
         finally:
             os.unlink(config_tmp)
 
-        logger.info("MCP injected: ontomcp + TTLs + opencode.json at %s", cfg_dst)
+        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json at %s", cfg_dst)
 
     async def _run_acp_mcp_trial(
         self,
@@ -494,14 +541,11 @@ class SkillsBenchWrapper:
         *,
         skill_nudge: str = "name",
     ) -> dict:
-        """ACP Trial with MCP tools via opencode-native config.
+        """MCP Trial: claude CLI with ontomcp MCP server injected.
 
-        Uses the Trial's decomposed public API so we can inject:
-        1. Pre-built opencode tarball (skip npm install)
-        2. ontomcp binary + TTLs + opencode.json (MCP config)
-
-        Overrides the prompt nudge to mention the ``ontoskill`` MCP tool
-        instead of ``~/.claude/skills`` (which does not exist in MCP mode).
+        Uploads the standalone claude binary + ontomcp MCP server into the
+        container.  Writes .mcp_config.json (Claude Code native format).
+        Claude natively discovers and calls the ``ontoskill`` tool via MCP.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -509,26 +553,12 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        # Build MCP-specific prompt with ontoskill tool nudge.
-        instr_path = task_path / "instruction.md"
-        instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
-
-        if skill_nudge and task.get("skill_ids"):
-            names = ", ".join(task["skill_ids"])
-            snippet = task["skill_ids"][0]
-            nudge = (
-                f"Skills available via the ontoskill tool: {names}. "
-                f"Call ontoskill(q=\"{snippet}\") to load its full context, "
-                f"or use ontoskill(q=\"your task description\") to discover "
-                f"relevant skills."
-            )
-            instruction = nudge + "\n\n" + instruction
-
+        instruction = _build_claude_instruction(task, skill_nudge, mcp=True)
         agent_env = self._build_agent_env("")  # disable BenchFlow's skill_nudge
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="opencode",
+            agent="claude",
             model="glm-5.1",
             prompts=[instruction],
             jobs_dir=str(jobs_dir),
@@ -539,47 +569,44 @@ class SkillsBenchWrapper:
         trial = await Trial.create(config)
         error = None
         try:
-            # --- Phases 1-2: setup + start (public API) ---
             await trial.setup()
             await trial.start()
 
-            # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
-            opencode_tarball = Path(__file__).parent.parent / "opencode_prebuilt.tar.gz"
-            if opencode_tarball.exists():
-                await trial._env.upload_file(
-                    str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
+            # Upload claude binary.
+            if not os.path.exists(_CLAUDE_BIN_PATH):
+                raise FileNotFoundError(
+                    f"claude binary not found at {_CLAUDE_BIN_PATH}"
                 )
-                await trial._env.exec(
-                    "tar xzf /tmp/opencode_prebuilt.tar.gz -C / && "
-                    "rm /tmp/opencode_prebuilt.tar.gz",
-                    timeout_sec=30,
-                )
-            else:
-                logger.warning(
-                    "opencode_prebuilt.tar.gz not found at %s — "
-                    "falling back to npm install (slow)", opencode_tarball
-                )
+            await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
+            await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
 
-            # --- MCP injection (ontomcp + TTLs + opencode.json) ---
+            # MCP injection (ontomcp + TTLs + .mcp_config.json).
             await self._inject_mcp_into_container(trial._env, task)
 
-            # --- Phase 3: install agent (finds opencode already there) ---
+            # Run install_agent so BenchFlow validates the agent is present.
             await trial.install_agent()
 
-            # --- Phases 4-5: connect + execute + disconnect (public API) ---
-            await trial.connect()
-            await trial.execute()
-            await trial.disconnect()
+            # Run claude CLI.
+            api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+            base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+            cmd = (
+                f"ANTHROPIC_API_KEY='{api_key}' "
+                f"ANTHROPIC_BASE_URL='{base_url}' "
+                f"ANTHROPIC_MODEL=glm-5.1 "
+                f"claude -p {shlex.quote(instruction)} "
+                f"--output-format json --print --verbose --max-turns 50"
+            )
+            result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
+            trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
 
-            # --- Phase 6: verify (public API) ---
             await trial.verify()
 
         except (TimeoutError, ConnectionError) as e:
             error = str(e)
-            logger.error("Trial error: %s", error)
+            logger.error("MCP Trial error: %s", error)
         except Exception as exc:
             error = str(exc)
-            logger.exception("ACP MCP Trial failed for %s: %s", task_id, exc)
+            logger.exception("MCP Trial failed for %s: %s", task_id, exc)
         finally:
             trial._error = error
             try:
