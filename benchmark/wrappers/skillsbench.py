@@ -122,11 +122,13 @@ def _build_claude_instruction(
 
 
 def _parse_claude_num_turns(stdout: str) -> int:
-    """Parse num_turns from claude JSON output (last line)."""
+    """Parse num_turns from claude JSON output (last valid JSON line)."""
     for line in reversed(stdout.strip().split("\n")):
         try:
-            return json.loads(line).get("num_turns", 0)
-        except (json.JSONDecodeError, KeyError):
+            data = json.loads(line)
+            if isinstance(data, dict):
+                return data.get("num_turns", 0)
+        except (json.JSONDecodeError, AttributeError):
             continue
     return 0
 
@@ -446,7 +448,7 @@ class SkillsBenchWrapper:
                 f"ANTHROPIC_BASE_URL='{base_url}' "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --print --verbose --max-turns 50"
+                f"--output-format json --verbose --max-turns 50"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
@@ -598,7 +600,7 @@ class SkillsBenchWrapper:
                 f"ANTHROPIC_BASE_URL='{base_url}' "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --print --verbose --max-turns 50"
+                f"--output-format json --verbose --max-turns 50"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
