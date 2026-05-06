@@ -46,7 +46,7 @@ try:
 
     register_agent(
         name="opencode",
-        launch_cmd="opencode acp",
+        launch_cmd="opencode acp --print-logs",
         install_cmd=(
             "set -o pipefail; export DEBIAN_FRONTEND=noninteractive; "
             "NODE_OK=0; "
