@@ -122,12 +122,33 @@ def _build_claude_instruction(
 
 
 def _parse_claude_num_turns(stdout: str) -> int:
-    """Parse num_turns from claude JSON output (last valid JSON line)."""
+    """Parse num_turns from claude JSON output (array or object)."""
+    if not stdout:
+        return 0
+    # Try parsing entire output as a single JSON value (array or object).
+    try:
+        data = json.loads(stdout)
+        if isinstance(data, list):
+            # Array format: [{type:system,...}, ..., {type:result,...}]
+            for item in reversed(data):
+                if isinstance(item, dict):
+                    nt = item.get("num_turns")
+                    if nt is not None:
+                        return int(nt)
+        elif isinstance(data, dict):
+            nt = data.get("num_turns")
+            if nt is not None:
+                return int(nt)
+    except json.JSONDecodeError:
+        pass
+    # Fallback: line-by-line parsing.
     for line in reversed(stdout.strip().split("\n")):
         try:
-            data = json.loads(line)
-            if isinstance(data, dict):
-                return data.get("num_turns", 0)
+            item = json.loads(line)
+            if isinstance(item, dict):
+                nt = item.get("num_turns")
+                if nt is not None:
+                    return int(nt)
         except (json.JSONDecodeError, AttributeError):
             continue
     return 0
