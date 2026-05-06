@@ -451,7 +451,15 @@ class SkillsBenchWrapper:
                 f"--output-format json --verbose --max-turns 50"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
-            trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
+            stdout = (result.stdout or "").strip()
+            trial._n_tool_calls = _parse_claude_num_turns(stdout)
+            logger.info(
+                "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+                "stdout_head=%s",
+                task_id, trial._n_tool_calls,
+                len(stdout), len(result.stderr or ""),
+                stdout[:200],
+            )
 
             await trial.verify()
 
@@ -603,7 +611,15 @@ class SkillsBenchWrapper:
                 f"--output-format json --verbose --max-turns 50"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
-            trial._n_tool_calls = _parse_claude_num_turns(result.stdout or "")
+            stdout = (result.stdout or "").strip()
+            trial._n_tool_calls = _parse_claude_num_turns(stdout)
+            logger.info(
+                "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+                "stdout_head=%s",
+                task_id, trial._n_tool_calls,
+                len(stdout), len(result.stderr or ""),
+                stdout[:200],
+            )
 
             await trial.verify()
 
