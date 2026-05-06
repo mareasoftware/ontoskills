@@ -555,16 +555,16 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write .mcp_config.json (Claude Code native MCP config).
+        # Write .mcp.json (Claude Code native MCP config — auto-discovered).
         result = await env.exec("pwd", timeout_sec=10)
         cwd = (result.stdout or "").strip() or "/root"
-        cfg_dst = f"{cwd}/.mcp_config.json"
+        cfg_dst = f"{cwd}/.mcp.json"
         mcp_config = json.dumps({
             "mcpServers": {
                 "ontoskills": {
                     "command": "/usr/local/bin/ontomcp",
                     "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "type": "stdio",
+                    "alwaysLoad": True,
                 }
             }
         })
@@ -578,7 +578,7 @@ class SkillsBenchWrapper:
         finally:
             os.unlink(config_tmp)
 
-        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json at %s", cfg_dst)
+        logger.info("MCP injected: ontomcp + TTLs + .mcp.json at %s", cfg_dst)
 
     async def _run_acp_mcp_trial(
         self,
