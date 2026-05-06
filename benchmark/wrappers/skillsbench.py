@@ -28,6 +28,7 @@ import random
 import re
 import shlex
 import shutil
+import signal
 import tempfile
 import time
 from pathlib import Path
@@ -119,6 +120,31 @@ def _build_claude_instruction(
         instruction = nudge + "\n\n" + instruction
 
     return instruction
+
+
+def _log_tool_usage(stdout: str) -> dict[str, int]:
+    """Count tool_use events from claude JSON output array."""
+    counts: dict[str, int] = {}
+    try:
+        events = json.loads(stdout)
+        if isinstance(events, list):
+            for ev in events:
+                if isinstance(ev, dict) and ev.get("type") == "tool_use":
+                    name = ev.get("name", ev.get("tool_name", "?"))
+                    counts[name] = counts.get(name, 0) + 1
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+    return counts
+
+
+def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str) -> None:
+    """Save claude stdout/stderr to trial directory for later analysis."""
+    try:
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        (trial_dir / f"claude_{task_id}_stdout.json").write_text(stdout)
+        (trial_dir / f"claude_{task_id}_stderr.txt").write_text(stderr)
+    except Exception:
+        pass
 
 
 def _parse_claude_num_turns(stdout: str) -> int:
@@ -473,13 +499,20 @@ class SkillsBenchWrapper:
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             stdout = (result.stdout or "").strip()
+            stderr = (result.stderr or "").strip()
             trial._n_tool_calls = _parse_claude_num_turns(stdout)
+            tool_counts = _log_tool_usage(stdout)
             logger.info(
                 "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-                "stdout_head=%s",
+                "tools=%s stdout_head=%s",
                 task_id, trial._n_tool_calls,
-                len(stdout), len(result.stderr or ""),
+                len(stdout), len(stderr),
+                tool_counts or {},
                 stdout[:200],
+            )
+            _save_claude_logs(
+                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
+                stdout, stderr, task_id,
             )
 
             await trial.verify()
@@ -639,17 +672,24 @@ class SkillsBenchWrapper:
                 f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50"
+                f"--output-format json --verbose --max-turns 50 --debug"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             stdout = (result.stdout or "").strip()
+            stderr = (result.stderr or "").strip()
             trial._n_tool_calls = _parse_claude_num_turns(stdout)
+            tool_counts = _log_tool_usage(stdout)
             logger.info(
                 "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-                "stdout_head=%s",
+                "tools=%s stdout_head=%s",
                 task_id, trial._n_tool_calls,
-                len(stdout), len(result.stderr or ""),
+                len(stdout), len(stderr),
+                tool_counts or {},
                 stdout[:200],
+            )
+            _save_claude_logs(
+                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
+                stdout, stderr, task_id,
             )
 
             await trial.verify()
@@ -818,6 +858,14 @@ class SkillsBenchWrapper:
         """
         queue: asyncio.Queue[dict] = asyncio.Queue()
         shutdown_event = asyncio.Event()
+
+        # Graceful shutdown on SIGTERM/SIGINT — finish current attempt, save state.
+        try:
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(sig, lambda: shutdown_event.set())
+        except (ValueError, RuntimeError, NotImplementedError):
+            pass
 
         for task in tasks:
             tid = task["task_id"]
