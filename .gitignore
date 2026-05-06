@@ -11,6 +11,12 @@ mcp/target/
 *.egg-info/
 __pycache__
 docs
+!site/src/content/docs/
+!site/src/content/docs/docs/
+!site/src/content/docs/zh/
+!site/src/content/docs/zh/docs/
+!site/src/content/docs/docs/ontomemory.md
+!site/src/content/docs/zh/docs/ontomemory.md
 
 # ONNX test fixtures (large files)
 mcp/tests/fixtures/

@@ -1,21 +1,26 @@
-mod catalog;
+#![recursion_limit = "256"]
+
 mod bm25_engine;
+mod catalog;
 mod compact;
 #[cfg(feature = "embeddings")]
 mod embeddings;
+mod graph;
+mod memory;
 mod schema;
 
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+use bm25_engine::Bm25Engine;
 use catalog::{
     Catalog, CatalogError, EpistemicQueryParams, EvaluateExecutionPlanParams, SearchSkillsParams,
     SkillType,
 };
-use bm25_engine::Bm25Engine;
 #[cfg(feature = "embeddings")]
 use embeddings::EmbeddingEngine;
+use memory::{MemoryStore, compact_search_results};
 use schema::get_schema_resource;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -24,6 +29,7 @@ const SERVER_NAME: &str = "ontomcp";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-11-25";
 const SUPPORTED_PROTOCOLS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+const SERVER_INSTRUCTIONS: &str = "Use ontoskill for skill discovery and exact skill context. Use ontomemory for remembered user/project knowledge, preferences, facts, procedures, corrections, and prior decisions. To inspect remembered context, call ontomemory with action=list and scope=both. To retrieve by topic, call ontomemory with action=search, scope=both, and a specific query.";
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -41,8 +47,17 @@ enum WireMode {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if is_graph_command() {
+        return run_graph_cli().map_err(|err| err.into());
+    }
+
     let ontology_root = parse_ontology_root();
     let catalog = Catalog::load(&ontology_root)?;
+    let mut memory_store = MemoryStore::from_environment();
+    let mut graph_server: Option<graph::GraphServerHandle> = None;
+    if let Err(err) = catalog.reload_memory_files(&memory_store.existing_ttl_paths()) {
+        eprintln!("[ontomcp] Warning: Failed to load memory graph: {}", err);
+    }
 
     // Build BM25 engine (always available — in-memory from Catalog data)
     let bm25_engine = Bm25Engine::from_catalog(&catalog).unwrap_or_else(|e| {
@@ -58,8 +73,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if embeddings_dir.join("model.onnx").exists() {
             match EmbeddingEngine::load(&embeddings_dir, ontology_root) {
                 Ok(engine) => {
-                    eprintln!("[ontomcp] Loaded embedding engine with {} intents",
-                        engine.intent_count());
+                    eprintln!(
+                        "[ontomcp] Loaded embedding engine with {} intents",
+                        engine.intent_count()
+                    );
                     Some(engine)
                 }
                 Err(e) => {
@@ -144,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             "listChanged": false
                         }
                     },
-                    "instructions": "Use the consolidated OntoSkills tools to discover skills, retrieve full skill context, evaluate execution plans, and query epistemic rules."
+                    "instructions": SERVER_INSTRUCTIONS
                 });
                 respond_ok(&mut writer, wire_mode, request.id, result)?;
             }
@@ -194,7 +211,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "resources/read" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let uri = request.params
+                let uri = request
+                    .params
                     .as_ref()
                     .and_then(|p| p.get("uri"))
                     .and_then(|u| u.as_str())
@@ -249,7 +267,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "tools/call" => {
                 ensure_initialized(&mut writer, wire_mode, &request, initialized)?;
-                let result = handle_tool_call(&catalog, &bm25_engine, embedding_engine.as_mut(), request.params.unwrap_or(Value::Null));
+                let result = handle_tool_call(
+                    &catalog,
+                    &mut memory_store,
+                    &mut graph_server,
+                    &ontology_root,
+                    &bm25_engine,
+                    embedding_engine.as_mut(),
+                    request.params.unwrap_or(Value::Null),
+                );
                 match result {
                     Ok(result) => respond_ok(&mut writer, wire_mode, request.id, result)?,
                     Err(err) => respond_error(&mut writer, wire_mode, request.id, -32602, &err)?,
@@ -292,6 +318,60 @@ fn parse_ontology_root() -> PathBuf {
     discover_ontology_root().unwrap_or_else(default_ontology_root)
 }
 
+fn is_graph_command() -> bool {
+    env::args().skip(1).any(|arg| arg == "graph")
+}
+
+fn run_graph_cli() -> Result<(), Box<dyn std::error::Error>> {
+    let options = parse_graph_options();
+    let server = graph::start_server(
+        parse_ontology_root(),
+        &options.host,
+        options.port,
+        options.open_port_range,
+    )?;
+    eprintln!("OntoGraph running at {}", server.url());
+    eprintln!("Press Ctrl+C to stop.");
+    server.wait();
+    Ok(())
+}
+
+struct GraphCliOptions {
+    host: String,
+    port: u16,
+    open_port_range: bool,
+}
+
+fn parse_graph_options() -> GraphCliOptions {
+    let mut host = "127.0.0.1".to_string();
+    let mut port = 8787;
+    let mut open_port_range = true;
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--host" => {
+                if let Some(value) = args.next() {
+                    host = value;
+                }
+            }
+            "--port" => {
+                if let Some(value) = args.next() {
+                    if let Ok(parsed) = value.parse::<u16>() {
+                        port = parsed;
+                    }
+                }
+            }
+            "--strict-port" => open_port_range = false,
+            _ => {}
+        }
+    }
+    GraphCliOptions {
+        host,
+        port,
+        open_port_range,
+    }
+}
+
 fn discover_ontology_root() -> Option<PathBuf> {
     let cwd = env::current_dir().ok()?;
 
@@ -314,8 +394,10 @@ fn discover_ontology_root() -> Option<PathBuf> {
         .map(|home| home.join(".ontoskills").join("ontoskills"));
     if let Some(ref legacy) = legacy_home {
         if legacy.exists() && has_ontology_data(legacy) {
-            eprintln!("[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
-                legacy, home_default);
+            eprintln!(
+                "[ontomcp] Warning: Using legacy ontology path {:?}. Consider migrating to {:?}",
+                legacy, home_default
+            );
             return Some(legacy.clone());
         }
     }
@@ -354,10 +436,7 @@ fn contains_ttl_recursive(path: &Path, max_depth: usize) -> bool {
             if contains_ttl_recursive(&entry_path, max_depth.saturating_sub(1)) {
                 return true;
             }
-        } else if entry_path
-            .extension()
-            .map_or(false, |ext| ext == "ttl")
-        {
+        } else if entry_path.extension().map_or(false, |ext| ext == "ttl") {
             return true;
         }
     }
@@ -451,8 +530,119 @@ fn do_search(
     Ok((structured, text))
 }
 
+fn skill_ids_from_search(value: &Value) -> Vec<String> {
+    let mut ids = Vec::new();
+    if let Some(results) = value.get("results").and_then(Value::as_array) {
+        for result in results {
+            if let Some(skill_id) = result.get("skill_id").and_then(Value::as_str) {
+                ids.push(skill_id.to_string());
+            }
+            if let Some(qualified_id) = result.get("qualified_id").and_then(Value::as_str) {
+                ids.push(qualified_id.to_string());
+            }
+        }
+    }
+    if let Some(matches) = value.get("matches").and_then(Value::as_array) {
+        for matched in matches {
+            if let Some(skills) = matched.get("skills").and_then(Value::as_array) {
+                for skill in skills {
+                    if let Some(skill_id) = skill.as_str() {
+                        ids.push(skill_id.to_string());
+                    }
+                }
+            }
+        }
+    }
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+fn handle_ontograph(
+    arguments: Value,
+    graph_server: &mut Option<graph::GraphServerHandle>,
+    ontology_root: &Path,
+) -> Result<Value, String> {
+    let action = optional_string(&arguments, "action").unwrap_or_else(|| "start".to_string());
+    match action.trim().to_ascii_lowercase().as_str() {
+        "start" => {
+            if let Some(server) = graph_server.as_ref() {
+                if server.is_running() {
+                    return Ok(json!({
+                        "running": true,
+                        "url": server.url(),
+                        "host": server.host(),
+                        "port": server.port()
+                    }));
+                }
+            }
+
+            let host =
+                optional_string(&arguments, "host").unwrap_or_else(|| "127.0.0.1".to_string());
+            let port = optional_usize(&arguments, "port")
+                .unwrap_or(8787)
+                .min(u16::MAX as usize) as u16;
+            let open_port_range = optional_bool(&arguments, "open_port_range").unwrap_or(true);
+            let server =
+                graph::start_server(ontology_root.to_path_buf(), &host, port, open_port_range)?;
+            let result = json!({
+                "running": true,
+                "url": server.url(),
+                "host": server.host(),
+                "port": server.port()
+            });
+            *graph_server = Some(server);
+            Ok(result)
+        }
+        "status" => {
+            if let Some(server) = graph_server.as_ref() {
+                Ok(json!({
+                    "running": server.is_running(),
+                    "url": server.url(),
+                    "host": server.host(),
+                    "port": server.port()
+                }))
+            } else {
+                Ok(json!({ "running": false }))
+            }
+        }
+        "stop" => {
+            if let Some(server) = graph_server.take() {
+                let url = server.url();
+                server.stop();
+                Ok(json!({ "running": false, "stopped": true, "url": url }))
+            } else {
+                Ok(json!({ "running": false, "stopped": false }))
+            }
+        }
+        other => Err(format!("Unknown ontograph action: {other}")),
+    }
+}
+
+fn graph_compact_text(value: &Value) -> String {
+    if value
+        .get("running")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        let url = value.get("url").and_then(Value::as_str).unwrap_or("");
+        format!("OntoGraph running at {url}")
+    } else if value
+        .get("stopped")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        "OntoGraph stopped.".to_string()
+    } else {
+        "OntoGraph is not running.".to_string()
+    }
+}
+
 fn handle_tool_call(
     catalog: &Catalog,
+    memory_store: &mut MemoryStore,
+    graph_server: &mut Option<graph::GraphServerHandle>,
+    ontology_root: &Path,
     bm25_engine: &Bm25Engine,
     #[cfg(feature = "embeddings")] embedding_engine: Option<&mut EmbeddingEngine>,
     #[cfg(not(feature = "embeddings"))] _embedding_engine: Option<&mut ()>,
@@ -483,10 +673,7 @@ fn handle_tool_call(
     let (structured, compact_text) = match tool_name {
         "ontoskill" => {
             let q = required_string(&arguments, "q")?;
-            let top_k = arguments
-                .get("top_k")
-                .and_then(Value::as_u64)
-                .unwrap_or(5) as usize;
+            let top_k = arguments.get("top_k").and_then(Value::as_u64).unwrap_or(5) as usize;
 
             // Try exact skill_id lookup first.
             let ctx_result = catalog.get_skill_context(q, true);
@@ -502,17 +689,51 @@ fn handle_tool_call(
                 }
                 Err(_) => {
                     // Not a skill_id — treat as search query.
-                    let (structured, text) = do_search(
-                        q, top_k, bm25_engine,
+                    let (mut structured, mut text) = do_search(
+                        q,
+                        top_k,
+                        bm25_engine,
                         #[cfg(feature = "embeddings")]
                         embedding_engine,
                         #[cfg(not(feature = "embeddings"))]
                         None,
                         use_compact,
                     )?;
+                    let skill_ids = skill_ids_from_search(&structured);
+                    let memories = memory_store.relevant_memories_for_query(q, &skill_ids, 5)?;
+                    if !memories.is_empty() {
+                        if let Value::Object(ref mut object) = structured {
+                            object.insert("memories".to_string(), json!(memories));
+                        }
+                        if use_compact {
+                            text.push_str("\n\n");
+                            text.push_str(&compact_search_results("Relevant memories", &memories));
+                        } else {
+                            text = serde_json::to_string_pretty(&structured).unwrap_or_default();
+                        }
+                    }
                     (structured, text)
                 }
             }
+        }
+        "ontomemory" => {
+            let result = memory_store.handle_action(&arguments)?;
+            if result.changed {
+                catalog
+                    .reload_memory_files(&memory_store.existing_ttl_paths())
+                    .map_err(public_error)?;
+            }
+            let text = if use_compact {
+                result.compact_text
+            } else {
+                serde_json::to_string_pretty(&result.structured).unwrap_or_default()
+            };
+            (result.structured, text)
+        }
+        "ontograph" => {
+            let result = handle_ontograph(arguments, graph_server, ontology_root)?;
+            let text = graph_compact_text(&result);
+            (result, text)
         }
         // Internal tools — not in tool_definitions() but kept for prefetch_knowledge
         // and backward compatibility with existing clients.
@@ -529,12 +750,11 @@ fn handle_tool_call(
                     .get("query")
                     .and_then(Value::as_str)
                     .ok_or_else(|| "query required".to_string())?;
-                let top_k = arguments
-                    .get("top_k")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(5) as usize;
+                let top_k = arguments.get("top_k").and_then(Value::as_u64).unwrap_or(5) as usize;
                 do_search(
-                    query, top_k, bm25_engine,
+                    query,
+                    top_k,
+                    bm25_engine,
                     #[cfg(feature = "embeddings")]
                     embedding_engine,
                     #[cfg(not(feature = "embeddings"))]
@@ -585,9 +805,19 @@ fn handle_tool_call(
             let text = if use_compact {
                 match query {
                     Some(q) if !q.is_empty() => {
-                        let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(&skill_id, &ctx.knowledge_nodes);
-                        let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
-                        compact::compact_context_with_query(&skill_id, &ctx, Some(&q), Some(&node_engine), Some(&section_engine))
+                        let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(
+                            &skill_id,
+                            &ctx.knowledge_nodes,
+                        );
+                        let section_engine =
+                            crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
+                        compact::compact_context_with_query(
+                            &skill_id,
+                            &ctx,
+                            Some(&q),
+                            Some(&node_engine),
+                            Some(&section_engine),
+                        )
                     }
                     _ => compact::compact_context(&skill_id, &ctx),
                 }
@@ -663,26 +893,28 @@ fn handle_prefetch(
     arguments: &Value,
     use_compact: bool,
 ) -> Result<Value, String> {
-    let max_skills = optional_usize(arguments, "max_skills")
-        .unwrap_or(3)
-        .min(5);
+    let max_skills = optional_usize(arguments, "max_skills").unwrap_or(3).min(5);
 
     // Capture the query string (if any) for node-level BM25 ranking.
-    let query_opt: Option<String> = arguments.get("query").and_then(Value::as_str).map(String::from);
+    let query_opt: Option<String> = arguments
+        .get("query")
+        .and_then(Value::as_str)
+        .map(String::from);
 
     // Determine skill IDs: either explicitly provided or via search.
-    let skill_ids: Vec<String> = if let Some(ids) = arguments.get("skill_ids").and_then(Value::as_array) {
-        ids.iter()
-            .filter_map(Value::as_str)
-            .map(String::from)
-            .take(max_skills)
-            .collect()
-    } else if let Some(query) = &query_opt {
-        let results = bm25_engine.search(query, max_skills);
-        results.into_iter().map(|r| r.skill_id).collect()
-    } else {
-        return Err("prefetch_knowledge requires either 'query' or 'skill_ids'".to_string());
-    };
+    let skill_ids: Vec<String> =
+        if let Some(ids) = arguments.get("skill_ids").and_then(Value::as_array) {
+            ids.iter()
+                .filter_map(Value::as_str)
+                .map(String::from)
+                .take(max_skills)
+                .collect()
+        } else if let Some(query) = &query_opt {
+            let results = bm25_engine.search(query, max_skills);
+            results.into_iter().map(|r| r.skill_id).collect()
+        } else {
+            return Err("prefetch_knowledge requires either 'query' or 'skill_ids'".to_string());
+        };
 
     if skill_ids.is_empty() {
         return Ok(build_response(
@@ -698,8 +930,10 @@ fn handle_prefetch(
         match catalog.get_skill_context(sid, true) {
             Ok(ctx) => {
                 structured_skills.push(json!(ctx));
-                let node_engine = crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
-                let section_engine = crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
+                let node_engine =
+                    crate::bm25_engine::NodeBm25Engine::from_nodes(sid, &ctx.knowledge_nodes);
+                let section_engine =
+                    crate::bm25_engine::SectionBm25Engine::from_sections(&ctx.sections);
                 sections.push(compact::compact_context_with_query(
                     sid,
                     &ctx,
@@ -908,6 +1142,111 @@ fn tool_definitions() -> Vec<Value> {
                 "required": ["q"]
             }),
         ),
+        tool(
+            "ontomemory",
+            "Manage remembered user/project knowledge as graph nodes. Agents may call remember with only content: the server decomposes compound thoughts into atomic memories and auto-associates skills, intents, contexts, and memory links. Use associate to preview without saving.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["remember", "associate", "search", "list", "get", "update", "forget", "link", "unlink", "recluster"],
+                        "description": "CRUD action. remember saves and auto-associates by default; associate previews without saving; recluster recalculates topic clusters and generic memory links."
+                    },
+                    "content": { "type": "string", "description": "Memory text for remember/update." },
+                    "title": { "type": "string", "description": "Display title for the memory. Auto-generated when omitted." },
+                    "memory_id": { "type": "string", "description": "Memory id for get/update/forget/link." },
+                    "memory_type": {
+                        "type": "string",
+                        "enum": ["procedure", "correction", "anti_pattern", "preference", "fact"],
+                        "default": "fact",
+                        "description": "Kind of remembered knowledge."
+                    },
+                    "scope": {
+                        "type": "string",
+                        "enum": ["project", "global", "both"],
+                        "description": "Write: project/global. Search/list: project/global/both. Defaults: write=project, search/list=both.",
+                        "default": "project"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search text for action=search. For listing all memories prefer action=list; query='*' is also accepted."
+                    },
+                    "related_skill_id": { "type": "string", "description": "Skill id for remember/search/link." },
+                    "auto_associate": { "type": "boolean", "default": true, "description": "For remember: infer missing type, title, context, skill, intent, and memory relations." },
+                    "decompose": { "type": "boolean", "default": true, "description": "For remember/associate: split compound thoughts into atomic memories when possible." },
+                    "dedupe_policy": { "type": "string", "enum": ["merge", "reject", "allow"], "default": "merge", "description": "For remember: merge duplicate memories by default, reject them, or allow duplicates." },
+                    "isolation_policy": { "type": "string", "enum": ["auto_link", "reject", "inbox"], "default": "auto_link", "description": "For remember: ensure new memories are placed in the graph by auto-linking, rejecting isolated nodes, or assigning inbox/unclassified." },
+                    "auto_link_related": { "type": "boolean", "default": true, "description": "For remember: assign topic clusters and link non-duplicate memories to existing memories with the same topic/context/intent." },
+                    "related_skill_ids": { "type": "array", "items": { "type": "string" }, "description": "Skill ids for remember/update. Update replaces the current related skill array when present." },
+                    "related_intents": { "type": "array", "items": { "type": "string" }, "description": "Intents directly related to this memory. Update replaces the array when present." },
+                    "related_topic_ids": { "type": "array", "items": { "type": "string" }, "description": "Topic/cluster ids directly related to this memory. Update replaces the array when present." },
+                    "related_memory_ids": { "type": "array", "items": { "type": "string" }, "description": "Generic related memory ids for non-sequential memories in the same topic cluster. Update replaces the array when present." },
+                    "depends_on_memory_ids": { "type": "array", "items": { "type": "string" }, "description": "Memory ids this memory depends on. Update replaces the array when present." },
+                    "supersedes_memory_ids": { "type": "array", "items": { "type": "string" }, "description": "Memory ids this memory supersedes. Update replaces the array when present." },
+                    "relation": { "type": "string", "enum": ["related_to_skill", "related_to_intent", "related_to_topic", "related_to_memory", "depends_on_memory", "supersedes_memory"], "description": "Relation for link/unlink." },
+                    "link_type": { "type": "string", "enum": ["related_to_skill", "related_to_intent", "related_to_topic", "related_to_memory", "depends_on_memory", "supersedes_memory"], "description": "Legacy alias for relation." },
+                    "target_id": { "type": "string", "description": "Target skill id, intent string, or memory id for link/unlink." },
+                    "target_memory_id": { "type": "string", "description": "Legacy alias for target_id on memory-memory links." },
+                    "related_intent": { "type": "string", "description": "Alias for target_id on related_to_intent link/unlink." },
+                    "related_topic_id": { "type": "string", "description": "Alias for target_id on related_to_topic link/unlink." },
+                    "include_links": { "type": "boolean", "description": "For get: include dependency and superseded arrays.", "default": false },
+                    "include_dependencies": { "type": "boolean", "description": "For get: include dependency array and records.", "default": false },
+                    "include_superseded": { "type": "boolean", "description": "For get: include superseded array and records.", "default": false },
+                    "applies_to_context": { "type": "string", "description": "Context where the memory applies." },
+                    "rationale": { "type": "string", "description": "Why this memory exists." },
+                    "severity_level": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"], "description": "Severity for correction/anti-pattern memories." },
+                    "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Confidence from 0.0 to 1.0." },
+                    "source": { "type": "string", "description": "Source or provenance for the memory." },
+                    "is_archived": { "type": "boolean", "description": "Archive state for update." },
+                    "allow_missing_memory_refs": { "type": "boolean", "default": false, "description": "Allow memory-memory links to ids not present in loaded memory files. Defaults false to prevent dangling graph placeholders." },
+                    "min_confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Search/list filter for minimum confidence." },
+                    "limit": { "type": "integer", "description": "Max search/list results.", "minimum": 1, "maximum": 100 },
+                    "include_archived": { "type": "boolean", "description": "Include archived memories in search/list.", "default": false },
+                    "hard_delete": { "type": "boolean", "description": "For forget: permanently delete instead of archive.", "default": false },
+                    "dry_run": { "type": "boolean", "description": "For recluster: preview changes without writing. Defaults true unless apply=true.", "default": true },
+                    "apply": { "type": "boolean", "description": "For recluster: persist recalculated topic clusters and related memory links.", "default": false },
+                    "format": {
+                        "type": "string",
+                        "enum": ["compact", "raw"],
+                        "default": "compact"
+                    }
+                },
+                "required": ["action"]
+            }),
+        ),
+        tool(
+            "ontograph",
+            "Start, inspect, or stop the local OntoGraph web UI for browsing the 3D graph of skills, knowledge nodes, states, memories, and their connections.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["start", "status", "stop"],
+                        "default": "start",
+                        "description": "Use start to launch the local graph UI, status to inspect it, stop to shut it down."
+                    },
+                    "host": {
+                        "type": "string",
+                        "default": "127.0.0.1",
+                        "description": "Bind host for the local web UI. Defaults to localhost."
+                    },
+                    "port": {
+                        "type": "integer",
+                        "default": 8787,
+                        "minimum": 1,
+                        "maximum": 65535,
+                        "description": "Preferred port. If occupied, the server tries following ports unless open_port_range=false."
+                    },
+                    "open_port_range": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "When true, try following ports if the preferred one is busy."
+                    }
+                }
+            }),
+        ),
     ]
 }
 
@@ -917,4 +1256,556 @@ fn tool(name: &str, description: &str, input_schema: Value) -> Value {
         "description": description,
         "inputSchema": input_schema,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use tempfile::tempdir;
+
+    fn write_minimal_ontology(root: &Path) {
+        fs::create_dir_all(root).unwrap();
+        fs::write(
+            root.join("index.ttl"),
+            r#"
+@prefix oc: <https://ontoskills.sh/ontology#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+oc:skill_test a oc:Skill, oc:DeclarativeSkill ;
+    dcterms:identifier "test-skill" ;
+    oc:nature "Test skill" ;
+    oc:resolvesIntent "test deployment bucket" .
+"#,
+        )
+        .unwrap();
+    }
+
+    fn test_runtime() -> (tempfile::TempDir, PathBuf, Catalog, MemoryStore, Bm25Engine) {
+        let dir = tempdir().unwrap();
+        let ontology_root = dir.path().join("ontologies");
+        write_minimal_ontology(&ontology_root);
+        let catalog = Catalog::load(&ontology_root).unwrap();
+        let memory_store =
+            MemoryStore::load(dir.path().join("memories"), "project-a".to_string()).unwrap();
+        let bm25_engine = Bm25Engine::from_catalog(&catalog).unwrap();
+        (dir, ontology_root, catalog, memory_store, bm25_engine)
+    }
+
+    #[test]
+    fn public_tool_list_includes_ontoskill_ontomemory_and_ontograph() {
+        let names = tool_definitions()
+            .iter()
+            .filter_map(|tool| tool.get("name").and_then(Value::as_str))
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["ontoskill", "ontomemory", "ontograph"]);
+    }
+
+    #[test]
+    fn initialize_instructions_explain_memory_usage() {
+        assert!(SERVER_INSTRUCTIONS.contains("Use ontomemory"));
+        assert!(SERVER_INSTRUCTIONS.contains("scope=both"));
+        assert!(SERVER_INSTRUCTIONS.contains("action=list"));
+    }
+
+    #[test]
+    fn ontomemory_schema_exposes_compact_crud_contract() {
+        let tools = tool_definitions();
+        let ontomemory = tools
+            .iter()
+            .find(|tool| tool.get("name").and_then(Value::as_str) == Some("ontomemory"))
+            .unwrap();
+        let properties = ontomemory
+            .pointer("/inputSchema/properties")
+            .and_then(Value::as_object)
+            .unwrap();
+
+        for field in [
+            "action",
+            "content",
+            "memory_id",
+            "query",
+            "scope",
+            "memory_type",
+            "related_skill_id",
+            "limit",
+            "include_archived",
+            "hard_delete",
+            "format",
+        ] {
+            assert!(
+                properties.contains_key(field),
+                "missing core schema field {field}"
+            );
+        }
+        for advanced_field in [
+            "relation",
+            "target_id",
+            "target_memory_id",
+            "include_dependencies",
+            "include_superseded",
+            "include_links",
+            "depends_on_memory_ids",
+            "related_skill_ids",
+            "related_topic_ids",
+            "related_memory_ids",
+            "supersedes_memory_ids",
+            "related_intents",
+            "dedupe_policy",
+            "isolation_policy",
+            "min_confidence",
+            "severity_level",
+            "confidence",
+            "source",
+            "rationale",
+            "applies_to_context",
+            "is_archived",
+        ] {
+            assert!(
+                properties.contains_key(advanced_field),
+                "missing graph memory schema field {advanced_field}"
+            );
+        }
+        assert_eq!(
+            properties["action"]["enum"],
+            json!([
+                "remember",
+                "associate",
+                "search",
+                "list",
+                "get",
+                "update",
+                "forget",
+                "link",
+                "unlink",
+                "recluster"
+            ])
+        );
+        assert!(
+            properties["query"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("'*'")
+        );
+        assert!(
+            properties["scope"]["description"]
+                .as_str()
+                .unwrap()
+                .contains("Search/list")
+        );
+        assert!(
+            ontomemory["description"]
+                .as_str()
+                .unwrap()
+                .contains("graph nodes")
+        );
+    }
+
+    #[test]
+    fn ontograph_tool_starts_reports_and_stops_server() {
+        let (_dir, ontology_root, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let mut graph_server = None;
+
+        let started = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontograph",
+                "arguments": {
+                    "action": "start",
+                    "port": 0,
+                    "open_port_range": false
+                }
+            }),
+        )
+        .unwrap();
+        assert_eq!(started["structuredContent"]["running"], true);
+        assert!(
+            started["structuredContent"]["url"]
+                .as_str()
+                .unwrap()
+                .starts_with("http://127.0.0.1:")
+        );
+
+        let status = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontograph", "arguments": { "action": "status" } }),
+        )
+        .unwrap();
+        assert_eq!(status["structuredContent"]["running"], true);
+
+        let stopped = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontograph", "arguments": { "action": "stop" } }),
+        )
+        .unwrap();
+        assert_eq!(stopped["structuredContent"]["running"], false);
+        assert_eq!(stopped["structuredContent"]["stopped"], true);
+    }
+
+    #[test]
+    fn ontograph_http_graph_endpoint_returns_skill_nodes() {
+        let (_dir, ontology_root, _catalog, _memory_store, _bm25_engine) = test_runtime();
+        let server = graph::start_server(ontology_root, "127.0.0.1", 0, false).unwrap();
+        let mut stream = TcpStream::connect((server.host(), server.port())).unwrap();
+        write!(
+            stream,
+            "GET /api/graph?scope=both HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+            server.host()
+        )
+        .unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        let body = response.split("\r\n\r\n").nth(1).unwrap();
+        let graph: Value = serde_json::from_str(body).unwrap();
+        assert!(
+            graph["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["kind"] == "skill")
+        );
+        server.stop();
+    }
+
+    #[test]
+    fn ontograph_graph_keeps_memory_links_to_unloaded_skills_visible() {
+        let (_dir, ontology_root, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let mut graph_server = None;
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Link to external skill",
+                    "scope": "global",
+                    "related_skill_id": "external-skill"
+                }
+            }),
+        )
+        .unwrap();
+
+        let graph = graph::build_graph_value(
+            &catalog,
+            &mut memory_store,
+            &ontology_root,
+            &std::collections::HashMap::new(),
+        )
+        .unwrap();
+        assert!(
+            graph["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["id"] == "skill:external-skill")
+        );
+        assert!(
+            graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|edge| edge["relation"] == "related_to_skill"
+                    && edge["target"] == "skill:external-skill")
+        );
+    }
+
+    #[test]
+    fn ontograph_graph_includes_intent_nodes_and_memory_chains() {
+        let (_dir, ontology_root, catalog, mut memory_store, _bm25_engine) = test_runtime();
+        let parent = memory_store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Parent memory",
+                "related_intents": ["test deployment bucket"]
+            }))
+            .unwrap();
+        let parent_id = parent.structured["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let child = memory_store
+            .handle_action(&json!({
+                "action": "remember",
+                "content": "Child memory",
+                "depends_on_memory_ids": [parent_id]
+            }))
+            .unwrap();
+        let child_id = child.structured["memory"]["memory_id"].as_str().unwrap();
+
+        let graph = graph::build_graph_value(
+            &catalog,
+            &mut memory_store,
+            &ontology_root,
+            &std::collections::HashMap::new(),
+        )
+        .unwrap();
+        assert!(
+            graph["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["id"] == "intent:test deployment bucket")
+        );
+        assert!(
+            graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|edge| edge["relation"] == "related_to_intent"
+                    && edge["target"] == "intent:test deployment bucket")
+        );
+        assert!(
+            graph["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["kind"] == "topic")
+        );
+        assert!(
+            graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|edge| edge["relation"] == "related_to_topic")
+        );
+        assert!(
+            graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|edge| edge["relation"] == "depends_on_memory"
+                    && edge["source"] == format!("memory:{child_id}"))
+        );
+        let parent_node = graph["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["id"] == format!("memory:{parent_id}"))
+            .unwrap();
+        assert_eq!(parent_node["data"]["placeholder"], Value::Null);
+        assert_ne!(parent_node["label"], parent_id);
+    }
+
+    #[test]
+    fn ontomemory_tool_update_replaces_relationship_arrays() {
+        let (_dir, ontology_root, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let mut graph_server = None;
+        let remembered = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Procedure linked to an intent",
+                    "related_skill_ids": ["old-skill"],
+                    "related_intents": ["old-intent"]
+                }
+            }),
+        )
+        .unwrap();
+        let memory_id = remembered["structuredContent"]["memory"]["memory_id"]
+            .as_str()
+            .unwrap();
+
+        let updated = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "update",
+                    "memory_id": memory_id,
+                    "related_skill_ids": ["new-skill"],
+                    "related_intents": ["new-intent"],
+                    "related_topic_ids": ["topic-new"],
+                    "related_memory_ids": ["mem-peer"],
+                    "depends_on_memory_ids": ["mem-parent"],
+                    "supersedes_memory_ids": ["mem-old"],
+                    "allow_missing_memory_refs": true
+                }
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(
+            updated["structuredContent"]["memory"]["related_skill_ids"],
+            json!(["new-skill"])
+        );
+        assert_eq!(
+            updated["structuredContent"]["memory"]["related_intents"],
+            json!(["new-intent"])
+        );
+        assert_eq!(
+            updated["structuredContent"]["memory"]["related_topic_ids"],
+            json!(["topic-new"])
+        );
+        assert_eq!(
+            updated["structuredContent"]["memory"]["related_memory_ids"],
+            json!(["mem-peer"])
+        );
+        assert_eq!(
+            updated["structuredContent"]["memory"]["depends_on_memory_ids"],
+            json!(["mem-parent"])
+        );
+        assert_eq!(
+            updated["structuredContent"]["memory"]["supersedes_memory_ids"],
+            json!(["mem-old"])
+        );
+    }
+
+    #[test]
+    fn ontoskill_exact_lookup_does_not_include_memories() {
+        let (_dir, ontology_root, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let mut graph_server = None;
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the blue deployment bucket",
+                    "related_skill_id": "test-skill"
+                }
+            }),
+        )
+        .unwrap();
+
+        let exact = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontoskill", "arguments": { "q": "test-skill" } }),
+        )
+        .unwrap();
+
+        assert!(exact["structuredContent"].get("memories").is_none());
+        assert!(
+            !exact["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Relevant memories")
+        );
+    }
+
+    #[test]
+    fn ontoskill_query_includes_relevant_non_archived_memories() {
+        let (_dir, ontology_root, catalog, mut memory_store, bm25_engine) = test_runtime();
+        let mut graph_server = None;
+        let archived = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the archived blue deployment bucket"
+                }
+            }),
+        )
+        .unwrap();
+        let archived_id = archived["structuredContent"]["memory"]["memory_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "forget",
+                    "memory_id": archived_id
+                }
+            }),
+        )
+        .unwrap();
+        handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({
+                "name": "ontomemory",
+                "arguments": {
+                    "action": "remember",
+                    "content": "Use the active blue deployment bucket"
+                }
+            }),
+        )
+        .unwrap();
+
+        let result = handle_tool_call(
+            &catalog,
+            &mut memory_store,
+            &mut graph_server,
+            &ontology_root,
+            &bm25_engine,
+            None,
+            json!({ "name": "ontoskill", "arguments": { "q": "blue deployment bucket" } }),
+        )
+        .unwrap();
+
+        let memories = result["structuredContent"]["memories"].as_array().unwrap();
+        assert_eq!(memories.len(), 1);
+        assert_eq!(
+            memories[0]["content"],
+            "Use the active blue deployment bucket"
+        );
+        assert!(
+            result["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Relevant memories")
+        );
+    }
 }

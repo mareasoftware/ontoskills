@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-**OntoSkills** are a neuro-symbolic skill platform for deterministic agents. They turn `SKILL.md` sources into validated OWL 2 ontologies, serve compiled skills through a local MCP runtime, and distribute published packages through OntoStore.
+**OntoSkills** are a neuro-symbolic skill platform for deterministic agents. They turn `SKILL.md` sources into validated OWL 2 ontologies, serve compiled skills and runtime memories through a local MCP runtime, and distribute published packages through OntoStore.
 
 ---
 
@@ -56,7 +56,9 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 ### The runtime
 
 - **OntoMCP** loads compiled `.ttl` files from `ontoskills/`
-- Agents query via SPARQL through the MCP protocol
+- **OntoMemory** stores project/global runtime memories as graph-aware `KnowledgeNode` data
+- Agents query skills and memories via SPARQL and MCP tools
+- **OntoGraph** provides a local viewer/editor for skills, knowledge nodes, states, memories, intents, topics, and relationships
 - OntoStore is built in by default
 - Third-party stores can be added explicitly with `store add-source`
 
@@ -75,6 +77,8 @@ OntoSkills transforms skills into formal ontologies with **Description Logics (O
 | **Security Pipeline** | Defense-in-depth: regex patterns + LLM review for malicious content |
 | **Static Linting** | Detects dead states, circular deps, duplicate intents |
 | **Drift Detection** | Semantic diff between ontology versions |
+| **OntoMemory** | Persistent project/global memory nodes with topic clustering, memory chains, dedupe, and recluster backfill |
+| **OntoGraph** | Local 3D runtime graph viewer and memory editor |
 
 ---
 
@@ -100,6 +104,8 @@ Every skill is extracted with:
 | **OntoCore** | Python | Skill compiler for `SKILL.md` sources |
 | **OntoMCP** | Rust | MCP server with unified ontoskill tool (search + context retrieval) |
 | **OntoStore** | GitHub repo | Official compiled skill store |
+| **OntoMemory** | Rust/RDF | Persistent runtime memory for project/global knowledge |
+| **OntoGraph** | Rust/Web | Local graph viewer and memory editor served by OntoMCP |
 | `skills/` | Markdown | Human-authored source skills |
 | `ontoskills/` | Turtle | Compiled ontology artifacts |
 ---
@@ -122,6 +128,7 @@ Every skill is extracted with:
 - **[CLI](/docs/cli/)** — Learn the managed command surface
 - **[OntoStore](/ontostore/)** — Browse installable store skills
 - **[OntoCore](/docs/ontocore/)** — Install compiler for custom skills
+- **[OntoMemory](/docs/ontomemory/)** — Use graph-aware persistent runtime memory
 - **[Store](/docs/store/)** — Learn how official and third-party stores work
 - **[Architecture](/docs/architecture/)** — Deep dive into the system design
 - **[Knowledge Extraction](/docs/knowledge-extraction/)** — Understanding knowledge nodes

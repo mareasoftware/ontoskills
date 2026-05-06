@@ -306,6 +306,80 @@ oc:KnowledgeNodeShape
     .
 
 # ============================================================================
+# MEMORY SHAPE
+# Runtime memories are KnowledgeNodes, but are not required to be linked from a Skill.
+# ============================================================================
+
+oc:MemoryShape
+    a sh:NodeShape ;
+    sh:targetClass oc:Memory ;
+    rdfs:label "Memory Shape" ;
+    rdfs:comment "Constraints for runtime memories stored in the shared knowledge graph" ;
+
+    sh:property [
+        sh:path oc:memoryId ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Ogni Memory deve avere esattamente un memoryId" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:directiveContent ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Ogni Memory deve avere esattamente un directiveContent" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:memoryScope ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in ("global" "project") ;
+        sh:message "memoryScope deve essere global o project" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:confidence ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:decimal ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:message "confidence deve essere un numero tra 0.0 e 1.0" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:isArchived ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:boolean ;
+        sh:message "isArchived deve essere booleano" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:dependsOnMemory ;
+        sh:class oc:Memory ;
+        sh:severity sh:Warning ;
+        sh:message "dependsOnMemory dovrebbe puntare a una Memory" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:supersedesMemory ;
+        sh:class oc:Memory ;
+        sh:severity sh:Warning ;
+        sh:message "supersedesMemory dovrebbe puntare a una Memory" ;
+    ] ;
+
+    sh:property [
+        sh:path oc:relatedToSkill ;
+        sh:class oc:Skill ;
+        sh:severity sh:Warning ;
+        sh:message "relatedToSkill dovrebbe puntare a una Skill" ;
+    ] ;
+    .
+
+# ============================================================================
 # SKILL KNOWLEDGE WARNING SHAPE
 # Warns if skill has no epistemic knowledge - SEPARATE FROM MAIN VALIDATION
 # ============================================================================

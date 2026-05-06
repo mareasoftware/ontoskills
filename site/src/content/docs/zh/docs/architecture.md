@@ -11,6 +11,9 @@ sidebar:
 flowchart LR
     MD["SKILL.md"] --> LLM["Claude"] --> PYD["Pydantic"] --> SEC["Security"] --> RDF["RDF"] --> SHACL["SHACL"]
     SHACL -->|"PASS"| TTL["ontoskill.ttl"] --> EMBED["Embed (opt)"] --> MCP["OntoMCP"] <--> AGENT["Agent"]
+    AGENT -->|"remember"| MEM["OntoMemory"]
+    MEM -->|"memory .ttl"| MCP
+    MCP -->|"visualize/edit"| OG["OntoGraph"]
     SHACL -->|"FAIL"| FAIL["❌ Block"]
 
     style MD fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
@@ -23,6 +26,8 @@ flowchart LR
     style TTL fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
     style MCP fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
     style AGENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
+    style MEM fill:#faa338,stroke:#2a2a3e,color:#0d0d14
+    style OG fill:#26c7bd,stroke:#2a2a3e,color:#0d0d14
     style FAIL fill:#ff6b6b,stroke:#2a2a3e,color:#f0f0f5
 ```
 
@@ -64,6 +69,22 @@ FlatBlock → 节树 → 知识节点
 **知识节点** — OntoMCP 提供给 LLM 代理的紧凑、即用型输出。编译器不重建原始 Markdown，而是生成结构化的知识节点（启发式、反模式、过程等），代理直接消费这些节点。
 
 在 TTL 输出中，节和内容块表示为带有 `rdf:type` 断言的空白节点（如 `oc:Paragraph`、`oc:CodeBlock`）。这些是中间编译产物 — 代理的主要输出是从内容中提取的知识节点集合。
+
+---
+
+## 运行时图
+
+运行时，OntoMCP 会合并三层图：
+
+| 层 | 来源 | 用途 |
+|----|------|------|
+| **技能本体** | 已编译的 `ontoskill.ttl` 包 | 技能、意图、状态、负载、需求和知识节点 |
+| **记忆图** | OntoMemory 项目/全局 `.ttl` 文件 | 持久化记住的事实、偏好、流程、修正和反模式 |
+| **主题聚类** | 对记忆进行确定性本地聚类 | `related_topic_ids`、桥接记忆和主题性的 `related_to_memory` 链接 |
+
+记忆是可编辑的 `oc:Memory` 节点，也是 `oc:KnowledgeNode` 的子类。它们可以指向技能、意图、主题和其他记忆。`depends_on_memory` 创建操作记忆链，`supersedes_memory` 记录修正或版本，`related_to_memory` 表示没有顺序含义的主题相似。
+
+OntoGraph 会在本地渲染这个运行时图。它把技能本体节点和记忆图节点一起显示，包括入站/出站关系、主题聚类、桥接记忆和记忆链。
 
 ---
 

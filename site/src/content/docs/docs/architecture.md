@@ -11,6 +11,9 @@ sidebar:
 flowchart LR
     MD["SKILL.md"] --> LLM["Claude"] --> PYD["Pydantic"] --> SEC["Security"] --> RDF["RDF"] --> SHACL["SHACL"]
     SHACL -->|"PASS"| TTL["ontoskill.ttl"] --> EMBED["Embed (opt)"] --> MCP["OntoMCP"] <--> AGENT["Agent"]
+    AGENT -->|"remember"| MEM["OntoMemory"]
+    MEM -->|"memory .ttl"| MCP
+    MCP -->|"visualize/edit"| OG["OntoGraph"]
     SHACL -->|"FAIL"| FAIL["❌ Block"]
 
     style MD fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
@@ -23,6 +26,8 @@ flowchart LR
     style TTL fill:#9763e1,stroke:#2a2a3e,color:#f0f0f5
     style MCP fill:#92eff4,stroke:#2a2a3e,color:#0d0d14
     style AGENT fill:#6dc9ee,stroke:#2a2a3e,color:#0d0d14
+    style MEM fill:#faa338,stroke:#2a2a3e,color:#0d0d14
+    style OG fill:#26c7bd,stroke:#2a2a3e,color:#0d0d14
     style FAIL fill:#ff6b6b,stroke:#2a2a3e,color:#f0f0f5
 ```
 
@@ -64,6 +69,22 @@ FlatBlock → Section tree → Knowledge nodes
 **Knowledge nodes** — The compact, agent-ready output that OntoMCP serves to LLM agents. Rather than reconstructing raw markdown, the compiler produces structured knowledge nodes (heuristics, anti-patterns, procedures, etc.) that agents consume directly.
 
 In the TTL output, sections and content blocks are represented as blank nodes with `rdf:type` assertions (e.g., `oc:Paragraph`, `oc:CodeBlock`). These are intermediate compilation artifacts — the primary output for agents is the set of knowledge nodes extracted from the content.
+
+---
+
+## Runtime graph
+
+At runtime, OntoMCP merges three graph layers:
+
+| Layer | Source | Purpose |
+|-------|--------|---------|
+| **Skill ontology** | Compiled `ontoskill.ttl` packages | Skills, intents, states, payloads, requirements, and knowledge nodes |
+| **Memory graph** | OntoMemory project/global `.ttl` files | Persistent remembered facts, preferences, procedures, corrections, and anti-patterns |
+| **Topic clusters** | Deterministic local clustering over memories | `related_topic_ids`, bridge memories, and thematic `related_to_memory` links |
+
+Memories are editable `oc:Memory` nodes and subclasses of `oc:KnowledgeNode`. They can point to skills, intents, topics, and other memories. `depends_on_memory` creates operational memory chains, `supersedes_memory` records corrections or versions, and `related_to_memory` captures thematic similarity without sequence.
+
+OntoGraph renders this runtime graph locally. It shows skill ontology nodes and memory graph nodes together, including incoming/outgoing relations, topic clusters, bridge memories, and memory chains.
 
 ---
 

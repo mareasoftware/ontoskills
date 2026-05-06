@@ -93,7 +93,10 @@ fn test_intents_json_format() {
 fn test_embedding_normalization() {
     let embedding = create_normalized_embedding(&[3.0, 4.0]);
     let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-    assert!((norm - 1.0).abs() < 0.0001, "Embedding should be normalized");
+    assert!(
+        (norm - 1.0).abs() < 0.0001,
+        "Embedding should be normalized"
+    );
 }
 
 #[test]
@@ -103,13 +106,19 @@ fn test_cosine_similarity_with_seed_vectors() {
     let b = create_normalized_embedding(&[0.0, 1.0, 0.0]);
 
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    assert!(dot.abs() < 0.0001, "Orthogonal vectors should have 0 similarity");
+    assert!(
+        dot.abs() < 0.0001,
+        "Orthogonal vectors should have 0 similarity"
+    );
 
     // Test that identical vectors have 1 similarity
     let c = create_normalized_embedding(&[1.0, 0.0, 0.0]);
     let d = create_normalized_embedding(&[1.0, 0.0, 0.0]);
     let dot2: f32 = c.iter().zip(d.iter()).map(|(x, y)| x * y).sum();
-    assert!((dot2 - 1.0).abs() < 0.0001, "Identical vectors should have 1 similarity");
+    assert!(
+        (dot2 - 1.0).abs() < 0.0001,
+        "Identical vectors should have 1 similarity"
+    );
 }
 
 #[test]
@@ -120,8 +129,14 @@ fn test_semantic_similarity_ranking() {
     let intents = vec![
         ("create_pdf", create_normalized_embedding(&[1.0, 0.0, 0.0])),
         ("send_email", create_normalized_embedding(&[0.0, 1.0, 0.0])),
-        ("export_document", create_normalized_embedding(&[0.0, 0.0, 1.0])),
-        ("create_document", create_normalized_embedding(&[0.9, 0.1, 0.0])),
+        (
+            "export_document",
+            create_normalized_embedding(&[0.0, 0.0, 1.0]),
+        ),
+        (
+            "create_document",
+            create_normalized_embedding(&[0.9, 0.1, 0.0]),
+        ),
     ];
 
     // Compute scores
@@ -137,17 +152,33 @@ fn test_semantic_similarity_ranking() {
     scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
 
     // Verify ranking
-    assert_eq!(scores[0].1, "create_pdf", "Most similar should be create_pdf");
+    assert_eq!(
+        scores[0].1, "create_pdf",
+        "Most similar should be create_pdf"
+    );
     assert!(scores[0].0 > 0.99, "create_pdf should have very high score");
 
     // create_document should be second (0.9 similarity)
-    assert_eq!(scores[1].1, "create_document", "Second should be create_document");
+    assert_eq!(
+        scores[1].1, "create_document",
+        "Second should be create_document"
+    );
 
     // send_email and export_document should have low scores
     let email_score = scores.iter().find(|(_, n)| *n == "send_email").unwrap().0;
-    let export_score = scores.iter().find(|(_, n)| *n == "export_document").unwrap().0;
-    assert!(email_score.abs() < 0.01, "send_email should have near-zero score");
-    assert!(export_score.abs() < 0.01, "export_document should have near-zero score");
+    let export_score = scores
+        .iter()
+        .find(|(_, n)| *n == "export_document")
+        .unwrap()
+        .0;
+    assert!(
+        email_score.abs() < 0.01,
+        "send_email should have near-zero score"
+    );
+    assert!(
+        export_score.abs() < 0.01,
+        "export_document should have near-zero score"
+    );
 }
 
 #[test]
@@ -168,21 +199,35 @@ fn test_embedding_engine_loads_and_searches() {
 
     if !test_dir.join("model.onnx").exists() {
         eprintln!("Skipping: ONNX model not found at {:?}", test_dir);
-        eprintln!("Run: ontoskills export-embeddings --ontology-root ./ontoskills --output-dir ./mcp/tests/fixtures/embeddings");
+        eprintln!(
+            "Run: ontoskills export-embeddings --ontology-root ./ontoskills --output-dir ./mcp/tests/fixtures/embeddings"
+        );
         return;
     }
 
     // Since EmbeddingEngine is in the binary crate, we test it via MCP protocol
     // For now, we just verify the files exist
-    assert!(test_dir.join("model.onnx").exists(), "model.onnx should exist");
-    assert!(test_dir.join("tokenizer.json").exists(), "tokenizer.json should exist");
-    assert!(test_dir.join("intents.json").exists(), "intents.json should exist");
+    assert!(
+        test_dir.join("model.onnx").exists(),
+        "model.onnx should exist"
+    );
+    assert!(
+        test_dir.join("tokenizer.json").exists(),
+        "tokenizer.json should exist"
+    );
+    assert!(
+        test_dir.join("intents.json").exists(),
+        "intents.json should exist"
+    );
 
     // Verify intents.json format
     let intents_content = fs::read_to_string(test_dir.join("intents.json")).unwrap();
     let intents: serde_json::Value = serde_json::from_str(&intents_content).unwrap();
 
-    assert!(intents["intents"].as_array().unwrap().len() > 0, "Should have at least one intent");
+    assert!(
+        intents["intents"].as_array().unwrap().len() > 0,
+        "Should have at least one intent"
+    );
 
     for intent in intents["intents"].as_array().unwrap() {
         assert_eq!(

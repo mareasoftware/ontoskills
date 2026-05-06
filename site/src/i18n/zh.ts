@@ -46,7 +46,7 @@ export default {
   },
   products: {
     title: '产品',
-    subtitle: '三个组件。一个确定性管道。',
+    subtitle: '四个组件。一个确定性管道。',
     items: [
       {
         name: 'OntoCore',
@@ -63,8 +63,14 @@ export default {
       {
         name: 'OntoMCP',
         description: '运行时。MCP 服务器，将代理连接到本体知识。',
-        features: ['Claude Code 就绪', 'SPARQL 查询', '技能执行'],
+        features: ['Claude Code 就绪', 'SPARQL 查询', 'OntoGraph 查看器'],
         link: '/zh/docs/mcp/',
+      },
+      {
+        name: 'OntoMemory',
+        description: '记忆层。面向项目和全局上下文的持久化图记忆。',
+        features: ['主题聚类', '记忆链', '桥接记忆'],
+        link: '/zh/docs/ontomemory/',
       },
     ],
   },
