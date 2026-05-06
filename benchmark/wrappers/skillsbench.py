@@ -369,7 +369,7 @@ class SkillsBenchWrapper:
             await trial.start()
 
             # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
-            opencode_tarball = Path(__file__).parent / "opencode_prebuilt.tar.gz"
+            opencode_tarball = Path(__file__).parent.parent / "opencode_prebuilt.tar.gz"
             if opencode_tarball.exists():
                 await trial._env.upload_file(
                     str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
@@ -544,7 +544,7 @@ class SkillsBenchWrapper:
             await trial.start()
 
             # --- Inject pre-built opencode (~2 s vs ~30 s npm install) ---
-            opencode_tarball = Path(__file__).parent / "opencode_prebuilt.tar.gz"
+            opencode_tarball = Path(__file__).parent.parent / "opencode_prebuilt.tar.gz"
             if opencode_tarball.exists():
                 await trial._env.upload_file(
                     str(opencode_tarball), "/tmp/opencode_prebuilt.tar.gz"
