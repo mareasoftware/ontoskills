@@ -26,6 +26,7 @@ import logging
 import os
 import random
 import re
+import shlex
 import shutil
 import tempfile
 import time
