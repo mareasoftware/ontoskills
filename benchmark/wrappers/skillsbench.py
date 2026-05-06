@@ -465,8 +465,8 @@ class SkillsBenchWrapper:
             api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
             base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
             cmd = (
-                f"ANTHROPIC_API_KEY='{api_key}' "
-                f"ANTHROPIC_BASE_URL='{base_url}' "
+                f"ANTHROPIC_API_KEY={shlex.quote(api_key)} "
+                f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
                 f"--output-format json --verbose --max-turns 50"
@@ -497,6 +497,16 @@ class SkillsBenchWrapper:
             except Exception:
                 pass
 
+        if trial._trial_dir is None:
+            return {
+                "task_id": task_id,
+                "reward": 0.0,
+                "rewards": None,
+                "error": error or "Setup failed",
+                "verifier_error": None,
+                "build_ok": False,
+                "n_tool_calls": 0,
+            }
         result = trial._build_result()
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
         build_ok = error is None
@@ -625,8 +635,8 @@ class SkillsBenchWrapper:
             api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
             base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
             cmd = (
-                f"ANTHROPIC_API_KEY='{api_key}' "
-                f"ANTHROPIC_BASE_URL='{base_url}' "
+                f"ANTHROPIC_API_KEY={shlex.quote(api_key)} "
+                f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
                 f"--output-format json --verbose --max-turns 50"
@@ -657,6 +667,16 @@ class SkillsBenchWrapper:
             except Exception:
                 pass
 
+        if trial._trial_dir is None:
+            return {
+                "task_id": task_id,
+                "reward": 0.0,
+                "rewards": None,
+                "error": error or "Setup failed",
+                "verifier_error": None,
+                "build_ok": False,
+                "n_tool_calls": 0,
+            }
         result = trial._build_result()
         reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
         build_ok = error is None

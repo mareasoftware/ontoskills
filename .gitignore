@@ -27,6 +27,3 @@ benchmark_results.log
 
 # Claude Code runtime artifacts
 .claude/scheduled_tasks.lock
-
-# Benchmark pre-built artifacts
-benchmark/opencode_prebuilt.tar.gz
