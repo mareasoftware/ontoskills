@@ -834,7 +834,7 @@ class SkillsBenchWrapper:
         async def _docker_prune() -> None:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "docker", "system", "prune", "-a", "-f",
+                    "docker", "system", "prune", "-f",
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
