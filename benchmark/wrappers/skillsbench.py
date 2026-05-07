@@ -495,7 +495,8 @@ class SkillsBenchWrapper:
                 f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50"
+                f"--output-format json --verbose --max-turns 50 "
+                f"--dangerously-skip-permissions"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             stdout = (result.stdout or "").strip()
@@ -672,7 +673,8 @@ class SkillsBenchWrapper:
                 f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
                 f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50 --debug"
+                f"--output-format json --verbose --max-turns 50 --debug "
+                f"--dangerously-skip-permissions"
             )
             result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
             stdout = (result.stdout or "").strip()
