@@ -153,12 +153,17 @@ def _log_tool_usage(stdout: str) -> dict[str, int]:
     return counts
 
 
-def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str) -> None:
-    """Save claude stdout/stderr to trial directory for later analysis."""
+def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str, mode: str = "") -> None:
+    """Save claude stdout/stderr to trial directory for later analysis.
+    
+    If mode is provided (e.g. "acp", "acp-mcp"), it's included in the filename
+    so logs from different modes don't overwrite each other.
+    """
     try:
         trial_dir.mkdir(parents=True, exist_ok=True)
-        (trial_dir / f"claude_{task_id}_stdout.json").write_text(stdout)
-        (trial_dir / f"claude_{task_id}_stderr.txt").write_text(stderr)
+        suffix = f"_{mode}" if mode else ""
+        (trial_dir / f"claude_{task_id}{suffix}_stdout.json").write_text(stdout)
+        (trial_dir / f"claude_{task_id}{suffix}_stderr.txt").write_text(stderr)
     except Exception:
         pass
 
@@ -536,7 +541,7 @@ class SkillsBenchWrapper:
             )
             _save_claude_logs(
                 Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
-                stdout, stderr, task_id,
+                stdout, stderr, task_id, mode="acp",
             )
 
             await trial.verify()
@@ -720,8 +725,8 @@ class SkillsBenchWrapper:
                 stdout[:200],
             )
             _save_claude_logs(
-                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
-                stdout, stderr, task_id,
+                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",  # second call
+                stdout, stderr, task_id, mode="acp-mcp",
             )
 
             await trial.verify()
