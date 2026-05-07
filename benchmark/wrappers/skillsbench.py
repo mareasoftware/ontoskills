@@ -487,18 +487,25 @@ class SkillsBenchWrapper:
             # Build instruction with skill nudge.
             instruction = _build_claude_instruction(task, skill_nudge)
 
-            # Run claude CLI.
+            # Run claude CLI as agent user (root blocks --dangerously-skip-permissions).
             api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
             base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
             cmd = (
-                f"ANTHROPIC_API_KEY={shlex.quote(api_key)} "
-                f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
-                f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
                 f"--output-format json --verbose --max-turns 50 "
                 f"--dangerously-skip-permissions"
             )
-            result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
+            result = await trial._env.exec(
+                cmd,
+                timeout_sec=task["agent_timeout_sec"],
+                user="agent",
+                env={
+                    "ANTHROPIC_API_KEY": api_key,
+                    "ANTHROPIC_BASE_URL": base_url,
+                    "ANTHROPIC_MODEL": "glm-5.1",
+                    "HOME": "/root",
+                },
+            )
             stdout = (result.stdout or "").strip()
             stderr = (result.stderr or "").strip()
             trial._n_tool_calls = _parse_claude_num_turns(stdout)
@@ -665,18 +672,25 @@ class SkillsBenchWrapper:
             # Run install_agent so BenchFlow validates the agent is present.
             await trial.install_agent()
 
-            # Run claude CLI.
+            # Run claude CLI as agent user (root blocks --dangerously-skip-permissions).
             api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
             base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
             cmd = (
-                f"ANTHROPIC_API_KEY={shlex.quote(api_key)} "
-                f"ANTHROPIC_BASE_URL={shlex.quote(base_url)} "
-                f"ANTHROPIC_MODEL=glm-5.1 "
                 f"claude -p {shlex.quote(instruction)} "
                 f"--output-format json --verbose --max-turns 50 --debug "
                 f"--dangerously-skip-permissions"
             )
-            result = await trial._env.exec(cmd, timeout_sec=task["agent_timeout_sec"])
+            result = await trial._env.exec(
+                cmd,
+                timeout_sec=task["agent_timeout_sec"],
+                user="agent",
+                env={
+                    "ANTHROPIC_API_KEY": api_key,
+                    "ANTHROPIC_BASE_URL": base_url,
+                    "ANTHROPIC_MODEL": "glm-5.1",
+                    "HOME": "/root",
+                },
+            )
             stdout = (result.stdout or "").strip()
             stderr = (result.stderr or "").strip()
             trial._n_tool_calls = _parse_claude_num_turns(stdout)
