@@ -107,9 +107,9 @@ def _build_claude_instruction(
         if mcp:
             snippet = task["skill_ids"][0]
             nudge = (
-                f"Skills available via the ontoskill tool: {names}. "
-                f"Call ontoskill(q=\"{snippet}\") to load its full context, "
-                f"or use ontoskill(q=\"your task description\") to discover "
+                f"Skills available via the mcp__onto__skill tool: {names}. "
+                f"Call mcp__onto__skill(q=\"{snippet}\") to load its full context, "
+                f"or use mcp__onto__skill(q=\"your task description\") to discover "
                 f"relevant skills."
             )
         else:
@@ -602,7 +602,7 @@ class SkillsBenchWrapper:
         cfg_dst = f"{cwd}/.mcp.json"
         mcp_config = json.dumps({
             "mcpServers": {
-                "ontoskills": {
+                "onto": {
                     "command": "/usr/local/bin/ontomcp",
                     "args": ["--ontology-root", "/opt/ontoskills/packages"],
                     "alwaysLoad": True,
@@ -630,8 +630,8 @@ class SkillsBenchWrapper:
         """MCP Trial: claude CLI with ontomcp MCP server injected.
 
         Uploads the standalone claude binary + ontomcp MCP server into the
-        container.  Writes .mcp_config.json (Claude Code native format).
-        Claude natively discovers and calls the ``ontoskill`` tool via MCP.
+        container.  Writes .mcp.json (Claude Code native format).
+        Claude natively discovers and calls the ``mcp__onto__skill`` tool via MCP.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -666,7 +666,7 @@ class SkillsBenchWrapper:
             await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
             await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
 
-            # MCP injection (ontomcp + TTLs + .mcp_config.json).
+            # MCP injection (ontomcp + TTLs + .mcp.json).
             await self._inject_mcp_into_container(trial._env, task)
 
             # Run install_agent so BenchFlow validates the agent is present.
@@ -677,7 +677,7 @@ class SkillsBenchWrapper:
             base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
             cmd = (
                 f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50 --debug "
+                f"--output-format json --verbose --max-turns 50 "
                 f"--dangerously-skip-permissions"
             )
             result = await trial._env.exec(

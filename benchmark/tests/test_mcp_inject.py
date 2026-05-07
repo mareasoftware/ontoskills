@@ -11,15 +11,15 @@ class TestMCPInjection:
         """Verify the MCP config that would be written to container."""
         mcp_config = {
             "mcpServers": {
-                "ontoskills": {
+                "onto": {
                     "command": "/usr/local/bin/ontomcp",
                     "args": ["--ontology-root", "/opt/ontoskills/packages"],
                     "type": "stdio",
                 }
             }
         }
-        assert "ontoskills" in mcp_config["mcpServers"]
-        server = mcp_config["mcpServers"]["ontoskills"]
+        assert "onto" in mcp_config["mcpServers"]
+        server = mcp_config["mcpServers"]["onto"]
         assert server["command"] == "/usr/local/bin/ontomcp"
         assert "--ontology-root" in server["args"]
         assert server["type"] == "stdio"
