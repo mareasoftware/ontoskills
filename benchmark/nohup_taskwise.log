@@ -1,0 +1,399 @@
+2026-05-07 15:25:44,145 __main__ INFO ============================================================
+2026-05-07 15:25:44,145 __main__ INFO SkillsBench — mode=taskwise, model=glm-5.1
+2026-05-07 15:25:44,145 __main__ INFO ============================================================
+2026-05-07 15:25:45,016 benchmark.wrappers.skillsbench WARNING Skipping azure-bgp-oscillation-route-leak: skills not compiled: azure-bgp
+2026-05-07 15:25:45,017 benchmark.wrappers.skillsbench WARNING Skipping bike-rebalance: skills not compiled: geospatial-routing-data, logistics-rules-to-optimization, routing-subtour-elimination, scip-opt
+2026-05-07 15:25:45,017 benchmark.wrappers.skillsbench WARNING Skipping citation-check: skills not compiled: citation-management
+2026-05-07 15:25:45,018 benchmark.wrappers.skillsbench WARNING Skipping civ6-adjacency-optimizer: skills not compiled: civ6lib, hex-grid-spatial, map-optimization-strategy, sqlite-map-parser
+2026-05-07 15:25:45,019 benchmark.wrappers.skillsbench WARNING Skipping court-form-filling: skills not compiled: pdf
+2026-05-07 15:25:45,019 benchmark.wrappers.skillsbench WARNING Skipping crystallographic-wyckoff-position-analysis: skills not compiled: pymatgen, sympy
+2026-05-07 15:25:45,020 benchmark.wrappers.skillsbench WARNING Skipping dapt-intrusion-detection: skills not compiled: pcap-analysis, threat-detection
+2026-05-07 15:25:45,020 benchmark.wrappers.skillsbench WARNING Skipping data-to-d3: skills not compiled: d3-visualization
+2026-05-07 15:25:45,021 benchmark.wrappers.skillsbench WARNING Skipping dialogue-parser: skills not compiled: dialogue_graph
+2026-05-07 15:25:45,021 benchmark.wrappers.skillsbench WARNING Skipping dynamic-object-aware-egomotion: skills not compiled: dyn-object-masks, egomotion-estimation, output-validation, sampling-and-indexing
+2026-05-07 15:25:45,022 benchmark.wrappers.skillsbench WARNING Skipping earthquake-phase-association: skills not compiled: gamma-phase-associator, obspy-data-api, seisbench-model-api, seismic-picker-selection
+2026-05-07 15:25:45,024 benchmark.wrappers.skillsbench WARNING Skipping energy-ac-optimal-power-flow: skills not compiled: ac-branch-pi-model, casadi-ipopt-nlp, power-flow-data
+2026-05-07 15:25:45,025 benchmark.wrappers.skillsbench WARNING Skipping energy-market-pricing: skills not compiled: dc-power-flow, economic-dispatch, locational-marginal-prices, power-flow-data
+2026-05-07 15:25:45,025 benchmark.wrappers.skillsbench WARNING Skipping energy-unit-commitment: skills not compiled: milp-solver-workflow, unit-commitment-data-modeling, unit-commitment-operating-rules
+2026-05-07 15:25:45,026 benchmark.wrappers.skillsbench WARNING Skipping enterprise-information-search: skills not compiled: enterprise-artifact-search
+2026-05-07 15:25:45,028 benchmark.wrappers.skillsbench WARNING Skipping financial-modeling-qa: skills not compiled: pdf, xlsx
+2026-05-07 15:25:45,028 benchmark.wrappers.skillsbench WARNING Skipping find-topk-similiar-chemicals: skills not compiled: pdf, pubchem-database, rdkit
+2026-05-07 15:25:45,029 benchmark.wrappers.skillsbench WARNING Skipping fix-druid-loophole-cve: skills not compiled: jackson-security, senior-java
+2026-05-07 15:25:45,030 benchmark.wrappers.skillsbench WARNING Skipping gh-repo-analytics: skills not compiled: gh-cli
+2026-05-07 15:25:45,031 benchmark.wrappers.skillsbench WARNING Skipping gravitational-wave-detection: skills not compiled: conditioning, matched-filtering
+2026-05-07 15:25:45,032 benchmark.wrappers.skillsbench WARNING Skipping grid-dispatch-operator: skills not compiled: dc-power-flow, economic-dispatch, power-flow-data
+2026-05-07 15:25:45,033 benchmark.wrappers.skillsbench WARNING Skipping hvac-control: skills not compiled: excitation-signal-design, first-order-model-fitting, imc-tuning-rules, safety-interlocks, scipy-curve-fit
+2026-05-07 15:25:45,035 benchmark.wrappers.skillsbench WARNING Skipping lab-unit-harmonization: skills not compiled: lab-unit-harmonization
+2026-05-07 15:25:45,036 benchmark.wrappers.skillsbench WARNING Skipping lake-warming-attribution: skills not compiled: contribution-analysis, meteorology-driver-classification, pca-decomposition, trend-analysis
+2026-05-07 15:25:45,036 benchmark.wrappers.skillsbench WARNING Skipping latex-formula-extraction: skills not compiled: marker, pdf
+2026-05-07 15:25:45,037 benchmark.wrappers.skillsbench WARNING Skipping lean4-proof: skills not compiled: lean4-memories, lean4-theorem-proving
+2026-05-07 15:25:45,038 benchmark.wrappers.skillsbench WARNING Skipping manufacturing-codebook-normalization: skills not compiled: manufacturing-failure-reason-codebook-normalization
+2026-05-07 15:25:45,038 benchmark.wrappers.skillsbench WARNING Skipping manufacturing-equipment-maintenance: skills not compiled: reflow-profile-compliance-toolkit, reflow_machine_maintenance_guidance
+2026-05-07 15:25:45,039 benchmark.wrappers.skillsbench WARNING Skipping manufacturing-fjsp-optimization: skills not compiled: fjsp-baseline-repair-with-downtime-and-policy
+2026-05-07 15:25:45,039 benchmark.wrappers.skillsbench WARNING Skipping mario-coin-counting: skills not compiled: ffmpeg, image_editing, object_counter
+2026-05-07 15:25:45,040 benchmark.wrappers.skillsbench WARNING Skipping mars-clouds-clustering: skills not compiled: custom-distance-metrics, parallel-processing, pareto-optimization
+2026-05-07 15:25:45,041 benchmark.wrappers.skillsbench WARNING Skipping offer-letter-generator: skills not compiled: docx
+2026-05-07 15:25:45,042 benchmark.wrappers.skillsbench WARNING Skipping parallel-tfidf-search: skills not compiled: memory-optimization, python-parallelization, workload-balancing
+2026-05-07 15:25:45,043 benchmark.wrappers.skillsbench WARNING Skipping paratransit-routing: skills not compiled: ortools-pickup-delivery-routing, ortools-routing-modeling
+2026-05-07 15:25:45,044 benchmark.wrappers.skillsbench WARNING Skipping pdf-excel-diff: skills not compiled: pdf, xlsx
+2026-05-07 15:25:45,044 benchmark.wrappers.skillsbench WARNING Skipping powerlifting-coef-calc: skills not compiled: powerlifting, senior-data-scientist, xlsx
+2026-05-07 15:25:45,045 benchmark.wrappers.skillsbench WARNING Skipping pptx-reference-formatting: skills not compiled: pptx
+2026-05-07 15:25:45,046 benchmark.wrappers.skillsbench WARNING Skipping python-scala-translation: skills not compiled: python-scala-collections, python-scala-functional, python-scala-idioms, python-scala-libraries, python-scala-oop, python-scala-syntax-mapping
+2026-05-07 15:25:45,048 benchmark.wrappers.skillsbench WARNING Skipping radar-vital-signs: skills not compiled: radar-signal-processing, radar-vital-signs, vital-sign-extraction
+2026-05-07 15:25:45,049 benchmark.wrappers.skillsbench WARNING Skipping reserves-at-risk-calc: skills not compiled: xlsx
+2026-05-07 15:25:45,050 benchmark.wrappers.skillsbench WARNING Skipping sec-financial-report: skills not compiled: 13f-analyzer, fuzzy-name-search
+2026-05-07 15:25:45,050 benchmark.wrappers.skillsbench WARNING Skipping seismic-phase-picking: skills not compiled: obspy-data-api, obspy-datacenter-client, seisbench-model-api, seismic-picker-selection
+2026-05-07 15:25:45,051 benchmark.wrappers.skillsbench WARNING Skipping shock-analysis-demand: skills not compiled: xlsx
+2026-05-07 15:25:45,051 benchmark.wrappers.skillsbench WARNING Skipping shock-analysis-supply: skills not compiled: xlsx
+2026-05-07 15:25:45,052 benchmark.wrappers.skillsbench WARNING Skipping software-dependency-audit: skills not compiled: trivy-offline-vulnerability-scanning
+2026-05-07 15:25:45,055 benchmark.wrappers.skillsbench WARNING Skipping threejs-structure-parser: skills not compiled: threejs
+2026-05-07 15:25:45,055 benchmark.wrappers.skillsbench WARNING Skipping threejs-to-obj: skills not compiled: threejs
+2026-05-07 15:25:45,059 benchmark.wrappers.skillsbench WARNING Skipping xlsx-recover-data: skills not compiled: data-reconciliation
+2026-05-07 15:25:45,059 benchmark.wrappers.skillsbench INFO Skipped 48 tasks with uncompiled skills
+2026-05-07 15:25:45,059 benchmark.wrappers.skillsbench INFO Loaded 30 tasks with skills (from /home/marcello/.ontoskills/skillsbench)
+2026-05-07 15:25:45,060 benchmark.state INFO Resuming from benchmark/results/skillsbench/baseline+nohints/benchmark_state.json (3 tasks done)
+2026-05-07 15:25:45,060 benchmark.state INFO Resuming from benchmark/results/skillsbench/acp+hints/benchmark_state.json (2 tasks done)
+2026-05-07 15:25:45,060 __main__ INFO Starting taskwise: 10 tasks, 3 cases, 2 workers
+2026-05-07 15:25:45,060 asyncio DEBUG Using selector: EpollSelector
+2026-05-07 15:25:45,061 benchmark.wrappers.skillsbench INFO Worker 0: sales-pivot-analysis [acp-mcp+hints] attempt 1/5
+2026-05-07 15:25:45,065 benchflow.sdk INFO Starting environment: sales-pivot-analysis
+2026-05-07 15:25:45,067 benchmark.wrappers.skillsbench INFO Worker 1: paper-anonymizer [acp-mcp+hints] attempt 1/5
+2026-05-07 15:25:45,069 benchflow.sdk INFO Starting environment: paper-anonymizer
+2026-05-07 15:25:52,884 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 15:25:52,934 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 15:25:53,008 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:25:53,059 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:25:53,321 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:25:53,750 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:30:58,662 benchmark.wrappers.skillsbench INFO Claude: sales-pivot-analysis done — n_tool_calls=15 stdout_len=611018 stderr_len=0 tools={} stdout_head=[{"type":"system","subtype":"init","cwd":"/root","session_id":"316dcca8-d25b-44c4-bd1e-1fc098771d77","tools":["Task","AskUserQuestion","Bash","CronCreate","CronDelete","CronList","Edit","EnterPlanMode
+2026-05-07 15:31:01,598 benchflow._sandbox INFO Discovered 0 pytest plugins from container
+2026-05-07 15:31:01,599 benchflow.sdk INFO Running verifier...
+2026-05-07 15:31:08,557 benchflow.sdk INFO Rewards: {'reward': 1.0}
+2026-05-07 15:31:19,550 benchmark.wrappers.skillsbench INFO Task sales-pivot-analysis [acp-mcp+hints]: PASSED on attempt 1
+2026-05-07 15:31:19,551 benchmark.wrappers.skillsbench INFO Worker 0: pruning Docker after task sales-pivot-analysis
+2026-05-07 15:31:21,989 benchmark.wrappers.skillsbench INFO Docker prune completed
+2026-05-07 15:31:21,989 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp+hints] attempt 1/5
+2026-05-07 15:31:22,000 benchflow._env_setup INFO Skills injected into Dockerfile: 3 items
+2026-05-07 15:31:22,001 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 15:31:25,873 benchmark.wrappers.skillsbench INFO Claude: uploading binary (237 MB) for invoice-fraud-detection
+2026-05-07 15:31:26,241 benchmark.wrappers.skillsbench INFO Claude: binary uploaded, chmod for invoice-fraud-detection
+2026-05-07 15:31:26,367 benchmark.wrappers.skillsbench INFO Claude: deploying skills for invoice-fraud-detection
+2026-05-07 15:31:26,486 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:31:27,586 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:31:29,779 benchflow._agent_setup INFO Deploying skills via runtime upload from /home/marcello/.ontoskills/skillsbench/tasks/invoice-fraud-detection/environment/skills
+2026-05-07 15:31:29,926 benchflow._agent_setup INFO Skills deployed to /skills
+2026-05-07 15:31:30,067 benchflow._agent_setup INFO Skills distributed to 5 paths for oracle
+2026-05-07 15:31:30,203 benchmark.wrappers.skillsbench INFO Claude: skills deployed for invoice-fraud-detection
+2026-05-07 15:42:36,180 benchmark.wrappers.skillsbench ERROR MCP Trial failed for paper-anonymizer: Command timed out after 1000 seconds
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 201, in communicate
+    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 181, in _read_stream
+    output = await stream.read()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 706, in read
+    block = await self.read(self._limit)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 713, in read
+    await self._wait_for_data('read')
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 292, in _run_docker_compose_command
+    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/marcello/Documenti/onto/ontoskills/benchmark/wrappers/skillsbench.py", line 683, in _run_acp_mcp_trial
+    result = await trial._env.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 485, in exec
+    return await self._run_docker_compose_command(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 306, in _run_docker_compose_command
+    raise RuntimeError(f"Command timed out after {timeout_sec} seconds")
+RuntimeError: Command timed out after 1000 seconds
+2026-05-07 15:42:47,156 benchmark.wrappers.skillsbench INFO Task paper-anonymizer [acp-mcp+hints]: attempt 2 reward=0.000, retry in 4.0s
+2026-05-07 15:42:51,176 benchmark.wrappers.skillsbench INFO Worker 1: paper-anonymizer [acp-mcp+hints] attempt 2/5
+2026-05-07 15:42:51,178 benchflow.sdk INFO Starting environment: paper-anonymizer
+2026-05-07 15:42:56,273 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 15:42:56,389 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:42:57,075 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:46:30,312 benchmark.wrappers.skillsbench ERROR Claude trial failed for invoice-fraud-detection: Command timed out after 900 seconds
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 201, in communicate
+    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 181, in _read_stream
+    output = await stream.read()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 706, in read
+    block = await self.read(self._limit)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 713, in read
+    await self._wait_for_data('read')
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 292, in _run_docker_compose_command
+    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/marcello/Documenti/onto/ontoskills/benchmark/wrappers/skillsbench.py", line 498, in _run_acp_trial
+    result = await trial._env.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 485, in exec
+    return await self._run_docker_compose_command(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 306, in _run_docker_compose_command
+    raise RuntimeError(f"Command timed out after {timeout_sec} seconds")
+RuntimeError: Command timed out after 900 seconds
+2026-05-07 15:46:41,261 benchmark.wrappers.skillsbench INFO Task invoice-fraud-detection [acp+hints]: attempt 2 reward=0.000, retry in 4.0s
+2026-05-07 15:46:45,281 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp+hints] attempt 2/5
+2026-05-07 15:46:45,292 benchflow._env_setup INFO Skills injected into Dockerfile: 3 items
+2026-05-07 15:46:45,293 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 15:46:48,510 benchmark.wrappers.skillsbench INFO Claude: uploading binary (237 MB) for invoice-fraud-detection
+2026-05-07 15:46:48,828 benchmark.wrappers.skillsbench INFO Claude: binary uploaded, chmod for invoice-fraud-detection
+2026-05-07 15:46:48,959 benchmark.wrappers.skillsbench INFO Claude: deploying skills for invoice-fraud-detection
+2026-05-07 15:46:49,103 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:46:50,185 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:46:52,260 benchflow._agent_setup INFO Deploying skills via runtime upload from /home/marcello/.ontoskills/skillsbench/tasks/invoice-fraud-detection/environment/skills
+2026-05-07 15:46:52,342 benchflow._agent_setup INFO Skills deployed to /skills
+2026-05-07 15:46:52,491 benchflow._agent_setup INFO Skills distributed to 5 paths for oracle
+2026-05-07 15:46:52,612 benchmark.wrappers.skillsbench INFO Claude: skills deployed for invoice-fraud-detection
+2026-05-07 15:50:00,333 benchmark.wrappers.skillsbench INFO Claude: invoice-fraud-detection done — n_tool_calls=19 stdout_len=76374 stderr_len=0 tools={} stdout_head=[{"type":"system","subtype":"init","cwd":"/root","session_id":"213acacd-b078-42c5-976e-166b76ba5ede","tools":["Task","AskUserQuestion","Bash","CronCreate","CronDelete","CronList","Edit","EnterPlanMode
+2026-05-07 15:50:04,183 benchflow._sandbox INFO Discovered 0 pytest plugins from container
+2026-05-07 15:50:04,183 benchflow.sdk INFO Running verifier...
+2026-05-07 15:50:15,197 benchflow.sdk INFO Rewards: {'reward': 0.0}
+2026-05-07 15:50:27,814 benchmark.wrappers.skillsbench INFO Task invoice-fraud-detection [acp+hints]: attempt 3 reward=0.000, retry in 8.0s
+2026-05-07 15:50:35,853 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp+hints] attempt 3/5
+2026-05-07 15:50:35,863 benchflow._env_setup INFO Skills injected into Dockerfile: 3 items
+2026-05-07 15:50:35,864 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 15:50:40,219 benchmark.wrappers.skillsbench INFO Claude: uploading binary (237 MB) for invoice-fraud-detection
+2026-05-07 15:50:40,688 benchmark.wrappers.skillsbench INFO Claude: binary uploaded, chmod for invoice-fraud-detection
+2026-05-07 15:50:40,916 benchmark.wrappers.skillsbench INFO Claude: deploying skills for invoice-fraud-detection
+2026-05-07 15:50:41,159 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 15:50:42,428 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 15:50:45,834 benchflow._agent_setup INFO Deploying skills via runtime upload from /home/marcello/.ontoskills/skillsbench/tasks/invoice-fraud-detection/environment/skills
+2026-05-07 15:50:45,956 benchflow._agent_setup INFO Skills deployed to /skills
+2026-05-07 15:50:46,178 benchflow._agent_setup INFO Skills distributed to 5 paths for oracle
+2026-05-07 15:50:46,369 benchmark.wrappers.skillsbench INFO Claude: skills deployed for invoice-fraud-detection
+2026-05-07 15:59:39,359 benchmark.wrappers.skillsbench ERROR MCP Trial failed for paper-anonymizer: Command timed out after 1000 seconds
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 201, in communicate
+    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 181, in _read_stream
+    output = await stream.read()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 706, in read
+    block = await self.read(self._limit)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 713, in read
+    await self._wait_for_data('read')
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 292, in _run_docker_compose_command
+    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/marcello/Documenti/onto/ontoskills/benchmark/wrappers/skillsbench.py", line 683, in _run_acp_mcp_trial
+    result = await trial._env.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 485, in exec
+    return await self._run_docker_compose_command(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 306, in _run_docker_compose_command
+    raise RuntimeError(f"Command timed out after {timeout_sec} seconds")
+RuntimeError: Command timed out after 1000 seconds
+2026-05-07 15:59:50,614 benchmark.wrappers.skillsbench INFO Task paper-anonymizer [acp-mcp+hints]: attempt 3 reward=0.000, retry in 8.0s
+2026-05-07 15:59:58,653 benchmark.wrappers.skillsbench INFO Worker 1: paper-anonymizer [acp-mcp+hints] attempt 3/5
+2026-05-07 15:59:58,657 benchflow.sdk INFO Starting environment: paper-anonymizer
+2026-05-07 16:00:11,670 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 16:00:12,061 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 16:00:13,282 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 16:05:46,479 benchmark.wrappers.skillsbench ERROR Claude trial failed for invoice-fraud-detection: Command timed out after 900 seconds
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 201, in communicate
+    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 181, in _read_stream
+    output = await stream.read()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 706, in read
+    block = await self.read(self._limit)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 713, in read
+    await self._wait_for_data('read')
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 292, in _run_docker_compose_command
+    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/marcello/Documenti/onto/ontoskills/benchmark/wrappers/skillsbench.py", line 498, in _run_acp_trial
+    result = await trial._env.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 485, in exec
+    return await self._run_docker_compose_command(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 306, in _run_docker_compose_command
+    raise RuntimeError(f"Command timed out after {timeout_sec} seconds")
+RuntimeError: Command timed out after 900 seconds
+2026-05-07 16:05:58,065 benchmark.wrappers.skillsbench INFO Task invoice-fraud-detection [acp+hints]: attempt 4 reward=0.000, retry in 16.0s
+2026-05-07 16:06:14,145 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp+hints] attempt 4/5
+2026-05-07 16:06:14,172 benchflow._env_setup INFO Skills injected into Dockerfile: 3 items
+2026-05-07 16:06:14,174 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 16:06:20,987 benchmark.wrappers.skillsbench INFO Claude: uploading binary (237 MB) for invoice-fraud-detection
+2026-05-07 16:06:21,760 benchmark.wrappers.skillsbench INFO Claude: binary uploaded, chmod for invoice-fraud-detection
+2026-05-07 16:06:22,070 benchmark.wrappers.skillsbench INFO Claude: deploying skills for invoice-fraud-detection
+2026-05-07 16:06:22,364 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 16:06:23,836 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 16:06:28,886 benchflow._agent_setup INFO Deploying skills via runtime upload from /home/marcello/.ontoskills/skillsbench/tasks/invoice-fraud-detection/environment/skills
+2026-05-07 16:06:29,083 benchflow._agent_setup INFO Skills deployed to /skills
+2026-05-07 16:06:29,510 benchflow._agent_setup INFO Skills distributed to 5 paths for oracle
+2026-05-07 16:06:29,815 benchmark.wrappers.skillsbench INFO Claude: skills deployed for invoice-fraud-detection
+2026-05-07 16:09:18,174 benchmark.wrappers.skillsbench INFO Claude: invoice-fraud-detection done — n_tool_calls=20 stdout_len=73633 stderr_len=0 tools={} stdout_head=[{"type":"system","subtype":"init","cwd":"/root","session_id":"62be0597-cffe-4e1a-8cd0-4b55e680b05b","tools":["Task","AskUserQuestion","Bash","CronCreate","CronDelete","CronList","Edit","EnterPlanMode
+2026-05-07 16:09:22,085 benchflow._sandbox INFO Discovered 0 pytest plugins from container
+2026-05-07 16:09:22,085 benchflow.sdk INFO Running verifier...
+2026-05-07 16:09:31,662 benchflow.sdk INFO Rewards: {'reward': 0.0}
+2026-05-07 16:09:43,343 benchmark.wrappers.skillsbench INFO Task invoice-fraud-detection [acp+hints]: attempt 5 reward=0.000, retry in 30.0s
+2026-05-07 16:10:13,443 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp+hints] attempt 5/5
+2026-05-07 16:10:13,460 benchflow._env_setup INFO Skills injected into Dockerfile: 3 items
+2026-05-07 16:10:13,461 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 16:10:17,528 benchmark.wrappers.skillsbench INFO Claude: uploading binary (237 MB) for invoice-fraud-detection
+2026-05-07 16:10:18,040 benchmark.wrappers.skillsbench INFO Claude: binary uploaded, chmod for invoice-fraud-detection
+2026-05-07 16:10:18,282 benchmark.wrappers.skillsbench INFO Claude: deploying skills for invoice-fraud-detection
+2026-05-07 16:10:18,526 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 16:10:19,780 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 16:10:24,237 benchflow._agent_setup INFO Deploying skills via runtime upload from /home/marcello/.ontoskills/skillsbench/tasks/invoice-fraud-detection/environment/skills
+2026-05-07 16:10:24,434 benchflow._agent_setup INFO Skills deployed to /skills
+2026-05-07 16:10:24,801 benchflow._agent_setup INFO Skills distributed to 5 paths for oracle
+2026-05-07 16:10:25,157 benchmark.wrappers.skillsbench INFO Claude: skills deployed for invoice-fraud-detection
+2026-05-07 16:13:11,926 benchmark.wrappers.skillsbench INFO Claude: invoice-fraud-detection done — n_tool_calls=15 stdout_len=155924 stderr_len=0 tools={} stdout_head=[{"type":"system","subtype":"init","cwd":"/root","session_id":"2f37d916-8de6-4568-867b-57ee5a67d661","tools":["Task","AskUserQuestion","Bash","CronCreate","CronDelete","CronList","Edit","EnterPlanMode
+2026-05-07 16:13:17,838 benchflow._sandbox INFO Discovered 0 pytest plugins from container
+2026-05-07 16:13:17,838 benchflow.sdk INFO Running verifier...
+2026-05-07 16:13:33,092 benchflow.sdk INFO Rewards: {'reward': 0.0}
+2026-05-07 16:13:45,379 benchmark.wrappers.skillsbench INFO Task invoice-fraud-detection [acp+hints]: exhausted 5 attempts
+2026-05-07 16:13:45,380 benchmark.wrappers.skillsbench INFO Worker 0: invoice-fraud-detection [acp-mcp+hints] attempt 1/5
+2026-05-07 16:13:45,384 benchflow.sdk INFO Starting environment: invoice-fraud-detection
+2026-05-07 16:13:54,055 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 16:13:54,324 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 16:13:55,651 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
+2026-05-07 16:16:58,762 benchmark.wrappers.skillsbench ERROR MCP Trial failed for paper-anonymizer: Command timed out after 1000 seconds
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 201, in communicate
+    stdin, stdout, stderr = await tasks.gather(stdin, stdout, stderr)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/subprocess.py", line 181, in _read_stream
+    output = await stream.read()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 706, in read
+    block = await self.read(self._limit)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 713, in read
+    await self._wait_for_data('read')
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/streams.py", line 545, in _wait_for_data
+    await self._waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 292, in _run_docker_compose_command
+    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/marcello/Documenti/onto/ontoskills/benchmark/wrappers/skillsbench.py", line 683, in _run_acp_mcp_trial
+    result = await trial._env.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 485, in exec
+    return await self._run_docker_compose_command(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/marcello/miniforge3/lib/python3.12/site-packages/harbor/environments/docker/docker.py", line 306, in _run_docker_compose_command
+    raise RuntimeError(f"Command timed out after {timeout_sec} seconds")
+RuntimeError: Command timed out after 1000 seconds
+2026-05-07 16:17:10,194 benchmark.wrappers.skillsbench INFO Task paper-anonymizer [acp-mcp+hints]: attempt 4 reward=0.000, retry in 16.0s
+2026-05-07 16:17:26,274 benchmark.wrappers.skillsbench INFO Worker 1: paper-anonymizer [acp-mcp+hints] attempt 4/5
+2026-05-07 16:17:26,276 benchflow.sdk INFO Starting environment: paper-anonymizer
+2026-05-07 16:17:34,691 benchmark.wrappers.skillsbench INFO MCP injected: ontomcp + TTLs + .mcp.json at /root/.mcp.json
+2026-05-07 16:17:34,927 benchflow._sandbox INFO Setting up sandbox user: agent
+2026-05-07 16:17:35,755 benchflow._sandbox INFO Sandbox user agent ready (workspace=/root)
