@@ -481,7 +481,7 @@ fn handle_tool_call(
     }
 
     let (structured, compact_text) = match tool_name {
-        "skill" => {
+        "skill" | "ontoskill" => {
             let q = required_string(&arguments, "q")?;
             let top_k = arguments
                 .get("top_k")

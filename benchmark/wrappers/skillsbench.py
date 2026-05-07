@@ -123,15 +123,31 @@ def _build_claude_instruction(
 
 
 def _log_tool_usage(stdout: str) -> dict[str, int]:
-    """Count tool_use events from claude JSON output array."""
+    """Count tool_use events from claude JSON output array.
+
+    Claude --output-format json nests tool_use inside
+    message.content[].tool_use.name, not at top level.
+    """
     counts: dict[str, int] = {}
     try:
         events = json.loads(stdout)
         if isinstance(events, list):
             for ev in events:
-                if isinstance(ev, dict) and ev.get("type") == "tool_use":
+                if not isinstance(ev, dict):
+                    continue
+                # Top-level tool_use (rare but possible).
+                if ev.get("type") == "tool_use":
                     name = ev.get("name", ev.get("tool_name", "?"))
                     counts[name] = counts.get(name, 0) + 1
+                # Nested inside assistant message.content[].
+                if ev.get("type") == "assistant":
+                    msg = ev.get("message", {})
+                    content = msg.get("content", [])
+                    if isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                name = block.get("name", block.get("tool_name", "?"))
+                                counts[name] = counts.get(name, 0) + 1
     except (json.JSONDecodeError, TypeError, AttributeError):
         pass
     return counts
