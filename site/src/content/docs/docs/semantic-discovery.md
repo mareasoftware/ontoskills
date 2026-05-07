@@ -15,7 +15,7 @@ Intent Discovery enables LLM agents to find skills by natural language intent wi
 |-----------|---------|
 | **Convention** | Predictable naming (`verb_noun` for intents, `camelCase` for properties) |
 | **Schema Summary** | MCP Resource `ontology://schema` — 2KB compact schema |
-| **ontoskill** | MCP Tool — unified skill discovery and context retrieval (BM25 + optional semantic) |
+| **mcp__onto__skill** | MCP Tool — unified skill discovery and context retrieval (BM25 + optional semantic) |
 
 ---
 
@@ -97,7 +97,7 @@ Embeddings are **pre-computed per-skill at compile time** and downloaded optiona
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Tools:                                                          │
-│    ontoskill(q: str, top_k: int) → SkillContext | SearchResults │
+│    mcp__onto__skill(q: str, top_k: int) → SkillContext | SearchResults │
 │       │                                                          │
 │       ├── If q matches a skill_id → returns full skill context  │
 │       ├── Otherwise → BM25 search (or semantic if features enabled)
@@ -175,11 +175,11 @@ ontoskills install obra/superpowers --with-embeddings
 
 The CLI downloads per-skill `intents.json` files alongside the skill TTLs. The MCP server discovers them automatically at startup by scanning the ontology tree — no centralized merge step needed.
 
-### MCP Tool: ontoskill (unified discovery + context)
+### MCP Tool: mcp__onto__skill (unified discovery + context)
 
 ```json
 {
-  "name": "ontoskill",
+  "name": "mcp__onto__skill",
   "arguments": {
     "q": "create a pdf document",
     "top_k": 5
@@ -236,7 +236,7 @@ A compact JSON schema describing available classes and properties:
    → Knows all properties and conventions
 
 2. User: "I need to create a PDF"
-   → Agent calls: ontoskill(q: "create a pdf", top_k: 3)
+   → Agent calls: mcp__onto__skill(q: "create a pdf", top_k: 3)
    → Returns: full skill context for matching skill, or search results
      with matched intents [{intent: "create_pdf", score: 0.92, skills: ["pdf"]}]
 
@@ -250,8 +250,8 @@ A compact JSON schema describing available classes and properties:
 | Metric | Target | Verification |
 |--------|--------|--------------|
 | Schema resource size | < 4KB | `test_schema_size` |
-| ontoskill latency (BM25) | < 5ms | Manual benchmark |
-| ontoskill latency (semantic) | < 50ms | Manual benchmark |
+| mcp__onto__skill latency (BM25) | < 5ms | Manual benchmark |
+| mcp__onto__skill latency (semantic) | < 50ms | Manual benchmark |
 | ONNX model size | ~90MB | Check file size |
 | Memory footprint (without embeddings) | < 50MB | Monitor with `top` |
 

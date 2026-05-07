@@ -39,7 +39,7 @@ The interface. OntoMCP exposes OntoSkills via the Model Context Protocol, giving
 - [x] Rust MCP server with stdio transport
 - [x] Oxigraph in-memory graph store
 - [x] SPARQL 1.1 query interface
-- [x] Unified ontoskill tool (search + context retrieval + knowledge querying in one call)
+- [x] Unified mcp__onto__skill tool (search + context retrieval + knowledge querying in one call)
 - [x] Per-skill pre-computed embeddings (optional, requires ontocore[embeddings])
 - [x] Embedding download at install time (--with-embeddings flag)
 - [x] Category and is_user_invocable search filters

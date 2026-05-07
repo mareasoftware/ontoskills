@@ -55,11 +55,11 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tool reference
 
-OntoMCP exposes **1 unified tool** `ontoskill` that combines skill discovery, context retrieval, and knowledge querying.
+OntoMCP exposes **1 unified tool** `mcp__onto__skill` that combines skill discovery, context retrieval, and knowledge querying.
 
 > **Sparse serialization**: null values and empty arrays are omitted from responses. Only fields with actual values are included. This keeps responses compact and avoids cluttering the context window with empty data.
 
-### `ontoskill`
+### `mcp__onto__skill`
 
 Find skills by name or natural language query, then load their full context — all in a single call.
 
@@ -98,18 +98,18 @@ Find skills by name or natural language query, then load their full context — 
 
 ### Agent workflow
 
-The `ontoskill` tool replaces the old multi-step workflow:
+The `mcp__onto__skill` tool replaces the old multi-step workflow:
 
 ```
 Before (4 tools):
   search → get_skill_context → evaluate_execution_plan → query_epistemic_rules
 
 After (1 tool):
-  ontoskill(q) → returns context or search results
+  mcp__onto__skill(q) → returns context or search results
 ```
 
 1. Agent receives a user request
-2. Calls `ontoskill(q: user request)` — if the query is a skill ID, returns full context immediately; otherwise returns BM20-ranked search results
+2. Calls `mcp__onto__skill(q: user request)` — if the query is a skill ID, returns full context immediately; otherwise returns BM20-ranked search results
 3. Agent now has everything needed — payload, dependencies, knowledge nodes, code examples — in a single response
 
 No round-trips between search and context retrieval. No separate tools for plan validation or epistemic queries — all knowledge is embedded in the skill context.

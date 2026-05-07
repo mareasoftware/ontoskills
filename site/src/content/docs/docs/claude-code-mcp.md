@@ -64,7 +64,7 @@ Status: ✓ Connected
 
 Once connected, Claude Code can call:
 
-- `ontoskill` — unified skill discovery and context retrieval. Pass a skill ID (e.g. `pdf`) for full context, or a natural language query (e.g. `create a pdf document`) for BM25 search.
+- `mcp__onto__skill` — unified skill discovery and context retrieval. Pass a skill ID (e.g. `pdf`) for full context, or a natural language query (e.g. `create a pdf document`) for BM25 search.
 
 This single tool replaces the previous 5-tool workflow (`search`, `get_skill_context`, `evaluate_execution_plan`, `query_epistemic_rules`, `prefetch_knowledge`).
 

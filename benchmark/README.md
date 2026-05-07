@@ -16,7 +16,7 @@ Deterministic code-generation benchmark. The agent receives a task, generates a 
 Both modes are **100% SkillsBench/BenchFlow aligned**: the agent runs inside the container via ACP. The only difference is how skills are delivered:
 
 - **`acp` (Traditional)**: SKILL.md files injected into the Dockerfile
-- **`acp-mcp` (MCP)**: ontomcp binary + TTLs + `.mcp_config.json` injected into the container
+- **`acp-mcp` (MCP)**: ontomcp binary + TTLs + `.mcp.json` injected into the container
 
 #### 5-case experimental design
 
@@ -115,7 +115,7 @@ benchmark/
 │   ├── base.py               # BaseAgent with Anthropic API, run-loop, retry
 │   ├── claudecode.py         # ClaudeCodeAgent: legacy host-based CLI agent
 │   ├── traditional.py        # Skill registry + read_skill tool (API mode)
-│   ├── ontoskills.py         # Single ontoskill MCP tool in API mode
+│   ├── ontoskills.py         # Single mcp__onto__skill MCP tool in API mode
 │   └── utils.py              # Shared utilities (extract_python_code)
 ├── wrappers/
 │   ├── skillsbench.py        # SkillsBench: ACP + ACP-MCP via BenchFlow Trial

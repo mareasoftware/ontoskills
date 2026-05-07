@@ -67,7 +67,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## 暴露的工具
 
-- `ontoskill` — 统一的技能发现和上下文检索。传入技能 ID 获取完整上下文，或传入自然语言查询进行 BM25 搜索。
+- `mcp__onto__skill` — 统一的技能发现和上下文检索。传入技能 ID 获取完整上下文，或传入自然语言查询进行 BM25 搜索。
 
 ## 注意事项
 

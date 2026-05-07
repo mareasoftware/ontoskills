@@ -34,7 +34,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
       <div class="section-shell">
         <h2>The Question</h2>
         <p>AI coding agents like Claude Code rely on skill documentation to solve specialized tasks — generating DOCX files, processing PDFs, analyzing financial data. Today, these skills are delivered as plain markdown files (<code>SKILL.md</code>). The agent reads the raw text and must extract instructions, heuristics, and anti-patterns on its own.</p>
-        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via a single MCP tool (<code>ontoskill</code>). The agent queries for skill knowledge — receiving typed knowledge nodes with severity ratings, anti-patterns with rationale, and curated code examples.</p>
+        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via a single MCP tool (<code>mcp__onto__skill</code>). The agent queries for skill knowledge — receiving typed knowledge nodes with severity ratings, anti-patterns with rationale, and curated code examples.</p>
         <p>Which approach produces better results?</p>
       </div>
     </section>
@@ -81,7 +81,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
             <div class="mode-vs">vs</div>
             <div class="mode-card">
               <span class="mode-label" style="color: var(--accent-cyan);">OntoSkills MCP</span>
-              <p>Skills compiled to OWL 2, served via <strong>OntoMCP</strong>. Agent uses a single <code>ontoskill</code> MCP tool to query structured knowledge.</p>
+              <p>Skills compiled to OWL 2, served via <strong>OntoMCP</strong>. Agent uses a single <code>mcp__onto__skill</code> MCP tool to query structured knowledge.</p>
             </div>
           </div>
         <p class="note">Same agent, same model, same BenchFlow container management, same Harbor Verifier. The only difference is <strong>how skill knowledge is delivered</strong>.</p>

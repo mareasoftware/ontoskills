@@ -100,7 +100,7 @@ the native Claude Code CLI binary (not ACP), uploaded into each container:
 3. **Skill delivery**:
    - `acp` (Traditional): SKILL.md files deployed to `~/.claude/skills/`
      via BenchFlow's skill deployment infrastructure.
-   - `acp-mcp` (MCP): ontomcp binary + TTLs + `.mcp_config.json` injected.
+   - `acp-mcp` (MCP): ontomcp binary + TTLs + `.mcp.json` injected.
    - `baseline`: No skills.
 4. **Agent execution**: `claude -p <instruction> --output-format json`
    is run inside the container via `env.exec()`.

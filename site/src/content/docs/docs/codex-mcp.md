@@ -67,7 +67,7 @@ ONTOMCP_ONTOLOGY_ROOT=~/.ontoskills/ontologies
 
 ## Tools exposed
 
-- `ontoskill` — unified skill discovery and context retrieval. Pass a skill ID for full context, or a natural language query for BM25 search.
+- `mcp__onto__skill` — unified skill discovery and context retrieval. Pass a skill ID for full context, or a natural language query for BM25 search.
 
 ## Notes
 
