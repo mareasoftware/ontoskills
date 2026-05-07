@@ -404,7 +404,7 @@ fn ensure_initialized(
     Err("Server not initialized".into())
 }
 
-/// Shared search logic used by both `ontoskill` (fallback) and `search` tool arms.
+/// Shared search logic used by both `skill` (fallback) and `search` tool arms.
 fn do_search(
     query: &str,
     top_k: usize,
@@ -481,7 +481,7 @@ fn handle_tool_call(
     }
 
     let (structured, compact_text) = match tool_name {
-        "ontoskill" => {
+        "skill" => {
             let q = required_string(&arguments, "q")?;
             let top_k = arguments
                 .get("top_k")
@@ -897,7 +897,7 @@ fn respond_error(
 fn tool_definitions() -> Vec<Value> {
     vec![
         tool(
-            "ontoskill",
+            "skill",
             "Find or load a skill by name or query. If q matches a known skill id, returns that skill's structured context. Otherwise, searches for relevant skills.",
             json!({
                 "type": "object",
