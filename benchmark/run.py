@@ -2,47 +2,213 @@
 """SkillsBench benchmark runner: OntoSkills MCP vs Traditional skill delivery.
 
 Usage:
-    python run.py --mode {acp,acp-mcp,baseline,both,all5,taskwise} --max-tasks <N>
+    python run.py --mode {acp,acp-mcp,baseline,both,all5,taskwise} [options]
 
 Examples:
-    # Run all 5 cases (baseline, acp+hints, acp-mcp+hints, acp+nohints, acp-mcp+nohints)
-    python run.py --mode all5 --max-tasks 15
+    # Taskwise: 3 cases per task (baseline -> acp -> acp-mcp)
+    python run.py --mode taskwise
 
-    # Run single mode
-    python run.py --mode acp --max-tasks 25
-    python run.py --mode acp-mcp --max-tasks 25
+    # Single mode
+    python run.py --mode acp
+    python run.py --mode acp-mcp
 
-    # Resume from previous state
-    python run.py --mode acp --resume
+    # Dry run (see how many tasks, estimated duration)
+    python run.py --mode taskwise --dry-run
 
-    # Force fresh start
-    python run.py --mode acp --force-restart
+    # Skip specific tasks
+    python run.py --mode taskwise --skip-tasks paper-anonymizer,jpg-ocr-stat
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import os
 import sys
 import time
+import uuid
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from benchmark.config import ONTOMCP_BIN_PATH, TTL_ROOT
+from benchmark.state import BenchmarkState
+from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 from benchmark.reporting.chart_data import generate_chart_data, save_chart_data
 
 logger = logging.getLogger(__name__)
 
 BENCHMARK_DIR = Path(__file__).resolve().parent
 
+# ---------------------------------------------------------------------------
+# Runner factories (shared by all modes)
+# ---------------------------------------------------------------------------
+
+def _baseline_runner(w: SkillsBenchWrapper, nudge: str):
+    async def _run(task: dict) -> dict:
+        return await w._run_acp_trial(task, skills_dir=None, skill_nudge=nudge)
+    return _run
+
+def _acp_runner(w: SkillsBenchWrapper, nudge: str):
+    async def _run(task: dict) -> dict:
+        skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
+        return await w._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
+    return _run
+
+def _mcp_runner(w: SkillsBenchWrapper, nudge: str):
+    async def _run(task: dict) -> dict:
+        return await w._run_acp_mcp_trial(task, skill_nudge=nudge)
+    return _run
+
+_CASE_RUNNERS = {
+    "baseline": _baseline_runner,
+    "acp": _acp_runner,
+    "acp-mcp": _mcp_runner,
+}
 
 # ---------------------------------------------------------------------------
-# SkillsBench runners
+# State helpers
+# ---------------------------------------------------------------------------
+
+def _prepare_states(
+    output_dir: Path, cases: list[tuple[str, bool]], force_restart: bool,
+) -> tuple[list[BenchmarkState], list[str]]:
+    """Create or load BenchmarkState for each case."""
+    run_id = str(uuid.uuid4())[:8]
+    states: list[BenchmarkState] = []
+    labels: list[str] = []
+    for mode, hints in cases:
+        label = f"{mode}+{'hints' if hints else 'nohints'}"
+        labels.append(label)
+        state_path = output_dir / "skillsbench" / label / "benchmark_state.json"
+        if force_restart:
+            state = BenchmarkState.create(state_path, run_id, mode, hints)
+        else:
+            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints)
+        states.append(state)
+    return states, labels
+
+
+def _save_case_results(
+    states: list[BenchmarkState], labels: list[str],
+    cases: list[tuple[str, bool]], output_dir: Path, model: str,
+) -> dict[str, tuple[list[dict], float | None]]:
+    """Save results.json, score.json, chart_data.json per case."""
+    case_results: dict[str, tuple[list[dict], float | None]] = {}
+    for i, label in enumerate(labels):
+        results = states[i].get_results()
+        score = SkillsBenchWrapper.score(results)
+        pass_rate = score["pass_rate"]
+
+        case_dir = output_dir / "skillsbench" / label
+        case_dir.mkdir(parents=True, exist_ok=True)
+        _save_json(results, case_dir / "results.json")
+
+        (case_dir / "score.json").write_text(
+            json.dumps(score, indent=2, default=str, ensure_ascii=False), encoding="utf-8",
+        )
+
+        chart = generate_chart_data("skillsbench", cases[i][0], results, score, model=model)
+        save_chart_data(chart, str(case_dir / "chart_data.json"))
+
+        logger.info(
+            "SkillsBench %s: %d/%d passed (%.1f%%)",
+            label, score["tasks_passed"], score["total_tasks"], pass_rate * 100,
+        )
+        case_results[label] = (results, pass_rate)
+    return case_results
+
+
+def _build_runners(
+    wrapper: SkillsBenchWrapper, cases: list[tuple[str, bool]],
+) -> list:
+    """Build trial runner coroutines for each case using _CASE_RUNNERS dict."""
+    runners: list = []
+    for mode, hints in cases:
+        nudge = "name" if hints else ""
+        factory = _CASE_RUNNERS.get(mode)
+        if factory is None:
+            raise ValueError(f"Unknown mode: {mode}")
+        runners.append(factory(wrapper, nudge))
+    return runners
+
+# ---------------------------------------------------------------------------
+# Unified runner
+# ---------------------------------------------------------------------------
+
+def _run_skillsbench(
+    output_dir: Path,
+    *,
+    cases: list[tuple[str, bool]],
+    model: str = "glm-5.1",
+    max_tasks: int | None = None,
+    shuffle: bool = True,
+    seed: int = 42,
+    skip_first: int = 0,
+    max_attempts: int = 5,
+    skip_tasks: set[str] | None = None,
+    only_tasks: list[str] | None = None,
+    workers: int = 2,
+    force_restart: bool = False,
+    dry_run: bool = False,
+) -> dict[str, tuple[list[dict], float | None]] | None:
+    """Run SkillsBench with the given cases.
+    
+    Single case -> uses _run_pooled (per-task state).
+    Multiple cases -> uses _run_pooled_task_first (per-case states, taskwise iteration).
+    """
+    wrapper = SkillsBenchWrapper()
+
+    packages_root = os.path.expanduser("~/.ontoskills/packages")
+    tasks = wrapper.load_tasks(
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        packages_root=packages_root, skip_first=skip_first,
+        only_tasks=only_tasks, skip_tasks=skip_tasks,
+    )
+    if not tasks:
+        logger.error("No tasks to run.")
+        return {}
+
+    # Dry run.
+    if dry_run:
+        _print_dry_run(tasks, cases, workers, max_attempts)
+        return None
+
+    states, labels = _prepare_states(output_dir, cases, force_restart)
+
+    if len(cases) == 1:
+        # Single case: use _run_pooled.
+        state = states[0]
+        mode, hints = cases[0]
+        all_task_ids = [t["task_id"] for t in tasks]
+        if state.is_fully_done(all_task_ids):
+            logger.info("All tasks already completed in state file.")
+        else:
+            runner = _build_runners(wrapper, cases)[0]
+            asyncio.run(wrapper._run_pooled(
+                tasks, state, runner,
+                max_attempts=max_attempts, workers=workers,
+            ))
+    else:
+        # Multiple cases: use _run_pooled_task_first.
+        runners = _build_runners(wrapper, cases)
+        asyncio.run(wrapper._run_pooled_task_first(
+            tasks, states, runners, cases,
+            max_attempts=max_attempts, workers=workers,
+        ))
+
+    case_results = _save_case_results(states, labels, cases, output_dir, model)
+
+    if len(cases) > 3:
+        _generate_all5_summary(case_results, output_dir)
+
+    return case_results
+
+# ---------------------------------------------------------------------------
+# Thin wrappers (backward-compatible signatures)
 # ---------------------------------------------------------------------------
 
 def _run_skillsbench_acp(
@@ -63,203 +229,24 @@ def _run_skillsbench_acp(
     resume: bool = True,
     force_restart: bool = False,
     state_file: str | None = None,
+    skip_tasks: set[str] | None = None,
+    dry_run: bool = False,
 ) -> tuple[list[dict], float | None]:
-    """Run SkillsBench via ACP with BenchmarkState resume and worker pool."""
-    import asyncio
-    import uuid
-
-    from benchmark.state import BenchmarkState
-    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
-
-    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-
-    packages_root = os.path.expanduser("~/.ontoskills/packages")
-    tasks = wrapper.load_tasks(
-        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        packages_root=packages_root, skip_first=skip_first,
-        only_tasks=only_tasks,
+    """Single-case runner (backward-compatible)."""
+    _ = skillsbench_repo, resume, state_file  # unused (wrapper uses defaults)
+    result = _run_skillsbench(
+        output_dir,
+        cases=[(mode, skill_hints)],
+        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        skip_first=skip_first, max_attempts=max_attempts,
+        skip_tasks=skip_tasks, only_tasks=only_tasks,
+        workers=workers, force_restart=force_restart, dry_run=dry_run,
     )
-    if not tasks:
-        logger.error("No tasks to run.")
+    if result is None:
         return [], None
-
-    effective_label = label or mode
-    if state_file:
-        state_path = Path(state_file)
-    else:
-        state_path = output_dir / "skillsbench" / effective_label / "benchmark_state.json"
-
-    run_id = str(uuid.uuid4())[:8]
-    if force_restart:
-        state = BenchmarkState.create(state_path, run_id, mode, skill_hints)
-    elif resume:
-        state = BenchmarkState.load_or_create(state_path, run_id, mode, skill_hints)
-    else:
-        state = BenchmarkState.create(state_path, run_id, mode, skill_hints)
-
-    all_task_ids = [t["task_id"] for t in tasks]
-    if state.is_fully_done(all_task_ids):
-        logger.info("All tasks already completed in state file.")
-        results = state.get_results()
-    else:
-        nudge = "name" if skill_hints else ""
-
-        if mode == "baseline":
-            async def trial_runner(task: dict) -> dict:
-                return await wrapper._run_acp_trial(task, skills_dir=None, skill_nudge="")
-        elif mode == "acp":
-            async def trial_runner(task: dict) -> dict:
-                skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
-                return await wrapper._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
-        elif mode == "acp-mcp":
-            async def trial_runner(task: dict) -> dict:
-                return await wrapper._run_acp_mcp_trial(task, skill_nudge=nudge)
-        else:
-            raise ValueError(f"Unknown SkillsBench ACP mode: {mode}")
-
-        results = asyncio.run(
-            wrapper._run_pooled(
-                tasks, state, trial_runner,
-                max_attempts=max_attempts, workers=workers,
-            )
-        )
-
-    score = SkillsBenchWrapper.score(results)
-    logger.info(
-        "SkillsBench %s: %d/%d passed (%.1f%%)",
-        mode, score["tasks_passed"], score["total_tasks"], score["pass_rate"] * 100,
-    )
-
-    raw_path = output_dir / "skillsbench" / effective_label / "results.json"
-    raw_path.parent.mkdir(parents=True, exist_ok=True)
-    _save_json(results, raw_path)
-
-    score_path = output_dir / "skillsbench" / effective_label / "score.json"
-    score_path.write_text(
-        json.dumps(score, indent=2, default=str, ensure_ascii=False), encoding="utf-8",
-    )
-
-    chart = generate_chart_data("skillsbench", mode, results, score, model=model)
-    save_chart_data(chart, str(output_dir / "skillsbench" / effective_label / "chart_data.json"))
-
-    return results, score["pass_rate"]
-
-
-def _run_skillsbench_task_first(
-    output_dir: Path,
-    *,
-    model: str = "glm-5.1",
-    max_tasks: int | None = None,
-    shuffle: bool = True,
-    seed: int = 42,
-    skip_first: int = 0,
-    max_attempts: int = 5,
-    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
-    only_tasks: list[str] | None = None,
-    workers: int = 2,
-    force_restart: bool = False,
-) -> dict[str, tuple[list[dict], float | None]]:
-    """Run all5 benchmark with task-first iteration and Docker pruning."""
-    import asyncio
-    import uuid
-
-    from benchmark.state import BenchmarkState
-    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
-
-    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-
-    packages_root = os.path.expanduser("~/.ontoskills/packages")
-    tasks = wrapper.load_tasks(
-        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        packages_root=packages_root, skip_first=skip_first,
-        only_tasks=only_tasks,
-    )
-    if not tasks:
-        logger.error("No tasks to run.")
-        return {}
-
-    cases: list[tuple[str, bool]] = [
-        ("baseline", False),
-        ("acp", True),
-        ("acp-mcp", True),
-        ("acp", False),
-        ("acp-mcp", False),
-    ]
-
-    run_id = str(uuid.uuid4())[:8]
-    states: list[BenchmarkState] = []
-    labels: list[str] = []
-    for mode, hints in cases:
-        label = f"{mode}+{'hints' if hints else 'nohints'}"
-        labels.append(label)
-        state_path = output_dir / "skillsbench" / label / "benchmark_state.json"
-        if force_restart:
-            state = BenchmarkState.create(state_path, run_id, mode, hints)
-        else:
-            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints)
-        states.append(state)
-
-    def _make_baseline_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            return await w._run_acp_trial(task, skills_dir=None, skill_nudge=nudge)
-        return _runner
-
-    def _make_acp_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
-            return await w._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
-        return _runner
-
-    def _make_mcp_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            return await w._run_acp_mcp_trial(task, skill_nudge=nudge)
-        return _runner
-
-    trial_runners: list = []
-    for mode, hints in cases:
-        nudge = "name" if hints else ""
-        if mode == "baseline":
-            trial_runners.append(_make_baseline_runner(wrapper, nudge))
-        elif mode == "acp":
-            trial_runners.append(_make_acp_runner(wrapper, nudge))
-        elif mode == "acp-mcp":
-            trial_runners.append(_make_mcp_runner(wrapper, nudge))
-        else:
-            raise ValueError(f"Unknown mode: {mode}")
-
-    logger.info("Starting task-first all5: %d tasks, %d cases, %d workers", len(tasks), len(cases), workers)
-    asyncio.run(
-        wrapper._run_pooled_task_first(
-            tasks, states, trial_runners, cases,
-            max_attempts=max_attempts, workers=workers,
-        )
-    )
-
-    case_results: dict[str, tuple[list[dict], float | None]] = {}
-    for i, label in enumerate(labels):
-        results = states[i].get_results()
-        score = SkillsBenchWrapper.score(results)
-        pass_rate = score["pass_rate"]
-
-        case_dir = output_dir / "skillsbench" / label
-        case_dir.mkdir(parents=True, exist_ok=True)
-        _save_json(results, case_dir / "results.json")
-        (case_dir / "score.json").write_text(
-            json.dumps(score, indent=2, default=str, ensure_ascii=False), encoding="utf-8",
-        )
-
-        chart = generate_chart_data("skillsbench", cases[i][0], results, score, model=model)
-        save_chart_data(chart, str(case_dir / "chart_data.json"))
-
-        logger.info(
-            "SkillsBench %s: %d/%d passed (%.1f%%)",
-            label, score["tasks_passed"], score["total_tasks"], pass_rate * 100,
-        )
-        case_results[label] = (results, pass_rate)
-
-    _generate_all5_summary(case_results, output_dir)
-
-    return case_results
+    for label_key, (results, acc) in result.items():
+        return results, acc
+    return [], None
 
 
 def _run_skillsbench_taskwise(
@@ -275,109 +262,50 @@ def _run_skillsbench_taskwise(
     only_tasks: list[str] | None = None,
     workers: int = 2,
     force_restart: bool = False,
+    skip_tasks: set[str] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, tuple[list[dict], float | None]]:
-    """Task-first iteration with 3 cases (no nohints variants).
-
-    For each task runs all 3 cases before moving to the next:
-    baseline → acp+hints → acp-mcp+hints.
-    """
-    import asyncio
-    import uuid
-
-    from benchmark.state import BenchmarkState
-    from benchmark.wrappers.skillsbench import SkillsBenchWrapper
-
-    wrapper = SkillsBenchWrapper(repo_path=skillsbench_repo)
-
-    packages_root = os.path.expanduser("~/.ontoskills/packages")
-    tasks = wrapper.load_tasks(
-        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
-        packages_root=packages_root, skip_first=skip_first,
-        only_tasks=only_tasks,
-    )
-    if not tasks:
-        logger.error("No tasks to run.")
-        return {}
-
-    cases: list[tuple[str, bool]] = [
-        ("baseline", False),
-        ("acp", True),
-        ("acp-mcp", True),
-    ]
-
-    run_id = str(uuid.uuid4())[:8]
-    states: list[BenchmarkState] = []
-    labels: list[str] = []
-    for mode, hints in cases:
-        label = f"{mode}+{'hints' if hints else 'nohints'}"
-        labels.append(label)
-        state_path = output_dir / "skillsbench" / label / "benchmark_state.json"
-        if force_restart:
-            state = BenchmarkState.create(state_path, run_id, mode, hints)
-        else:
-            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints)
-        states.append(state)
-
-    def _make_baseline_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            return await w._run_acp_trial(task, skills_dir=None, skill_nudge=nudge)
-        return _runner
-
-    def _make_acp_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            skills_dir = str(Path(task["task_dir"]) / "environment" / "skills")
-            return await w._run_acp_trial(task, skills_dir=skills_dir, skill_nudge=nudge)
-        return _runner
-
-    def _make_mcp_runner(w, nudge: str):
-        async def _runner(task: dict) -> dict:
-            return await w._run_acp_mcp_trial(task, skill_nudge=nudge)
-        return _runner
-
-    trial_runners: list = []
-    for mode, hints in cases:
-        nudge = "name" if hints else ""
-        if mode == "baseline":
-            trial_runners.append(_make_baseline_runner(wrapper, nudge))
-        elif mode == "acp":
-            trial_runners.append(_make_acp_runner(wrapper, nudge))
-        elif mode == "acp-mcp":
-            trial_runners.append(_make_mcp_runner(wrapper, nudge))
-        else:
-            raise ValueError(f"Unknown mode: {mode}")
-
-    logger.info("Starting taskwise: %d tasks, %d cases, %d workers", len(tasks), len(cases), workers)
-    asyncio.run(
-        wrapper._run_pooled_task_first(
-            tasks, states, trial_runners, cases,
-            max_attempts=max_attempts, workers=workers,
-        )
+    """3-case taskwise runner (backward-compatible)."""
+    _ = skillsbench_repo
+    return _run_skillsbench(
+        output_dir,
+        cases=[("baseline", False), ("acp", True), ("acp-mcp", True)],
+        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        skip_first=skip_first, max_attempts=max_attempts,
+        skip_tasks=skip_tasks, only_tasks=only_tasks,
+        workers=workers, force_restart=force_restart, dry_run=dry_run,
     )
 
-    case_results: dict[str, tuple[list[dict], float | None]] = {}
-    for i, label in enumerate(labels):
-        results = states[i].get_results()
-        score = SkillsBenchWrapper.score(results)
-        pass_rate = score["pass_rate"]
 
-        case_dir = output_dir / "skillsbench" / label
-        case_dir.mkdir(parents=True, exist_ok=True)
-        _save_json(results, case_dir / "results.json")
-        (case_dir / "score.json").write_text(
-            json.dumps(score, indent=2, default=str, ensure_ascii=False), encoding="utf-8",
-        )
-
-        chart = generate_chart_data("skillsbench", cases[i][0], results, score, model=model)
-        save_chart_data(chart, str(case_dir / "chart_data.json"))
-
-        logger.info(
-            "SkillsBench %s: %d/%d passed (%.1f%%)",
-            label, score["tasks_passed"], score["total_tasks"], pass_rate * 100,
-        )
-        case_results[label] = (results, pass_rate)
-
-    return case_results
-
+def _run_skillsbench_task_first(
+    output_dir: Path,
+    *,
+    model: str = "glm-5.1",
+    max_tasks: int | None = None,
+    shuffle: bool = True,
+    seed: int = 42,
+    skip_first: int = 0,
+    max_attempts: int = 5,
+    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
+    only_tasks: list[str] | None = None,
+    workers: int = 2,
+    force_restart: bool = False,
+    skip_tasks: set[str] | None = None,
+    dry_run: bool = False,
+) -> dict[str, tuple[list[dict], float | None]]:
+    """5-case all5 runner (backward-compatible)."""
+    _ = skillsbench_repo
+    return _run_skillsbench(
+        output_dir,
+        cases=[
+            ("baseline", False), ("acp", True), ("acp-mcp", True),
+            ("acp", False), ("acp-mcp", False),
+        ],
+        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        skip_first=skip_first, max_attempts=max_attempts,
+        skip_tasks=skip_tasks, only_tasks=only_tasks,
+        workers=workers, force_restart=force_restart, dry_run=dry_run,
+    )
 
 # ---------------------------------------------------------------------------
 # Reports
@@ -439,6 +367,27 @@ def _save_json(data, path: Path) -> None:
     path.write_text(json.dumps(data, indent=2, default=_default, ensure_ascii=False), encoding="utf-8")
 
 
+def _print_dry_run(tasks: list[dict], cases: list[tuple[str, bool]], workers: int, attempts: int) -> None:
+    """Print a summary of what would run, then exit."""
+    case_labels = [f"{m}+{'hints' if h else 'nohints'}" for m, h in cases]
+    total_runs = len(tasks) * len(cases) * attempts
+    avg_task_s = 300  # rough estimate: 5 min per attempt
+    est_hours = total_runs * avg_task_s / 3600 / workers
+
+    print(f"SkillsBench Dry Run")
+    print(f"{'='*50}")
+    print(f"  Tasks:       {len(tasks)}")
+    print(f"  Cases:       {len(cases)} ({', '.join(case_labels)})")
+    print(f"  Attempts:    {attempts} per task/case")
+    print(f"  Workers:     {workers}")
+    print(f"  Total runs:  {total_runs}")
+    print(f"  Est. time:   {est_hours:.1f}h (at ~5min/attempt)")
+    print(f"{'='*50}")
+    print(f"\nTasks ({len(tasks)}):")
+    for t in tasks:
+        print(f"  - {t['task_id']}")
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -449,9 +398,10 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  python run.py --mode all5 --max-tasks 15\n"
-            "  python run.py --mode acp --max-tasks 25\n"
-            "  python run.py --mode acp-mcp --max-tasks 25\n"
+            "  python run.py --mode taskwise\n"
+            "  python run.py --mode taskwise --dry-run\n"
+            "  python run.py --mode acp\n"
+            "  python run.py --mode acp-mcp --skip-tasks paper-anonymizer\n"
         ),
     )
 
@@ -460,98 +410,41 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["acp", "acp-mcp", "baseline", "both", "all5", "taskwise"],
         default="both",
         help=(
-            "Agent mode. 'acp' = Traditional, 'acp-mcp' = MCP, "
+            "'acp' = Traditional, 'acp-mcp' = MCP, "
             "'baseline' = no skills, 'both' = acp + acp-mcp, "
-            "'all5' = all 5 cases with task-first iteration."
+            "'all5' = all 5 cases, 'taskwise' = 3 cases per task"
         ),
     )
+    parser.add_argument("--model", default="glm-5.1")
     parser.add_argument(
-        "--model",
-        default="glm-5.1",
-        help="Model ID (default: glm-5.1 via API proxy)",
+        "--max-tasks", type=int, default=None,
+        help="Max tasks (default: all available)",
+    )
+    parser.add_argument("--attempts", type=int, default=5)
+    parser.add_argument("--shuffle", action="store_true", default=True)
+    parser.add_argument("--no-shuffle", action="store_false", dest="shuffle")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--skip-first", type=int, default=0)
+    parser.add_argument(
+        "--output-dir", default=str(BENCHMARK_DIR / "results"),
     )
     parser.add_argument(
-        "--max-tasks",
-        type=int,
-        default=25,
-        help="Max tasks per benchmark (default: 25)",
+        "--skillsbench-repo", default=os.path.expanduser("~/.ontoskills/skillsbench"),
+    )
+    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--resume", action="store_true", default=True)
+    parser.add_argument("--force-restart", action="store_true")
+    parser.add_argument("--state-file", default=None)
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--no-skill-hints", action="store_true")
+    parser.add_argument("--only-tasks", default=None)
+    parser.add_argument(
+        "--skip-tasks", default=None,
+        help="Comma-separated task IDs to skip",
     )
     parser.add_argument(
-        "--attempts",
-        type=int,
-        default=5,
-        help="Clean retries per task (default: 5)",
-    )
-    parser.add_argument(
-        "--shuffle",
-        action="store_true",
-        default=True,
-        help="Shuffle tasks (default: True)",
-    )
-    parser.add_argument(
-        "--no-shuffle",
-        action="store_false",
-        dest="shuffle",
-        help="Disable shuffling",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed (default: 42)",
-    )
-    parser.add_argument(
-        "--skip-first",
-        type=int,
-        default=0,
-        help="Skip first N tasks",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=str(BENCHMARK_DIR / "results"),
-        help="Output directory (default: benchmark/results/)",
-    )
-    parser.add_argument(
-        "--skillsbench-repo",
-        default=os.path.expanduser("~/.ontoskills/skillsbench"),
-        help="Path to SkillsBench repo clone",
-    )
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=2,
-        help="Parallel Docker workers (default: 2)",
-    )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        default=True,
-        help="Resume from previous state (default: True)",
-    )
-    parser.add_argument(
-        "--force-restart",
-        action="store_true",
-        help="Ignore existing state, start fresh",
-    )
-    parser.add_argument(
-        "--state-file",
-        default=None,
-        help="Custom state file path",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Verbose logging",
-    )
-    parser.add_argument(
-        "--no-skill-hints",
-        action="store_true",
-        help="Omit skill names from prompts",
-    )
-    parser.add_argument(
-        "--only-tasks",
-        default=None,
-        help="Comma-separated task IDs to run",
+        "--dry-run", action="store_true",
+        help="Print task summary and estimated duration, then exit",
     )
 
     return parser
@@ -570,7 +463,11 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-        parser.error("ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required.")
+        if args.dry_run:
+            # Dry-run doesn't call the API, so skip auth check.
+            pass
+        else:
+            parser.error("ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required.")
 
     traditional_results: dict[str, list[dict]] = {}
     ontoskills_results: dict[str, list[dict]] = {}
@@ -581,94 +478,64 @@ def main() -> None:
     logger.info("SkillsBench — mode=%s, model=%s", args.mode, args.model)
     logger.info("=" * 60)
 
+    common = dict(
+        model=args.model, max_tasks=args.max_tasks,
+        shuffle=args.shuffle, seed=args.seed,
+        skip_first=args.skip_first, max_attempts=args.attempts,
+        only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
+        skip_tasks=set(args.skip_tasks.split(",")) if args.skip_tasks else None,
+        workers=args.workers, force_restart=args.force_restart,
+        dry_run=args.dry_run,
+    )
+
     if args.mode == "all5":
         t0 = time.perf_counter()
-        case_results = _run_skillsbench_task_first(
-            output_dir,
-            model=args.model,
-            max_tasks=args.max_tasks,
-            shuffle=args.shuffle,
-            seed=args.seed,
-            skip_first=args.skip_first,
-            max_attempts=args.attempts,
-            skillsbench_repo=args.skillsbench_repo,
-            only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-            workers=args.workers,
-            force_restart=args.force_restart,
-        )
+        case_results = _run_skillsbench_task_first(output_dir, **common)
         elapsed = time.perf_counter() - t0
-        logger.info("SkillsBench all5 completed in %.1fs", elapsed)
-
-        for label, (results, accuracy) in case_results.items():
-            mode = label.split("+")[0]
-            key = f"skillsbench/{label}"
-            if mode == "acp-mcp":
-                ontoskills_results[key] = results
-                ontoskills_accuracies[key] = accuracy
-            else:
-                traditional_results[key] = results
-                traditional_accuracies[key] = accuracy
+        if case_results:
+            logger.info("SkillsBench all5 completed in %.1fs", elapsed)
+            for label, (results, accuracy) in case_results.items():
+                mode = label.split("+")[0]
+                key = f"skillsbench/{label}"
+                if mode == "acp-mcp":
+                    ontoskills_results[key] = results
+                    ontoskills_accuracies[key] = accuracy
+                else:
+                    traditional_results[key] = results
+                    traditional_accuracies[key] = accuracy
 
     elif args.mode == "taskwise":
         t0 = time.perf_counter()
-        case_results = _run_skillsbench_taskwise(
-            output_dir,
-            model=args.model,
-            max_tasks=args.max_tasks,
-            shuffle=args.shuffle,
-            seed=args.seed,
-            skip_first=args.skip_first,
-            max_attempts=args.attempts,
-            skillsbench_repo=args.skillsbench_repo,
-            only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-            workers=args.workers,
-            force_restart=args.force_restart,
-        )
+        case_results = _run_skillsbench_taskwise(output_dir, **common)
         elapsed = time.perf_counter() - t0
-        logger.info("SkillsBench taskwise completed in %.1fs", elapsed)
-
-        for label, (results, accuracy) in case_results.items():
-            mode = label.split("+")[0]
-            key = f"skillsbench/{label}"
-            if mode == "acp-mcp":
-                ontoskills_results[key] = results
-                ontoskills_accuracies[key] = accuracy
-            else:
-                traditional_results[key] = results
-                traditional_accuracies[key] = accuracy
+        if case_results:
+            logger.info("SkillsBench taskwise completed in %.1fs", elapsed)
+            for label, (results, accuracy) in case_results.items():
+                mode = label.split("+")[0]
+                key = f"skillsbench/{label}"
+                if mode == "acp-mcp":
+                    ontoskills_results[key] = results
+                    ontoskills_accuracies[key] = accuracy
+                else:
+                    traditional_results[key] = results
+                    traditional_accuracies[key] = accuracy
 
     else:
-        cases: list[tuple[str, bool]] = []
-        if args.mode == "baseline":
-            cases = [("baseline", False)]
-        elif args.mode == "both":
-            cases = [("acp", True), ("acp-mcp", True)]
-        elif args.mode == "acp":
-            cases = [("acp", not args.no_skill_hints)]
-        elif args.mode == "acp-mcp":
-            cases = [("acp-mcp", not args.no_skill_hints)]
+        cases_map = {
+            "baseline": [("baseline", False)],
+            "both": [("acp", True), ("acp-mcp", True)],
+            "acp": [("acp", not args.no_skill_hints)],
+            "acp-mcp": [("acp-mcp", not args.no_skill_hints)],
+        }
+        cases = cases_map[args.mode]
 
         for run_mode, hints in cases:
             label = f"{run_mode}+{'hints' if hints else 'nohints'}"
             logger.info("Running SkillsBench %s (model=%s)...", label, args.model)
             t0 = time.perf_counter()
             results, accuracy = _run_skillsbench_acp(
-                output_dir,
-                mode=run_mode,
-                label=label,
-                model=args.model,
-                max_tasks=args.max_tasks,
-                shuffle=args.shuffle,
-                seed=args.seed,
-                skip_first=args.skip_first,
-                max_attempts=args.attempts,
-                skill_hints=hints,
-                skillsbench_repo=args.skillsbench_repo,
-                only_tasks=args.only_tasks.split(",") if args.only_tasks else None,
-                workers=args.workers,
-                resume=args.resume and not args.force_restart,
-                force_restart=args.force_restart,
-                state_file=args.state_file,
+                output_dir, mode=run_mode, label=label, skill_hints=hints,
+                **common,
             )
             elapsed = time.perf_counter() - t0
             logger.info("SkillsBench %s completed in %.1fs", label, elapsed)
@@ -679,7 +546,6 @@ def main() -> None:
                 traditional_results[f"skillsbench/{label}"] = results
                 traditional_accuracies[f"skillsbench/{label}"] = accuracy
 
-    # Generate comparison report if both modes ran.
     if args.mode == "both" and traditional_results and ontoskills_results:
         _generate_comparison(
             traditional_results, ontoskills_results,
