@@ -60,7 +60,7 @@ try:
     )
     logger.info("Registered claude agent (native CLI, not ACP)")
 except ImportError:
-    logger.warning("benchflow not installed — agent registration skipped")
+    logger.warning("benchflow not installed — agent registration skipped, some features disabled")
 
 # Path to the standalone claude binary (238 MB ELF, works in Ubuntu 24.04).
 # Override with CLAUDE_BIN_PATH env var.
@@ -120,42 +120,103 @@ async def _run_claude_and_parse(
 
     Handles the full claude lifecycle: exec with env vars, parse num_turns,
     log tool usage, save stdout/stderr per-mode.
+
+    Uses a two-phase timeout: a startup watchdog kills claude if it produces
+    no output within the first 120s (fails fast on hung startups), then
+    the full task timeout applies for actual execution.
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
     base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    task_timeout = task["agent_timeout_sec"]
+    startup_watchdog = min(120, task_timeout // 3)
+
+    # Phase 1: run with a startup watchdog timeout.
+    # If claude produces no output within startup_watchdog seconds,
+    # we kill it and log the stderr for diagnosis.
     cmd = (
-        f"claude -p {shlex.quote(instruction)} "
+        f"timeout {startup_watchdog} claude -p {shlex.quote(instruction)} "
         f"--output-format json --verbose --max-turns 50 "
         f"--dangerously-skip-permissions"
     )
     result = await trial._env.exec(
         cmd,
-        timeout_sec=task["agent_timeout_sec"],
+        timeout_sec=startup_watchdog + 30,
         user="agent",
         env={
             "ANTHROPIC_API_KEY": api_key,
+            "ANTHROPIC_AUTH_TOKEN": api_key,
             "ANTHROPIC_BASE_URL": base_url,
             "ANTHROPIC_MODEL": "glm-5.1",
             "HOME": "/root",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
         },
     )
-    stdout = (result.stdout or "").strip()
-    stderr = (result.stderr or "").strip()
-    trial._n_tool_calls = _parse_claude_num_turns(stdout)
-    tool_counts = _log_tool_usage(stdout)
-    logger.info(
-        "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-        "tools=%s stdout_head=%s",
-        task["task_id"], trial._n_tool_calls,
-        len(stdout), len(stderr),
-        tool_counts or {},
-        stdout[:200],
+    stdout, stderr = _process_claude_output(result)
+    if stdout or stderr:
+        logger.info(
+            "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+            "tools=%s stdout_head=%s",
+            task["task_id"], _parse_claude_num_turns(stdout),
+            len(stdout), len(stderr),
+            _log_tool_usage(stdout) or {},
+            stdout[:200],
+        )
+        _save_claude_logs(
+            Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
+            stdout, stderr, task["task_id"], mode=mode,
+        )
+        return stdout, stderr
+
+    # Phase 2 (fallback): claude may need more time than the watchdog.
+    # Run with full task timeout, capturing stderr to a file for diagnosis.
+    logger.warning(
+        "Claude startup watchdog tripped for %s (%ds, mode=%s) — "
+        "retrying with full timeout. Stderr: %.200s",
+        task["task_id"], startup_watchdog, mode, stderr,
     )
+    cmd = (
+        f"claude -p {shlex.quote(instruction)} "
+        f"--output-format json --verbose --max-turns 50 "
+        f"--dangerously-skip-permissions 2>/tmp/claude_stderr_diag.txt; "
+        f"cat /tmp/claude_stderr_diag.txt 2>/dev/null"
+    )
+    result = await trial._env.exec(
+        cmd,
+        timeout_sec=task_timeout,
+        user="agent",
+        env={
+            "ANTHROPIC_API_KEY": api_key,
+            "ANTHROPIC_AUTH_TOKEN": api_key,
+            "ANTHROPIC_BASE_URL": base_url,
+            "ANTHROPIC_MODEL": "glm-5.1",
+            "HOME": "/root",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        },
+    )
+    stdout, stderr = _process_claude_output(result)
     _save_claude_logs(
         Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
         stdout, stderr, task["task_id"], mode=mode,
     )
+    if not stdout and stderr:
+        logger.error(
+            "Claude %s (mode=%s): stderr present but no stdout — "
+            "startup error. Stderr: %.500s",
+            task["task_id"], mode, stderr,
+        )
     return stdout, stderr
+
+
+def _process_claude_output(result) -> tuple[str, str]:
+    """Extract and normalize stdout/stderr from an env.exec result."""
+    out = (result.stdout or "").strip()
+    err = (result.stderr or "").strip()
+    # If stdout contains stderr diagnostic dump, split it.
+    if "STDERR:" in out:
+        parts = out.split("STDERR:", 1)
+        out = parts[0].strip()
+        err = parts[1].strip() if len(parts) > 1 else err
+    return out, err
 
 
 def _build_trial_result(trial, task_id: str, error: str | None) -> dict:
@@ -547,66 +608,6 @@ class SkillsBenchWrapper:
                 logger.warning("Cleanup failed for %s: %s", task_id, cleanup_exc)
 
         return _build_trial_result(trial, task_id, error)
-
-    async def _inject_mcp_into_container(self, env, task: dict) -> None:
-        """Inject ontomcp binary + TTL files + MCP config into container."""
-        import subprocess as sp
-
-        from benchmark.config import ONTOMCP_BIN_PATH
-
-        ontology_root = self._prepare_skillsbench_ontology_root()
-        if not ontology_root:
-            raise RuntimeError("No SkillsBench ontology root available for MCP injection")
-
-        ontomcp_bin = Path(ONTOMCP_BIN_PATH)
-        if not ontomcp_bin.exists():
-            raise FileNotFoundError(f"ontomcp binary not found at {ontomcp_bin}")
-
-        # Upload ontomcp binary.
-        await env.upload_file(str(ontomcp_bin), "/usr/local/bin/ontomcp")
-        await env.exec("chmod +x /usr/local/bin/ontomcp", timeout_sec=30)
-
-        # Upload TTL files as tar for efficiency.
-        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as f:
-            tar_path = f.name
-        try:
-            sp.run(
-                ["tar", "czf", tar_path, "-C", ontology_root, "."],
-                check=True, capture_output=True,
-            )
-            await env.upload_file(tar_path, "/tmp/ontoskills_ttl.tar.gz")
-        finally:
-            os.unlink(tar_path)
-        await env.exec(
-            "mkdir -p /opt/ontoskills/packages && "
-            "tar xzf /tmp/ontoskills_ttl.tar.gz -C /opt/ontoskills/packages",
-            timeout_sec=60,
-        )
-
-        # Write .mcp.json (Claude Code native MCP config — auto-discovered).
-        result = await env.exec("pwd", timeout_sec=10)
-        cwd = (result.stdout or "").strip() or "/root"
-        cfg_dst = f"{cwd}/.mcp.json"
-        mcp_config = json.dumps({
-            "mcpServers": {
-                "onto": {
-                    "command": "/usr/local/bin/ontomcp",
-                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "alwaysLoad": False,
-                }
-            }
-        })
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False,
-        ) as f:
-            f.write(mcp_config)
-            config_tmp = f.name
-        try:
-            await env.upload_file(config_tmp, cfg_dst)
-        finally:
-            os.unlink(config_tmp)
-
-        logger.info("MCP injected: ontomcp + TTLs + .mcp.json at %s", cfg_dst)
 
     async def _run_acp_mcp_trial(
         self,
