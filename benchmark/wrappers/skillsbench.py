@@ -609,6 +609,66 @@ class SkillsBenchWrapper:
 
         return _build_trial_result(trial, task_id, error)
 
+    async def _inject_mcp_into_container(self, env, task: dict) -> None:
+        """Inject ontomcp binary + TTL files + MCP config into container."""
+        import subprocess as sp
+
+        from benchmark.config import ONTOMCP_BIN_PATH
+
+        ontology_root = self._prepare_skillsbench_ontology_root()
+        if not ontology_root:
+            raise RuntimeError("No SkillsBench ontology root available for MCP injection")
+
+        ontomcp_bin = Path(ONTOMCP_BIN_PATH)
+        if not ontomcp_bin.exists():
+            raise FileNotFoundError(f"ontomcp binary not found at {ontomcp_bin}")
+
+        # Upload ontomcp binary.
+        await env.upload_file(str(ontomcp_bin), "/usr/local/bin/ontomcp")
+        await env.exec("chmod +x /usr/local/bin/ontomcp", timeout_sec=30)
+
+        # Upload TTL files as tar for efficiency.
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as f:
+            tar_path = f.name
+        try:
+            sp.run(
+                ["tar", "czf", tar_path, "-C", ontology_root, "."],
+                check=True, capture_output=True,
+            )
+            await env.upload_file(tar_path, "/tmp/ontoskills_ttl.tar.gz")
+        finally:
+            os.unlink(tar_path)
+        await env.exec(
+            "mkdir -p /opt/ontoskills/packages && "
+            "tar xzf /tmp/ontoskills_ttl.tar.gz -C /opt/ontoskills/packages",
+            timeout_sec=60,
+        )
+
+        # Write .mcp.json (Claude Code native MCP config — auto-discovered).
+        result = await env.exec("pwd", timeout_sec=10)
+        cwd = (result.stdout or "").strip() or "/root"
+        cfg_dst = f"{cwd}/.mcp.json"
+        mcp_config = json.dumps({
+            "mcpServers": {
+                "onto": {
+                    "command": "/usr/local/bin/ontomcp",
+                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
+                    "alwaysLoad": False,
+                }
+            }
+        })
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False,
+        ) as f:
+            f.write(mcp_config)
+            config_tmp = f.name
+        try:
+            await env.upload_file(config_tmp, cfg_dst)
+        finally:
+            os.unlink(config_tmp)
+
+        logger.info("MCP injected: ontomcp + TTLs + .mcp.json at %s", cfg_dst)
+
     async def _run_acp_mcp_trial(
         self,
         task: dict,
