@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ontoskills-py"
+version = "0.1.0"
+description = "Python client for OntoSkills — deterministic skill ontologies for AI agents"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "OntoSkills Contributors"}]
+keywords = ["ontoskills", "ontology", "owl", "sparql", "skills", "ai-agent", "mcp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mareasw/ontoskills"
+Repository = "https://github.com/mareasw/ontoskills"
+
+[tool.setuptools.packages.find]
+include = ["ontoskills*"]
