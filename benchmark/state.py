@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -153,13 +155,18 @@ class BenchmarkState:
 
     def _flush(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        import tempfile
         tmp = self._path.with_suffix(".tmp")
         tmp.write_text(
             json.dumps(self._data, indent=2, default=str, ensure_ascii=False),
             encoding="utf-8",
         )
-        tmp.replace(self._path)
+        try:
+            tmp.replace(self._path)
+        except OSError:
+            # Fallback for cross-device links (e.g. Docker bind mounts).
+            with open(self._path, "w", encoding="utf-8") as f:
+                f.write(tmp.read_text(encoding="utf-8"))
+            tmp.unlink()
 
     # ── rate limit tracking ──
 

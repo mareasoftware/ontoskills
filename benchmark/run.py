@@ -36,7 +36,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from benchmark.state import BenchmarkState
-from benchmark.wrappers.skillsbench import SkillsBenchWrapper
+from benchmark.wrappers.skillsbench import DEFAULT_REPO_PATH, SkillsBenchWrapper
 from benchmark.reporting.chart_data import generate_chart_data, save_chart_data
 
 logger = logging.getLogger(__name__)
@@ -143,6 +143,7 @@ def _run_skillsbench(
     output_dir: Path,
     *,
     cases: list[tuple[str, bool]],
+    repo_path: str | None = None,
     model: str = "glm-5.1",
     max_tasks: int | None = None,
     shuffle: bool = True,
@@ -160,7 +161,7 @@ def _run_skillsbench(
     Single case -> uses _run_pooled (per-task state).
     Multiple cases -> uses _run_pooled_task_first (per-case states, taskwise iteration).
     """
-    wrapper = SkillsBenchWrapper()
+    wrapper = SkillsBenchWrapper(repo_path=repo_path or DEFAULT_REPO_PATH)
 
     packages_root = os.path.expanduser("~/.ontoskills/packages")
     tasks = wrapper.load_tasks(
@@ -223,7 +224,7 @@ def _run_skillsbench_acp(
     skip_first: int = 0,
     max_attempts: int = 5,
     skill_hints: bool = True,
-    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
+    skillsbench_repo: str | None = None,
     only_tasks: list[str] | None = None,
     workers: int = 2,
     resume: bool = True,
@@ -233,10 +234,11 @@ def _run_skillsbench_acp(
     dry_run: bool = False,
 ) -> tuple[list[dict], float | None]:
     """Single-case runner (backward-compatible)."""
-    _ = skillsbench_repo, resume, state_file  # unused (wrapper uses defaults)
+    _ = label, resume, state_file  # unused by unified runner
     result = _run_skillsbench(
         output_dir,
         cases=[(mode, skill_hints)],
+        repo_path=skillsbench_repo,
         model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
@@ -258,7 +260,7 @@ def _run_skillsbench_taskwise(
     seed: int = 42,
     skip_first: int = 0,
     max_attempts: int = 5,
-    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
+    skillsbench_repo: str | None = None,
     only_tasks: list[str] | None = None,
     workers: int = 2,
     force_restart: bool = False,
@@ -266,10 +268,10 @@ def _run_skillsbench_taskwise(
     dry_run: bool = False,
 ) -> dict[str, tuple[list[dict], float | None]]:
     """3-case taskwise runner (backward-compatible)."""
-    _ = skillsbench_repo
     return _run_skillsbench(
         output_dir,
         cases=[("baseline", False), ("acp", True), ("acp-mcp", True)],
+        repo_path=skillsbench_repo,
         model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
@@ -286,7 +288,7 @@ def _run_skillsbench_task_first(
     seed: int = 42,
     skip_first: int = 0,
     max_attempts: int = 5,
-    skillsbench_repo: str = os.path.expanduser("~/.ontoskills/skillsbench"),
+    skillsbench_repo: str | None = None,
     only_tasks: list[str] | None = None,
     workers: int = 2,
     force_restart: bool = False,
@@ -294,13 +296,13 @@ def _run_skillsbench_task_first(
     dry_run: bool = False,
 ) -> dict[str, tuple[list[dict], float | None]]:
     """5-case all5 runner (backward-compatible)."""
-    _ = skillsbench_repo
     return _run_skillsbench(
         output_dir,
         cases=[
             ("baseline", False), ("acp", True), ("acp-mcp", True),
             ("acp", False), ("acp-mcp", False),
         ],
+        repo_path=skillsbench_repo,
         model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
@@ -371,8 +373,8 @@ def _print_dry_run(tasks: list[dict], cases: list[tuple[str, bool]], workers: in
     """Print a summary of what would run, then exit."""
     case_labels = [f"{m}+{'hints' if h else 'nohints'}" for m, h in cases]
     total_runs = len(tasks) * len(cases) * attempts
-    avg_task_s = 300  # rough estimate: 5 min per attempt
-    est_hours = total_runs * avg_task_s / 3600 / workers
+    avg_timeout = sum(t.get("agent_timeout_sec", 900) for t in tasks) / len(tasks)
+    est_hours = total_runs * avg_timeout / 3600 / workers
 
     print(f"SkillsBench Dry Run")
     print(f"{'='*50}")
@@ -381,7 +383,8 @@ def _print_dry_run(tasks: list[dict], cases: list[tuple[str, bool]], workers: in
     print(f"  Attempts:    {attempts} per task/case")
     print(f"  Workers:     {workers}")
     print(f"  Total runs:  {total_runs}")
-    print(f"  Est. time:   {est_hours:.1f}h (at ~5min/attempt)")
+    print(f"  Avg timeout: {avg_timeout:.0f}s per attempt")
+    print(f"  Est. time:   {est_hours:.1f}h")
     print(f"{'='*50}")
     print(f"\nTasks ({len(tasks)}):")
     for t in tasks:
