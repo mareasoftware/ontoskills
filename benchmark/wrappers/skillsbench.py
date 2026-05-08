@@ -29,8 +29,10 @@ import re
 import shlex
 import shutil
 import signal
+import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -308,60 +310,37 @@ RATE_LIMIT_BACKOFF = [5, 10, 20, 60, 120]
 RATE_LIMIT_CONSECUTIVE_MAX = 5
 
 
-def _is_rate_limit_error(error: str | None) -> bool:
+def _classify_trial_error(error: str | None) -> str:
+    """Classify trial error into BenchFlow-aligned categories.
+
+    Returns one of: ``\"none\"``, ``\"timeout\"``, ``\"rate_limit\"``,
+    ``\"install_failure\"``, ``\"setup_failure\"``, ``\"other\"``.
+    """
     if not error:
-        return False
-    error_lower = error.lower()
-    return any(
-        kw in error_lower
-        for kw in ("rate limit", "429", "ratelimiterror", "too many requests")
-    )
+        return "none"
+    err = error.lower()
+    if any(kw in err for kw in ("rate limit", "429", "ratelimiterror", "too many requests")):
+        return "rate_limit"
+    if any(kw in err for kw in ("timed out", "timeout")):
+        return "timeout"
+    if any(kw in err for kw in ("install failed", "install_failure", "npm install")):
+        return "install_failure"
+    if any(kw in err for kw in ("setup", "build", "docker", "compose")):
+        return "setup_failure"
+    return "other"
 
 
-def _parse_toml_simple(text: str) -> dict:
-    """Parse simple TOML (flat sections, no nested tables)."""
-    result: dict = {}
-    current_section = result
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.startswith("[") and stripped.endswith("]"):
-            section_name = stripped[1:-1].strip()
-            parts = section_name.split(".")
-            current_section = result
-            for part in parts:
-                if part not in current_section:
-                    current_section[part] = {}
-                current_section = current_section[part]
-            continue
-        if "=" not in stripped:
-            continue
-        key, _, value = stripped.partition("=")
-        key = key.strip()
-        value = value.strip()
+_is_rate_limit_error = lambda e: _classify_trial_error(e) == "rate_limit"
 
-        if not value.startswith(('"', "'", "[")):
-            if " #" in value:
-                value = value[: value.index(" #")].rstrip()
-            elif "\t#" in value:
-                value = value[: value.index("\t#")].rstrip()
 
-        if value.startswith('"') and value.endswith('"'):
-            current_section[key] = value[1:-1]
-        elif value.startswith("'") and value.endswith("'"):
-            current_section[key] = value[1:-1]
-        elif value.startswith("["):
-            items = re.findall(r'["\']([^"\']+)["\']', value)
-            current_section[key] = items
-        elif value in ("true", "false"):
-            current_section[key] = value == "true"
-        else:
-            try:
-                current_section[key] = float(value) if "." in value else int(value)
-            except ValueError:
-                current_section[key] = value
-    return result
+def _load_task_toml(toml_path: Path) -> dict:
+    """Load task.toml using stdlib tomllib (Python 3.11+)."""
+    try:
+        with toml_path.open("rb") as f:
+            return tomllib.load(f)
+    except (tomllib.TOMLDecodeError, OSError) as exc:
+        logger.warning("Failed to parse %s: %s", toml_path, exc)
+        return {}
 
 
 class SkillsBenchWrapper:
@@ -389,9 +368,7 @@ class SkillsBenchWrapper:
             return None
 
         toml_path = task_dir / "task.toml"
-        metadata = {}
-        if toml_path.exists():
-            metadata = _parse_toml_simple(toml_path.read_text(encoding="utf-8"))
+        metadata = _load_task_toml(toml_path) if toml_path.exists() else {}
         meta = metadata.get("metadata", {})
 
         instr_path = task_dir / "instruction.md"
@@ -434,8 +411,16 @@ class SkillsBenchWrapper:
         packages_root: str | None = None,
         skip_first: int = 0,
         only_tasks: list[str] | None = None,
+        skip_tasks: set[str] | None = None,
     ) -> list[dict]:
-        """Load SkillsBench tasks from the local repo clone."""
+        """Load SkillsBench tasks from the local repo clone.
+        
+        Parameters
+        ----------
+        skip_tasks:
+            Set of task IDs to skip. Defaults to ``_SKIP_TASKS`` if None.
+        """
+        skip = _SKIP_TASKS if skip_tasks is None else skip_tasks
         if not self.tasks_dir.is_dir():
             raise FileNotFoundError(
                 f"SkillsBench tasks directory not found: {self.tasks_dir}\n"
@@ -452,7 +437,7 @@ class SkillsBenchWrapper:
             task_id = task_dir.name
             if only_set is not None and task_id not in only_set:
                 continue
-            if task_id in _SKIP_TASKS:
+            if task_id in skip:
                 continue
             task = self._load_task_from_repo(task_id)
             if not task or not task["skill_ids"]:
@@ -705,6 +690,67 @@ class SkillsBenchWrapper:
 
         return _build_trial_result(trial, task_id, error)
 
+    async def _handle_attempt_result(
+        self,
+        result: dict,
+        state: "BenchmarkState",
+        tid: str,
+        attempt: int,
+        max_attempts: int,
+        label: str,
+        shutdown_event: asyncio.Event,
+    ) -> str:
+        """Process a trial result: rate-limit, reward, retry decision.
+
+        Returns one of: ``\"passed\"``, ``\"failed\"``, ``\"retry\"``, ``\"rate_limit_shutdown\"``.
+        Side effects: updates state, sleeps for backoff.
+        """
+        if _is_rate_limit_error(result.get("error")):
+            state.record_attempt(tid, result, counted=False)
+            rl_count = state.increment_rate_limit()
+
+            if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
+                logger.warning(
+                    "Rate limit threshold reached (%d consecutive), "
+                    "shutting down gracefully. Resume with --resume.",
+                    rl_count,
+                )
+                shutdown_event.set()
+                return "rate_limit_shutdown"
+
+            idx = min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)
+            backoff = RATE_LIMIT_BACKOFF[idx]
+            logger.info(
+                "Task %s [%s]: rate limited "
+                "(free attempt, consecutive RL %d/%d), retry in %ds",
+                tid, label, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
+            )
+            await asyncio.sleep(backoff)
+            return "retry"
+
+        state.reset_rate_limit()
+        result["attempt"] = attempt
+        state.record_attempt(tid, result, counted=True)
+
+        reward = result.get("reward", 0.0)
+        if reward >= 1.0:
+            logger.info("Task %s [%s]: PASSED on attempt %d", tid, label, attempt)
+            state.mark_completed(tid)
+            return "passed"
+
+        if attempt >= max_attempts:
+            logger.info("Task %s [%s]: exhausted %d attempts", tid, label, max_attempts)
+            state.mark_completed(tid)
+            return "failed"
+
+        delay = min(1.0 * 2.0 ** attempt, 30.0)
+        logger.info(
+            "Task %s [%s]: attempt %d reward=%.3f, retry in %.1fs",
+            tid, label, attempt, reward, delay,
+        )
+        await asyncio.sleep(delay)
+        return "retry"
+
     async def _run_pooled(
         self,
         tasks: list[dict],
@@ -721,8 +767,6 @@ class SkillsBenchWrapper:
         rate-limit responses the workers gracefully shut down so the
         benchmark can be resumed later.
         """
-        from benchflow.job import RetryConfig
-
         queue: asyncio.Queue[tuple[str, dict, int]] = asyncio.Queue()
         shutdown_event = asyncio.Event()
 
@@ -737,8 +781,6 @@ class SkillsBenchWrapper:
             logger.info("All tasks already completed, nothing to run.")
             return state.get_results()
 
-        retry_config = RetryConfig(max_retries=max_attempts - 1)
-
         async def worker(worker_id: int) -> None:
             while not shutdown_event.is_set():
                 try:
@@ -752,60 +794,26 @@ class SkillsBenchWrapper:
                 )
 
                 result = await trial_runner(task)
+                status = await self._handle_attempt_result(
+                    result, state, tid, attempt, max_attempts,
+                    label=tid, shutdown_event=shutdown_event,
+                )
 
-                if _is_rate_limit_error(result.get("error")):
-                    state.record_attempt(tid, result, counted=False)
-                    rl_count = state.increment_rate_limit()
-
-                    if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
-                        logger.warning(
-                            "Rate limit threshold reached (%d consecutive), "
-                            "shutting down gracefully. Resume with --resume.",
-                            rl_count,
-                        )
-                        shutdown_event.set()
-                        queue.put_nowait((tid, task, attempt))
-                        queue.task_done()
-                        return
-
-                    backoff = RATE_LIMIT_BACKOFF[min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)]
-                    logger.info(
-                        "Task %s: rate limited (free attempt, consecutive RL %d/%d), "
-                        "retry in %ds",
-                        tid, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
-                    )
-                    await asyncio.sleep(backoff)
+                if status == "passed" or status == "failed":
+                    queue.task_done()
+                elif status == "rate_limit_shutdown":
                     queue.put_nowait((tid, task, attempt))
                     queue.task_done()
-                    continue
-
-                state.reset_rate_limit()
-                result["attempt"] = attempt
-                state.record_attempt(tid, result, counted=True)
-
-                reward = result.get("reward", 0.0)
-                if reward >= 1.0:
-                    logger.info("Task %s: PASSED on attempt %d", tid, attempt)
-                    state.mark_completed(tid)
-                elif attempt >= max_attempts:
-                    logger.info("Task %s: exhausted %d attempts", tid, max_attempts)
-                    state.mark_completed(tid)
-                else:
-                    delay = retry_config.backoff_delay(attempt - 1)
-                    logger.info(
-                        "Task %s: attempt %d reward=%.3f, retry in %.1fs",
-                        tid, attempt, reward, delay,
-                    )
-                    await asyncio.sleep(delay)
+                    return
+                elif status == "retry":
                     queue.put_nowait((tid, task, attempt + 1))
-
-                queue.task_done()
+                    queue.task_done()
 
         await asyncio.gather(*[worker(i) for i in range(workers)])
 
         if shutdown_event.is_set():
             logger.warning(
-                "Benchmark shut down due to rate limits. "
+                "Benchmark gracefully shut down. "
                 "%d task(s) remain in progress — resume with --resume.",
                 sum(1 for t in tasks if state.should_run(t["task_id"])),
             )
@@ -897,59 +905,17 @@ class SkillsBenchWrapper:
                         )
 
                         result = await runner(task)
+                        status = await self._handle_attempt_result(
+                            result, state, tid, attempt, max_attempts,
+                            label=label, shutdown_event=shutdown_event,
+                        )
 
-                        if _is_rate_limit_error(result.get("error")):
-                            state.record_attempt(tid, result, counted=False)
-                            rl_count = state.increment_rate_limit()
-
-                            if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
-                                logger.warning(
-                                    "Rate limit threshold reached (%d consecutive), "
-                                    "shutting down gracefully. Resume with --resume.",
-                                    rl_count,
-                                )
-                                shutdown_event.set()
-                                break
-
-                            idx = min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)
-                            backoff = RATE_LIMIT_BACKOFF[idx]
-                            logger.info(
-                                "Task %s [%s]: rate limited "
-                                "(free attempt, consecutive RL %d/%d), retry in %ds",
-                                tid, label, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
-                            )
-                            await asyncio.sleep(backoff)
-                            continue
-
-                        state.reset_rate_limit()
-                        result["attempt"] = attempt
-                        state.record_attempt(tid, result, counted=True)
-
-                        reward = result.get("reward", 0.0)
-                        if reward >= 1.0:
-                            logger.info(
-                                "Task %s [%s]: PASSED on attempt %d",
-                                tid, label, attempt,
-                            )
-                            state.mark_completed(tid)
+                        if status == "passed" or status == "failed":
                             break
-
-                        attempt += 1
-
-                        if attempt > max_attempts:
-                            logger.info(
-                                "Task %s [%s]: exhausted %d attempts",
-                                tid, label, max_attempts,
-                            )
-                            state.mark_completed(tid)
+                        elif status == "rate_limit_shutdown":
                             break
-                        else:
-                            delay = min(1.0 * 2.0 ** attempt, 30.0)
-                            logger.info(
-                                "Task %s [%s]: attempt %d reward=%.3f, retry in %.1fs",
-                                tid, label, attempt, reward, delay,
-                            )
-                            await asyncio.sleep(delay)
+                        elif status == "retry":
+                            attempt += 1
 
                 if shutdown_event.is_set():
                     break
@@ -966,7 +932,7 @@ class SkillsBenchWrapper:
                 if s.should_run(t["task_id"])
             )
             logger.warning(
-                "Benchmark shut down due to rate limits. "
+                "Benchmark gracefully shut down. "
                 "%d case(s) remain in progress — resume with --resume.",
                 total_remaining,
             )
