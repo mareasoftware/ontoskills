@@ -36,12 +36,15 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from benchmark.state import BenchmarkState
-from benchmark.wrappers.skillsbench import DEFAULT_REPO_PATH, SkillsBenchWrapper
+from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 from benchmark.reporting.chart_data import generate_chart_data, save_chart_data
 
 logger = logging.getLogger(__name__)
 
 BENCHMARK_DIR = Path(__file__).resolve().parent
+
+# Default SkillsBench repo path (override via --skillsbench-repo).
+_DEFAULT_REPO = os.path.expanduser("~/.ontoskills/skillsbench")
 
 # ---------------------------------------------------------------------------
 # Runner factories (shared by all modes)
@@ -161,7 +164,7 @@ def _run_skillsbench(
     Single case -> uses _run_pooled (per-task state).
     Multiple cases -> uses _run_pooled_task_first (per-case states, taskwise iteration).
     """
-    wrapper = SkillsBenchWrapper(repo_path=repo_path or DEFAULT_REPO_PATH)
+    wrapper = SkillsBenchWrapper(repo_path=repo_path or _DEFAULT_REPO)
 
     packages_root = os.path.expanduser("~/.ontoskills/packages")
     tasks = wrapper.load_tasks(
