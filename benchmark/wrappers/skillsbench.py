@@ -149,11 +149,11 @@ async def _run_claude_and_parse(
         logger.warning("Claude warm-up failed for %s: %s — continuing anyway", task["task_id"], exc)
 
     # Run actual task with full timeout.
+    # env.exec() captures both stdout and stderr via pipes.
     cmd = (
         f"claude -p {shlex.quote(instruction)} "
         f"--output-format json --verbose --max-turns 50 "
-        f"--dangerously-skip-permissions 2>/tmp/claude_stderr_diag.txt; "
-        f"cat /tmp/claude_stderr_diag.txt 2>/dev/null"
+        f"--dangerously-skip-permissions"
     )
     result = await trial._env.exec(
         cmd,
@@ -161,7 +161,9 @@ async def _run_claude_and_parse(
         user="agent",
         env=env,
     )
-    stdout, stderr = _process_claude_output(result)
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+    trial._n_tool_calls = _parse_claude_num_turns(stdout)
     logger.info(
         "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
         "tools=%s stdout_head=%s",
@@ -181,18 +183,6 @@ async def _run_claude_and_parse(
             task["task_id"], mode, stderr,
         )
     return stdout, stderr
-
-
-def _process_claude_output(result) -> tuple[str, str]:
-    """Extract and normalize stdout/stderr from an env.exec result."""
-    out = (result.stdout or "").strip()
-    err = (result.stderr or "").strip()
-    # If stdout contains stderr diagnostic dump, split it.
-    if "STDERR:" in out:
-        parts = out.split("STDERR:", 1)
-        out = parts[0].strip()
-        err = parts[1].strip() if len(parts) > 1 else err
-    return out, err
 
 
 def _build_trial_result(trial, task_id: str, error: str | None) -> dict:
