@@ -1,16 +1,16 @@
 """SkillsBench benchmark wrapper — BenchFlow-aligned deterministic evaluation.
 
 Uses BenchFlow's Trial for container lifecycle and Harbor Verifier for
-deterministic scoring.  Supports two evaluation modes:
+deterministic scoring.  Supports three evaluation modes:
 
-  - **ACP** (``acp``): Agent runs inside the container via BenchFlow ACP.
-    Skills are injected into the Dockerfile.  100% SkillsBench aligned.
-  - **ACP-MCP** (``acp-mcp``): Same as ACP but with ontomcp MCP tools
+  - **acp** (ACP): Claude CLI runs inside the container via ``env.exec()``
+    with SKILL.md files deployed via ``install_agent``.
+  - **acp-mcp** (ACP-MCP): Same as ACP but with ontomcp MCP tools
     injected into the container for skill discovery.
+  - **baseline** (no skills): Raw claude CLI without any skill delivery.
 
-Both modes use BenchFlow's RetryConfig for clean retries with exponential
-backoff, and ``_run_pooled()`` for parallel worker execution with
-state-backed resume via ``BenchmarkState``.
+State-backed resume via ``BenchmarkState``, parallel workers with rate-limit
+handling and graceful SIGTERM shutdown.
 
 Legacy API mode (``run_task`` / ``run_benchmark``) remains for other
 wrappers (GAIA, SWE-bench, PerPackage) that share the same interface.
@@ -29,7 +29,6 @@ import re
 import shlex
 import shutil
 import signal
-import sys
 import tempfile
 import time
 import tomllib
@@ -41,53 +40,27 @@ from benchmark.agents.base import AgentResult, BaseAgent
 
 logger = logging.getLogger(__name__)
 
-# Register claude agent — uses the native claude CLI (not ACP) because it
-# correctly handles tool calling with the glm-5.1 model, unlike opencode.
+# Register claude agent — uses the native claude CLI (not ACP).
 try:
     from benchflow.agents.registry import register_agent
+    import inspect
+    sig = inspect.signature(register_agent)
+    kwargs = {}
+    if "skill_paths" in sig.parameters:
+        kwargs["skill_paths"] = ["$HOME/.claude/skills"]
+    if "env_mapping" in sig.parameters:
+        kwargs["env_mapping"] = {}
 
     register_agent(
         name="claude",
         launch_cmd="true",  # not used (we run via exec, not ACP)
         install_cmd="command -v claude >/dev/null 2>&1",
         requires_env=[],
-        env_mapping={},
-        supports_skills=True,
-        skill_paths=["$HOME/.claude/skills"],
-        disallow_web_tools_launch_suffix=None,
+        **kwargs,
     )
     logger.info("Registered claude agent (native CLI, not ACP)")
-
-    register_agent(
-        name="opencode",
-        launch_cmd="opencode acp --print-logs",
-        install_cmd=(
-            "set -o pipefail; export DEBIAN_FRONTEND=noninteractive; "
-            "NODE_OK=0; "
-            "if command -v node >/dev/null 2>&1; then "
-            "  NODE_VER=$(node -e 'console.log(process.versions.node.split(\".\")[0])' 2>/dev/null || echo 0); "
-            "  [ \"$NODE_VER\" -ge 22 ] 2>/dev/null && NODE_OK=1; "
-            "fi; "
-            "if [ \"$NODE_OK\" = 0 ]; then "
-            "  apt-get update -qq && apt-get install -y -qq curl ca-certificates && "
-            "  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && "
-            "  apt-get install -y -qq nodejs; "
-            "fi >/dev/null 2>&1 && "
-            "command -v opencode >/dev/null 2>&1"
-        ),
-        requires_env=[],
-        env_mapping={"BENCHFLOW_PROVIDER_BASE_URL": "OPENAI_BASE_URL"},
-        supports_skills=True,
-        skill_paths=[
-            "$HOME/.claude/skills",
-            "$HOME/.agents/skills",
-            "$HOME/.opencode/skills",
-        ],
-        disallow_web_tools_launch_suffix=None,
-    )
-    logger.info("Registered opencode agent with corrected skill_paths")
-except Exception:
-    pass
+except ImportError:
+    logger.warning("benchflow not installed — agent registration skipped")
 
 # Path to the standalone claude binary (238 MB ELF, works in Ubuntu 24.04).
 # Override with CLAUDE_BIN_PATH env var.
@@ -1127,7 +1100,7 @@ class SkillsBenchWrapper:
         max_tasks: int | None = None,
         shuffle: bool = True,
         seed: int = 42,
-        workers: int = 3,
+        workers: int = 2,
         skip_first: int = 0,
         skill_hints: bool = True,
     ) -> list[dict]:
