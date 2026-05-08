@@ -88,7 +88,10 @@ except Exception:
     pass
 
 # Path to the standalone claude binary (238 MB ELF, works in Ubuntu 24.04).
-_CLAUDE_BIN_PATH = os.path.expanduser("~/.local/share/claude/versions/2.1.128")
+# Override with CLAUDE_BIN_PATH env var.
+_CLAUDE_BIN_PATH = os.environ.get("CLAUDE_BIN_PATH") or os.path.expanduser(
+    "~/.local/share/claude/versions/2.1.128"
+)
 
 
 def _build_claude_instruction(
@@ -120,6 +123,89 @@ def _build_claude_instruction(
         instruction = nudge + "\n\n" + instruction
 
     return instruction
+
+
+async def _upload_claude_binary(env) -> None:
+    """Upload standalone claude binary to container and make it executable."""
+    if not os.path.exists(_CLAUDE_BIN_PATH):
+        raise FileNotFoundError(f"claude binary not found at {_CLAUDE_BIN_PATH}")
+    logger.info("Claude: uploading binary (%d MB)",
+                os.path.getsize(_CLAUDE_BIN_PATH) // (1024 * 1024))
+    await env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
+    await env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
+
+
+async def _run_claude_and_parse(
+    trial,
+    task: dict,
+    instruction: str,
+    mode: str,
+) -> tuple:
+    """Run claude CLI, parse output, save logs, return (error, stdout, stderr).
+
+    Handles the full claude lifecycle: exec with env vars, parse num_turns,
+    log tool usage, save stdout/stderr per-mode.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    cmd = (
+        f"claude -p {shlex.quote(instruction)} "
+        f"--output-format json --verbose --max-turns 50 "
+        f"--dangerously-skip-permissions"
+    )
+    result = await trial._env.exec(
+        cmd,
+        timeout_sec=task["agent_timeout_sec"],
+        user="agent",
+        env={
+            "ANTHROPIC_API_KEY": api_key,
+            "ANTHROPIC_BASE_URL": base_url,
+            "ANTHROPIC_MODEL": "glm-5.1",
+            "HOME": "/root",
+        },
+    )
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+    trial._n_tool_calls = _parse_claude_num_turns(stdout)
+    tool_counts = _log_tool_usage(stdout)
+    logger.info(
+        "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+        "tools=%s stdout_head=%s",
+        task["task_id"], trial._n_tool_calls,
+        len(stdout), len(stderr),
+        tool_counts or {},
+        stdout[:200],
+    )
+    _save_claude_logs(
+        Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
+        stdout, stderr, task["task_id"], mode=mode,
+    )
+    return stdout, stderr
+
+
+def _build_trial_result(trial, task_id: str, error: str | None) -> dict:
+    """Build result dict from Trial, handling setup failures."""
+    if trial._trial_dir is None:
+        return {
+            "task_id": task_id,
+            "reward": 0.0,
+            "rewards": None,
+            "error": error or "Setup failed",
+            "verifier_error": None,
+            "build_ok": False,
+            "n_tool_calls": 0,
+        }
+    result = trial._build_result()
+    reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+    return {
+        "task_id": task_id,
+        "reward": reward,
+        "rewards": result.rewards,
+        "error": error,
+        "verifier_error": result.verifier_error,
+        "build_ok": error is None,
+        "n_tool_calls": result.n_tool_calls,
+    }
 
 
 def _log_tool_usage(stdout: str) -> dict[str, int]:
@@ -155,8 +241,8 @@ def _log_tool_usage(stdout: str) -> dict[str, int]:
 
 def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str, mode: str = "") -> None:
     """Save claude stdout/stderr to trial directory for later analysis.
-    
-    If mode is provided (e.g. "acp", "acp-mcp"), it's included in the filename
+
+    If mode is provided (e.g. \"acp\", \"acp-mcp\"), it's included in the filename
     so logs from different modes don't overwrite each other.
     """
     try:
@@ -164,8 +250,8 @@ def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str, m
         suffix = f"_{mode}" if mode else ""
         (trial_dir / f"claude_{task_id}{suffix}_stdout.json").write_text(stdout)
         (trial_dir / f"claude_{task_id}{suffix}_stderr.txt").write_text(stderr)
-    except Exception:
-        pass
+    except OSError as exc:
+        logger.warning("Failed to save claude logs for %s%s: %s", task_id, f" ({mode})" if mode else "", exc)
 
 
 def _parse_claude_num_turns(stdout: str) -> int:
@@ -458,21 +544,16 @@ class SkillsBenchWrapper:
         skills_dir: str | None = None,
         skill_nudge: str = "name",
     ) -> dict:
-        """Run claude CLI inside the container (native CLI, not ACP).
+        """Run claude CLI with traditional SKILL.md delivery.
 
-        BenchFlow Trial handles Docker lifecycle.  We upload the standalone
-        claude binary, deploy skills via BenchFlow's install_agent, then
-        run claude directly via ``env.exec()``.  This avoids ACP entirely
-        and uses the native claude CLI which correctly handles tool calling
-        with the glm-5.1 model.
+        BenchFlow Trial handles Docker lifecycle. Uploads claude binary,
+        deploys SKILL.md files via install_agent, then runs claude.
         """
         from benchflow.trial import Trial, TrialConfig
 
         task_path = Path(task["task_dir"])
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
-
-        agent_env = self._build_agent_env(skill_nudge)
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
@@ -481,7 +562,7 @@ class SkillsBenchWrapper:
             jobs_dir=str(jobs_dir),
             environment="docker",
             skills_dir=skills_dir,
-            agent_env=agent_env,
+            agent_env=self._build_agent_env(skill_nudge),
         )
 
         trial = await Trial.create(config)
@@ -489,98 +570,25 @@ class SkillsBenchWrapper:
         try:
             await trial.setup()
             await trial.start()
-
-            # Upload standalone claude binary (238 MB ELF).
-            if not os.path.exists(_CLAUDE_BIN_PATH):
-                raise FileNotFoundError(
-                    f"claude binary not found at {_CLAUDE_BIN_PATH}"
-                )
-            logger.info("Claude: uploading binary (%d MB) for %s",
-                        os.path.getsize(_CLAUDE_BIN_PATH) // (1024*1024), task_id)
-            await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
-            logger.info("Claude: binary uploaded, chmod for %s", task_id)
-            await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
-
-            logger.info("Claude: deploying skills for %s", task_id)
+            await _upload_claude_binary(trial._env)
             await trial.install_agent()
-            logger.info("Claude: skills deployed for %s", task_id)
-
-            # Build instruction with skill nudge.
             instruction = _build_claude_instruction(task, skill_nudge)
-
-            # Run claude CLI as agent user (root blocks --dangerously-skip-permissions).
-            api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
-            base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
-            cmd = (
-                f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50 "
-                f"--dangerously-skip-permissions"
-            )
-            result = await trial._env.exec(
-                cmd,
-                timeout_sec=task["agent_timeout_sec"],
-                user="agent",
-                env={
-                    "ANTHROPIC_API_KEY": api_key,
-                    "ANTHROPIC_BASE_URL": base_url,
-                    "ANTHROPIC_MODEL": "glm-5.1",
-                    "HOME": "/root",
-                },
-            )
-            stdout = (result.stdout or "").strip()
-            stderr = (result.stderr or "").strip()
-            trial._n_tool_calls = _parse_claude_num_turns(stdout)
-            tool_counts = _log_tool_usage(stdout)
-            logger.info(
-                "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-                "tools=%s stdout_head=%s",
-                task_id, trial._n_tool_calls,
-                len(stdout), len(stderr),
-                tool_counts or {},
-                stdout[:200],
-            )
-            _save_claude_logs(
-                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
-                stdout, stderr, task_id, mode="acp",
-            )
-
+            await _run_claude_and_parse(trial, task, instruction, mode="acp")
             await trial.verify()
-
         except (TimeoutError, ConnectionError) as e:
             error = str(e)
-            logger.error("Trial error: %s", error)
+            logger.error("Trial error for %s: %s", task_id, error)
         except Exception as exc:
             error = str(exc)
-            logger.exception("Claude trial failed for %s: %s", task_id, exc)
+            logger.exception("Trial failed for %s: %s", task_id, exc)
         finally:
             trial._error = error
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("Cleanup failed for %s: %s", task_id, cleanup_exc)
 
-        if trial._trial_dir is None:
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": error or "Setup failed",
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
-        result = trial._build_result()
-        reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-        build_ok = error is None
-        return {
-            "task_id": task_id,
-            "reward": reward,
-            "rewards": result.rewards,
-            "error": error,
-            "verifier_error": result.verifier_error,
-            "build_ok": build_ok,
-            "n_tool_calls": result.n_tool_calls,
-        }
+        return _build_trial_result(trial, task_id, error)
 
     async def _inject_mcp_into_container(self, env, task: dict) -> None:
         """Inject ontomcp binary + TTL files + MCP config into container."""
@@ -648,11 +656,10 @@ class SkillsBenchWrapper:
         *,
         skill_nudge: str = "name",
     ) -> dict:
-        """MCP Trial: claude CLI with ontomcp MCP server injected.
+        """Run claude CLI with ontomcp MCP skill delivery.
 
-        Uploads the standalone claude binary + ontomcp MCP server into the
-        container.  Writes .mcp.json (Claude Code native format).
-        Claude natively discovers and calls the ``mcp__onto__skill`` tool via MCP.
+        Injects ontomcp binary + TTLs + .mcp.json into the container
+        before starting claude. The agent discovers skills via MCP.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -678,62 +685,14 @@ class SkillsBenchWrapper:
         try:
             await trial.setup()
             await trial.start()
-
-            # Upload claude binary.
-            if not os.path.exists(_CLAUDE_BIN_PATH):
-                raise FileNotFoundError(
-                    f"claude binary not found at {_CLAUDE_BIN_PATH}"
-                )
-            await trial._env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
-            await trial._env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
-
-            # MCP injection (ontomcp + TTLs + .mcp.json).
+            await _upload_claude_binary(trial._env)
             await self._inject_mcp_into_container(trial._env, task)
-
-            # Run install_agent so BenchFlow validates the agent is present.
             await trial.install_agent()
-
-            # Run claude CLI as agent user (root blocks --dangerously-skip-permissions).
-            api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
-            base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
-            cmd = (
-                f"claude -p {shlex.quote(instruction)} "
-                f"--output-format json --verbose --max-turns 50 "
-                f"--dangerously-skip-permissions"
-            )
-            result = await trial._env.exec(
-                cmd,
-                timeout_sec=task["agent_timeout_sec"],
-                user="agent",
-                env={
-                    "ANTHROPIC_API_KEY": api_key,
-                    "ANTHROPIC_BASE_URL": base_url,
-                    "ANTHROPIC_MODEL": "glm-5.1",
-                    "HOME": "/root",
-                },
-            )
-            stdout = (result.stdout or "").strip()
-            stderr = (result.stderr or "").strip()
-            trial._n_tool_calls = _parse_claude_num_turns(stdout)
-            tool_counts = _log_tool_usage(stdout)
-            logger.info(
-                "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-                "tools=%s stdout_head=%s",
-                task_id, trial._n_tool_calls,
-                len(stdout), len(stderr),
-                tool_counts or {},
-                stdout[:200],
-            )
-            _save_claude_logs(
-                Path(task["task_dir"]).parent.parent / ".benchflow_jobs",  # second call
-                stdout, stderr, task_id, mode="acp-mcp",
-            )
-
+            await _run_claude_and_parse(trial, task, instruction, mode="acp-mcp")
             await trial.verify()
-
         except (TimeoutError, ConnectionError) as e:
             error = str(e)
-            logger.error("MCP Trial error: %s", error)
+            logger.error("MCP Trial error for %s: %s", task_id, error)
         except Exception as exc:
             error = str(exc)
             logger.exception("MCP Trial failed for %s: %s", task_id, exc)
@@ -741,31 +700,10 @@ class SkillsBenchWrapper:
             trial._error = error
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("MCP cleanup failed for %s: %s", task_id, cleanup_exc)
 
-        if trial._trial_dir is None:
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": error or "Setup failed",
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
-        result = trial._build_result()
-        reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-        build_ok = error is None
-        return {
-            "task_id": task_id,
-            "reward": reward,
-            "rewards": result.rewards,
-            "error": error,
-            "verifier_error": result.verifier_error,
-            "build_ok": build_ok,
-            "n_tool_calls": result.n_tool_calls,
-        }
+        return _build_trial_result(trial, task_id, error)
 
     async def _run_pooled(
         self,
@@ -900,7 +838,7 @@ class SkillsBenchWrapper:
         try:
             loop = asyncio.get_running_loop()
             for sig in (signal.SIGTERM, signal.SIGINT):
-                loop.add_signal_handler(sig, lambda: shutdown_event.set())
+                loop.add_signal_handler(sig, shutdown_event.set)
         except (ValueError, RuntimeError, NotImplementedError):
             pass
 
@@ -925,8 +863,8 @@ class SkillsBenchWrapper:
                 )
                 await proc.wait()
                 logger.info("Docker prune completed")
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.warning("Docker prune failed: %s", exc)
 
         async def worker(worker_id: int) -> None:
             while not shutdown_event.is_set():
@@ -1334,11 +1272,11 @@ class SkillsBenchWrapper:
                 f.write(solution_script)
                 tmp_path = f.name
             try:
-                await trial.env.upload_file(tmp_path, "/tmp/agent_solution.py")
+                await trial._env.upload_file(tmp_path, "/tmp/agent_solution.py")
             finally:
                 os.unlink(tmp_path)
 
-            await trial.env.exec("python3 /tmp/agent_solution.py", timeout_sec=300)
+            await trial._env.exec("python3 /tmp/agent_solution.py", timeout_sec=300)
             await trial.verify()
 
             result = trial._build_result()
@@ -1350,8 +1288,8 @@ class SkillsBenchWrapper:
         finally:
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("Trial cleanup failed for %s: %s", task_id, cleanup_exc)
 
     # ------------------------------------------------------------------
     # Scoring (uses BenchFlow extract_reward)
@@ -1415,6 +1353,8 @@ class SkillsBenchWrapper:
             return str(dst.parent)
 
         if dst.exists():
+            if "skillsbench" not in str(dst):
+                raise RuntimeError(f"Refusing to delete non-skillsbench path: {dst}")
             shutil.rmtree(str(dst))
         try:
             shutil.copytree(str(src), str(dst))

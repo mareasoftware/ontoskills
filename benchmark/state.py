@@ -153,10 +153,13 @@ class BenchmarkState:
 
     def _flush(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(
+        import tempfile
+        tmp = self._path.with_suffix(".tmp")
+        tmp.write_text(
             json.dumps(self._data, indent=2, default=str, ensure_ascii=False),
             encoding="utf-8",
         )
+        tmp.replace(self._path)
 
     # ── rate limit tracking ──
 
