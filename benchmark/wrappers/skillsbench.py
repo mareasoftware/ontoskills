@@ -626,7 +626,7 @@ class SkillsBenchWrapper:
                 "onto": {
                     "command": "/usr/local/bin/ontomcp",
                     "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "alwaysLoad": True,
+                    "alwaysLoad": False,
                 }
             }
         })
