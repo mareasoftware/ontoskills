@@ -118,62 +118,37 @@ async def _run_claude_and_parse(
 ) -> tuple:
     """Run claude CLI, parse output, save logs, return (error, stdout, stderr).
 
-    Handles the full claude lifecycle: exec with env vars, parse num_turns,
-    log tool usage, save stdout/stderr per-mode.
-
-    Uses a two-phase timeout: a startup watchdog kills claude if it produces
-    no output within the first 120s (fails fast on hung startups), then
-    the full task timeout applies for actual execution.
+    Warms up claude with a no-op call before the real task to absorb
+    the ~30s one-time startup overhead (directory init, config load, etc.)
+    in a fresh container. Then runs the actual task with the full timeout.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
-    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    env = {
+        "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+        "ANTHROPIC_AUTH_TOKEN": os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+        "ANTHROPIC_BASE_URL": os.environ.get("ANTHROPIC_BASE_URL", ""),
+        "ANTHROPIC_MODEL": "glm-5.1",
+        "HOME": "/root",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    }
     task_timeout = task["agent_timeout_sec"]
-    startup_watchdog = min(120, task_timeout // 3)
 
-    # Phase 1: run with a startup watchdog timeout.
-    # If claude produces no output within startup_watchdog seconds,
-    # we kill it and log the stderr for diagnosis.
-    cmd = (
-        f"timeout {startup_watchdog} claude -p {shlex.quote(instruction)} "
-        f"--output-format json --verbose --max-turns 50 "
-        f"--dangerously-skip-permissions"
-    )
-    result = await trial._env.exec(
-        cmd,
-        timeout_sec=startup_watchdog + 30,
-        user="agent",
-        env={
-            "ANTHROPIC_API_KEY": api_key,
-            "ANTHROPIC_AUTH_TOKEN": api_key,
-            "ANTHROPIC_BASE_URL": base_url,
-            "ANTHROPIC_MODEL": "glm-5.1",
-            "HOME": "/root",
-            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-        },
-    )
-    stdout, stderr = _process_claude_output(result)
-    if stdout or stderr:
-        logger.info(
-            "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
-            "tools=%s stdout_head=%s",
-            task["task_id"], _parse_claude_num_turns(stdout),
-            len(stdout), len(stderr),
-            _log_tool_usage(stdout) or {},
-            stdout[:200],
+    # Warm-up: run claude --version to force one-time initialization.
+    # This absorbs the ~30-60s startup delay (config load, dir init, etc.)
+    # so the actual task invocation starts fast.
+    try:
+        warmup = await trial._env.exec(
+            "claude --version 2>/dev/null; echo 'WARMUP_DONE'",
+            timeout_sec=120, user="agent", env=env,
         )
-        _save_claude_logs(
-            Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
-            stdout, stderr, task["task_id"], mode=mode,
-        )
-        return stdout, stderr
+        warmup_out = (warmup.stdout or "").strip()
+        if "WARMUP_DONE" in warmup_out:
+            logger.info("Claude warm-up completed for %s", task["task_id"])
+        else:
+            logger.warning("Claude warm-up output unexpected: %.100s", warmup_out)
+    except Exception as exc:
+        logger.warning("Claude warm-up failed for %s: %s — continuing anyway", task["task_id"], exc)
 
-    # Phase 2 (fallback): claude may need more time than the watchdog.
-    # Run with full task timeout, capturing stderr to a file for diagnosis.
-    logger.warning(
-        "Claude startup watchdog tripped for %s (%ds, mode=%s) — "
-        "retrying with full timeout. Stderr: %.200s",
-        task["task_id"], startup_watchdog, mode, stderr,
-    )
+    # Run actual task with full timeout.
     cmd = (
         f"claude -p {shlex.quote(instruction)} "
         f"--output-format json --verbose --max-turns 50 "
@@ -184,16 +159,17 @@ async def _run_claude_and_parse(
         cmd,
         timeout_sec=task_timeout,
         user="agent",
-        env={
-            "ANTHROPIC_API_KEY": api_key,
-            "ANTHROPIC_AUTH_TOKEN": api_key,
-            "ANTHROPIC_BASE_URL": base_url,
-            "ANTHROPIC_MODEL": "glm-5.1",
-            "HOME": "/root",
-            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-        },
+        env=env,
     )
     stdout, stderr = _process_claude_output(result)
+    logger.info(
+        "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+        "tools=%s stdout_head=%s",
+        task["task_id"], _parse_claude_num_turns(stdout),
+        len(stdout), len(stderr),
+        _log_tool_usage(stdout) or {},
+        stdout[:200],
+    )
     _save_claude_logs(
         Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
         stdout, stderr, task["task_id"], mode=mode,
