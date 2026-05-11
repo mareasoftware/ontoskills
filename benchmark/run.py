@@ -38,6 +38,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 from benchmark.state import BenchmarkState
 from benchmark.wrappers.skillsbench import SkillsBenchWrapper
 from benchmark.reporting.chart_data import generate_chart_data, save_chart_data
+from benchmark.engines import create_engine, ClaudeEngine
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,7 @@ def _run_skillsbench(
     cases: list[tuple[str, bool]],
     repo_path: str | None = None,
     model: str = "glm-5.1",
+    engine_name: str = "claude",
     max_tasks: int | None = None,
     shuffle: bool = True,
     seed: int = 42,
@@ -164,7 +166,8 @@ def _run_skillsbench(
     Single case -> uses _run_pooled (per-task state).
     Multiple cases -> uses _run_pooled_task_first (per-case states, taskwise iteration).
     """
-    wrapper = SkillsBenchWrapper(repo_path=repo_path or _DEFAULT_REPO)
+    engine = create_engine(engine_name)
+    wrapper = SkillsBenchWrapper(repo_path=repo_path or _DEFAULT_REPO, engine=engine)
 
     packages_root = os.path.expanduser("~/.ontoskills/packages")
     tasks = wrapper.load_tasks(
@@ -221,6 +224,7 @@ def _run_skillsbench_acp(
     mode: str = "acp",
     label: str | None = None,
     model: str = "glm-5.1",
+    engine_name: str = "claude",
     max_tasks: int | None = None,
     shuffle: bool = True,
     seed: int = 42,
@@ -242,7 +246,8 @@ def _run_skillsbench_acp(
         output_dir,
         cases=[(mode, skill_hints)],
         repo_path=skillsbench_repo,
-        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        model=model, engine_name=engine_name, max_tasks=max_tasks,
+        shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
         workers=workers, force_restart=force_restart, dry_run=dry_run,
@@ -258,6 +263,7 @@ def _run_skillsbench_taskwise(
     output_dir: Path,
     *,
     model: str = "glm-5.1",
+    engine_name: str = "claude",
     max_tasks: int | None = None,
     shuffle: bool = True,
     seed: int = 42,
@@ -275,7 +281,8 @@ def _run_skillsbench_taskwise(
         output_dir,
         cases=[("baseline", False), ("acp", True), ("acp-mcp", True)],
         repo_path=skillsbench_repo,
-        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        model=model, engine_name=engine_name,
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
         workers=workers, force_restart=force_restart, dry_run=dry_run,
@@ -286,6 +293,7 @@ def _run_skillsbench_task_first(
     output_dir: Path,
     *,
     model: str = "glm-5.1",
+    engine_name: str = "claude",
     max_tasks: int | None = None,
     shuffle: bool = True,
     seed: int = 42,
@@ -306,7 +314,8 @@ def _run_skillsbench_task_first(
             ("acp", False), ("acp-mcp", False),
         ],
         repo_path=skillsbench_repo,
-        model=model, max_tasks=max_tasks, shuffle=shuffle, seed=seed,
+        model=model, engine_name=engine_name,
+        max_tasks=max_tasks, shuffle=shuffle, seed=seed,
         skip_first=skip_first, max_attempts=max_attempts,
         skip_tasks=skip_tasks, only_tasks=only_tasks,
         workers=workers, force_restart=force_restart, dry_run=dry_run,
@@ -408,6 +417,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  python run.py --mode taskwise --dry-run\n"
             "  python run.py --mode acp\n"
             "  python run.py --mode acp-mcp --skip-tasks paper-anonymizer\n"
+            "  python run.py --mode acp --engine opencode\n"
         ),
     )
 
@@ -422,6 +432,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--model", default="glm-5.1")
+    parser.add_argument(
+        "--engine", default="claude", choices=["claude", "opencode"],
+        help="Agent engine: claude (default, needs ANTHROPIC_API_KEY) or opencode (needs OPENCODE_API_KEY)",
+    )
     parser.add_argument(
         "--max-tasks", type=int, default=None,
         help="Max tasks (default: all available)",
@@ -468,11 +482,12 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-        if args.dry_run:
-            # Dry-run doesn't call the API, so skip auth check.
-            pass
-        else:
+    if args.engine == "opencode":
+        if not os.environ.get("OPENCODE_API_KEY"):
+            if not args.dry_run:
+                parser.error("OPENCODE_API_KEY is required for --engine opencode")
+    elif not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        if not args.dry_run:
             parser.error("ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required.")
 
     traditional_results: dict[str, list[dict]] = {}
@@ -485,7 +500,8 @@ def main() -> None:
     logger.info("=" * 60)
 
     common = dict(
-        model=args.model, max_tasks=args.max_tasks,
+        model=args.model, engine_name=args.engine,
+        max_tasks=args.max_tasks,
         shuffle=args.shuffle, seed=args.seed,
         skip_first=args.skip_first, max_attempts=args.attempts,
         only_tasks=args.only_tasks.split(",") if args.only_tasks else None,

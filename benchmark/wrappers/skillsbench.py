@@ -37,39 +37,42 @@ from typing import Any
 
 from benchmark.agents.utils import extract_python_code
 from benchmark.agents.base import AgentResult, BaseAgent
+from benchmark.engines import AgentEngine, ClaudeEngine, OpencodeEngine, create_engine
 
 logger = logging.getLogger(__name__)
 
-# Register claude agent — uses the native claude CLI (not ACP).
-try:
-    from benchflow.agents.registry import register_agent
-    import inspect
-    sig = inspect.signature(register_agent)
-    kwargs = {}
-    if "skill_paths" in sig.parameters:
-        kwargs["skill_paths"] = ["$HOME/.claude/skills"]
-    if "env_mapping" in sig.parameters:
-        kwargs["env_mapping"] = {}
-
-    register_agent(
-        name="claude",
-        launch_cmd="true",  # not used (we run via exec, not ACP)
-        install_cmd="command -v claude >/dev/null 2>&1",
-        requires_env=[],
-        **kwargs,
-    )
-    logger.info("Registered claude agent (native CLI, not ACP)")
-except ImportError:
-    logger.warning("benchflow not installed — agent registration skipped, some features disabled")
-
-# Path to the standalone claude binary (238 MB ELF, works in Ubuntu 24.04).
-# Override with CLAUDE_BIN_PATH env var.
-_CLAUDE_BIN_PATH = os.environ.get("CLAUDE_BIN_PATH") or os.path.expanduser(
-    "~/.local/share/claude/versions/2.1.128"
-)
+_AGENT_REGISTERED = False
 
 
-def _build_claude_instruction(
+def _register_agent(engine: AgentEngine) -> None:
+    """Register agent in BenchFlow registry for the given engine."""
+    global _AGENT_REGISTERED
+    if _AGENT_REGISTERED:
+        return
+    try:
+        from benchflow.agents.registry import register_agent
+        import inspect
+        sig = inspect.signature(register_agent)
+        kwargs = {}
+        if "skill_paths" in sig.parameters:
+            kwargs["skill_paths"] = [engine.skills_path]
+        if "env_mapping" in sig.parameters:
+            kwargs["env_mapping"] = {}
+
+        register_agent(
+            name=engine.name,
+            launch_cmd="true",
+            install_cmd=f"command -v {engine.bin_name} >/dev/null 2>&1",
+            requires_env=[],
+            **kwargs,
+        )
+        _AGENT_REGISTERED = True
+        logger.info("Registered %s agent (native CLI, not ACP)", engine.name)
+    except ImportError:
+        logger.warning("benchflow not installed — agent registration skipped, some features disabled")
+
+
+def _build_agent_instruction(
     task: dict,
     skill_nudge: str,
     *,
@@ -88,7 +91,8 @@ def _build_claude_instruction(
                 f"Skills available via the mcp__onto__skill tool: {names}. "
                 f"Call mcp__onto__skill(q=\"{snippet}\") to load its full context, "
                 f"or use mcp__onto__skill(q=\"your task description\") to discover "
-                f"relevant skills."
+                f"relevant skills. Always start by loading the relevant skills "
+                f"with mcp__onto__skill before reading or processing the source files."
             )
         else:
             nudge = (
@@ -100,61 +104,58 @@ def _build_claude_instruction(
     return instruction
 
 
-async def _upload_claude_binary(env) -> None:
-    """Upload standalone claude binary to container and make it executable."""
-    if not os.path.exists(_CLAUDE_BIN_PATH):
-        raise FileNotFoundError(f"claude binary not found at {_CLAUDE_BIN_PATH}")
-    logger.info("Claude: uploading binary (%d MB)",
-                os.path.getsize(_CLAUDE_BIN_PATH) // (1024 * 1024))
-    await env.upload_file(_CLAUDE_BIN_PATH, "/usr/local/bin/claude")
-    await env.exec("chmod +x /usr/local/bin/claude", timeout_sec=10)
+async def _install_agent_binary(env, engine: AgentEngine) -> None:
+    """Upload agent binary to container and make it executable.
+
+    For engines with ``download_url``, the binary must be available locally
+    at ``engine.bin_path`` (downloaded once by the user).  Then uploaded
+    into the container — same pattern for both claude and opencode.
+    """
+    bin_path = os.path.expanduser(engine.bin_path)
+    if not os.path.exists(bin_path):
+        if engine.download_url:
+            raise FileNotFoundError(
+                f"{engine.name} binary not found at {bin_path}\n"
+                f"Download it first:\n"
+                f"  curl -fsSL '{engine.download_url}' "
+                f"| tar xzf - -C {os.path.dirname(bin_path)} {engine.bin_name}"
+            )
+        raise FileNotFoundError(f"{engine.name} binary not found at {bin_path}")
+    logger.info("%s: uploading binary (%d MB)",
+                engine.name, os.path.getsize(bin_path) // (1024 * 1024))
+    await env.upload_file(bin_path, f"/usr/local/bin/{engine.bin_name}")
+    await env.exec(f"chmod +x /usr/local/bin/{engine.bin_name}", timeout_sec=10)
 
 
-async def _run_claude_and_parse(
+async def _run_agent_and_parse(
     trial,
     task: dict,
     instruction: str,
     mode: str,
+    engine: AgentEngine,
 ) -> tuple:
-    """Run claude CLI, parse output, save logs, return (error, stdout, stderr).
+    """Run agent CLI, parse output, save logs, return (stdout, stderr).
 
-    Warms up claude with a no-op call before the real task to absorb
-    the ~30s one-time startup overhead (directory init, config load, etc.)
-    in a fresh container. Then runs the actual task with the full timeout.
+    Warms up the agent with a no-op call before the real task to absorb
+    the one-time startup overhead in a fresh container.
     """
-    env = {
-        "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
-        "ANTHROPIC_AUTH_TOKEN": os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
-        "ANTHROPIC_BASE_URL": os.environ.get("ANTHROPIC_BASE_URL", ""),
-        "ANTHROPIC_MODEL": "glm-5.1",
-        "HOME": "/root",
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    }
+    env = engine.env_vars
     task_timeout = task["agent_timeout_sec"]
 
-    # Warm-up: run claude --version to force one-time initialization.
-    # This absorbs the ~30-60s startup delay (config load, dir init, etc.)
-    # so the actual task invocation starts fast.
     try:
         warmup = await trial._env.exec(
-            "claude --version 2>/dev/null; echo 'WARMUP_DONE'",
+            engine.warmup_cmd(),
             timeout_sec=120, user="agent", env=env,
         )
         warmup_out = (warmup.stdout or "").strip()
         if "WARMUP_DONE" in warmup_out:
-            logger.info("Claude warm-up completed for %s", task["task_id"])
+            logger.info("%s warm-up completed for %s", engine.name, task["task_id"])
         else:
-            logger.warning("Claude warm-up output unexpected: %.100s", warmup_out)
+            logger.warning("%s warm-up output unexpected: %.100s", engine.name, warmup_out)
     except Exception as exc:
-        logger.warning("Claude warm-up failed for %s: %s — continuing anyway", task["task_id"], exc)
+        logger.warning("%s warm-up failed for %s: %s — continuing anyway", engine.name, task["task_id"], exc)
 
-    # Run actual task with full timeout.
-    # env.exec() captures both stdout and stderr via pipes.
-    cmd = (
-        f"claude -p {shlex.quote(instruction)} "
-        f"--output-format json --verbose --max-turns 50 "
-        f"--dangerously-skip-permissions"
-    )
+    cmd = engine.build_run_cmd(instruction)
     result = await trial._env.exec(
         cmd,
         timeout_sec=task_timeout,
@@ -163,13 +164,14 @@ async def _run_claude_and_parse(
     )
     stdout = (result.stdout or "").strip()
     stderr = (result.stderr or "").strip()
-    trial._n_tool_calls = _parse_claude_num_turns(stdout)
+    parsed = engine.parse_output(stdout)
+    trial._n_tool_calls = parsed.num_turns
     logger.info(
-        "Claude: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+        "%s: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
         "tools=%s stdout_head=%s",
-        task["task_id"], _parse_claude_num_turns(stdout),
+        engine.name, task["task_id"], parsed.num_turns,
         len(stdout), len(stderr),
-        _log_tool_usage(stdout) or {},
+        parsed.tool_calls or {},
         stdout[:200],
     )
     _save_claude_logs(
@@ -178,9 +180,9 @@ async def _run_claude_and_parse(
     )
     if not stdout and stderr:
         logger.error(
-            "Claude %s (mode=%s): stderr present but no stdout — "
+            "%s %s (mode=%s): stderr present but no stdout — "
             "startup error. Stderr: %.500s",
-            task["task_id"], mode, stderr,
+            engine.name, task["task_id"], mode, stderr,
         )
     return stdout, stderr
 
@@ -211,11 +213,7 @@ def _build_trial_result(trial, task_id: str, error: str | None) -> dict:
 
 
 def _log_tool_usage(stdout: str) -> dict[str, int]:
-    """Count tool_use events from claude JSON output array.
-
-    Claude --output-format json nests tool_use inside
-    message.content[].tool_use.name, not at top level.
-    """
+    """Count tool_use events from JSON output array (claude format)."""
     counts: dict[str, int] = {}
     try:
         events = json.loads(stdout)
@@ -223,11 +221,9 @@ def _log_tool_usage(stdout: str) -> dict[str, int]:
             for ev in events:
                 if not isinstance(ev, dict):
                     continue
-                # Top-level tool_use (rare but possible).
                 if ev.get("type") == "tool_use":
                     name = ev.get("name", ev.get("tool_name", "?"))
                     counts[name] = counts.get(name, 0) + 1
-                # Nested inside assistant message.content[].
                 if ev.get("type") == "assistant":
                     msg = ev.get("message", {})
                     content = msg.get("content", [])
@@ -242,51 +238,17 @@ def _log_tool_usage(stdout: str) -> dict[str, int]:
 
 
 def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str, mode: str = "") -> None:
-    """Save claude stdout/stderr to trial directory for later analysis.
-
-    If mode is provided (e.g. \"acp\", \"acp-mcp\"), it's included in the filename
-    so logs from different modes don't overwrite each other.
-    """
+    """Save agent stdout/stderr to trial directory for later analysis."""
     try:
         trial_dir.mkdir(parents=True, exist_ok=True)
         suffix = f"_{mode}" if mode else ""
-        (trial_dir / f"claude_{task_id}{suffix}_stdout.json").write_text(stdout)
-        (trial_dir / f"claude_{task_id}{suffix}_stderr.txt").write_text(stderr)
+        (trial_dir / f"agent_{task_id}{suffix}_stdout.json").write_text(stdout)
+        (trial_dir / f"agent_{task_id}{suffix}_stderr.txt").write_text(stderr)
     except OSError as exc:
-        logger.warning("Failed to save claude logs for %s%s: %s", task_id, f" ({mode})" if mode else "", exc)
+        logger.warning("Failed to save agent logs for %s%s: %s", task_id, f" ({mode})" if mode else "", exc)
 
 
-def _parse_claude_num_turns(stdout: str) -> int:
-    """Parse num_turns from claude JSON output (array or object)."""
-    if not stdout:
-        return 0
-    # Try parsing entire output as a single JSON value (array or object).
-    try:
-        data = json.loads(stdout)
-        if isinstance(data, list):
-            # Array format: [{type:system,...}, ..., {type:result,...}]
-            for item in reversed(data):
-                if isinstance(item, dict):
-                    nt = item.get("num_turns")
-                    if nt is not None:
-                        return int(nt)
-        elif isinstance(data, dict):
-            nt = data.get("num_turns")
-            if nt is not None:
-                return int(nt)
-    except json.JSONDecodeError:
-        pass
-    # Fallback: line-by-line parsing.
-    for line in reversed(stdout.strip().split("\n")):
-        try:
-            item = json.loads(line)
-            if isinstance(item, dict):
-                nt = item.get("num_turns")
-                if nt is not None:
-                    return int(nt)
-        except (json.JSONDecodeError, AttributeError):
-            continue
-    return 0
+
 
 # Tasks with exotic base images or multi-container setups that won't build.
 _SKIP_TASKS = {
@@ -353,9 +315,11 @@ class SkillsBenchWrapper:
         ``tasks/`` directory with per-task Dockerfiles and tests).
     """
 
-    def __init__(self, repo_path: str = DEFAULT_REPO_PATH) -> None:
+    def __init__(self, repo_path: str = DEFAULT_REPO_PATH, engine: AgentEngine | None = None) -> None:
         self.repo_path = Path(repo_path)
         self.tasks_dir = self.repo_path / "tasks"
+        self._engine = engine or ClaudeEngine()
+        _register_agent(self._engine)
 
     # ------------------------------------------------------------------
     # Task loading (from local repo clone)
@@ -499,27 +463,10 @@ class SkillsBenchWrapper:
     # BenchFlow Trial integration (async)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _build_agent_env(skill_nudge: str) -> dict[str, str]:
-        """Build agent environment dict with API key and provider vars."""
-        agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if api_key:
-            agent_env["ANTHROPIC_API_KEY"] = api_key
-            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
-            # BenchFlow's opencode registry maps BFLOW_BASE_URL → OPENAI_BASE_URL.
-            # Override with Anthropic key so opencode uses the right provider.
-            agent_env["OPENAI_API_KEY"] = api_key
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            agent_env["ANTHROPIC_BASE_URL"] = base_url
-        # BenchFlow provider resolution — glm-5.1 has no built-in provider,
-        # so we must pass the proxy URL and key explicitly.
-        if api_key:
-            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
-        if base_url:
-            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
-            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
+    def _build_agent_env(self, skill_nudge: str) -> dict[str, str]:
+        """Build agent environment dict, blending engine env_vars with BenchFlow vars."""
+        agent_env: dict[str, str] = dict(self._engine.env_vars)
+        agent_env["BENCHFLOW_SKILL_NUDGE"] = skill_nudge
         return agent_env
 
     async def _run_acp_trial(
@@ -542,8 +489,8 @@ class SkillsBenchWrapper:
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="claude",
-            model="glm-5.1",
+            agent=self._engine.name,
+            model=self._engine.model,
             jobs_dir=str(jobs_dir),
             environment="docker",
             skills_dir=skills_dir,
@@ -555,10 +502,10 @@ class SkillsBenchWrapper:
         try:
             await trial.setup()
             await trial.start()
-            await _upload_claude_binary(trial._env)
+            await _install_agent_binary(trial._env, self._engine)
             await trial.install_agent()
-            instruction = _build_claude_instruction(task, skill_nudge)
-            await _run_claude_and_parse(trial, task, instruction, mode="acp")
+            instruction = _build_agent_instruction(task, skill_nudge)
+            await _run_agent_and_parse(trial, task, instruction, mode="acp", engine=self._engine)
             await trial.verify()
         except (TimeoutError, ConnectionError) as e:
             error = str(e)
@@ -610,30 +557,25 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write .mcp.json (Claude Code native MCP config — auto-discovered).
-        result = await env.exec("pwd", timeout_sec=10)
-        cwd = (result.stdout or "").strip() or "/root"
-        cfg_dst = f"{cwd}/.mcp.json"
-        mcp_config = json.dumps({
-            "mcpServers": {
-                "onto": {
-                    "command": "/usr/local/bin/ontomcp",
-                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "alwaysLoad": False,
-                }
-            }
-        })
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False,
-        ) as f:
-            f.write(mcp_config)
-            config_tmp = f.name
-        try:
-            await env.upload_file(config_tmp, cfg_dst)
-        finally:
-            os.unlink(config_tmp)
-
-        logger.info("MCP injected: ontomcp + TTLs + .mcp.json at %s", cfg_dst)
+        # Write MCP config file (engine-specific format).
+        mcp_cfg = self._engine.mcp_config("/usr/local/bin/ontomcp", "/opt/ontoskills/packages")
+        if mcp_cfg is None:
+            logger.warning("Engine %s does not support MCP — skipping MCP config injection", self._engine.name)
+        else:
+            cfg_filename, cfg_content = mcp_cfg
+            result = await env.exec("pwd", timeout_sec=10)
+            cwd = (result.stdout or "").strip() or "/root"
+            cfg_dst = f"{cwd}/{cfg_filename}"
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False,
+            ) as f:
+                f.write(cfg_content)
+                config_tmp = f.name
+            try:
+                await env.upload_file(config_tmp, cfg_dst)
+            finally:
+                os.unlink(config_tmp)
+            logger.info("MCP injected: ontomcp + TTLs + %s at %s (engine: %s)", cfg_filename, cfg_dst, self._engine.name)
 
     async def _run_acp_mcp_trial(
         self,
@@ -652,13 +594,13 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        instruction = _build_claude_instruction(task, skill_nudge, mcp=True)
+        instruction = _build_agent_instruction(task, skill_nudge, mcp=True)
         agent_env = self._build_agent_env("")  # disable BenchFlow's skill_nudge
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="claude",
-            model="glm-5.1",
+            agent=self._engine.name,
+            model=self._engine.model,
             prompts=[instruction],
             jobs_dir=str(jobs_dir),
             environment="docker",
@@ -670,10 +612,10 @@ class SkillsBenchWrapper:
         try:
             await trial.setup()
             await trial.start()
-            await _upload_claude_binary(trial._env)
+            await _install_agent_binary(trial._env, self._engine)
             await self._inject_mcp_into_container(trial._env, task)
             await trial.install_agent()
-            await _run_claude_and_parse(trial, task, instruction, mode="acp-mcp")
+            await _run_agent_and_parse(trial, task, instruction, mode="acp-mcp", engine=self._engine)
             await trial.verify()
         except (TimeoutError, ConnectionError) as e:
             error = str(e)
@@ -1222,7 +1164,7 @@ class SkillsBenchWrapper:
         config = TrialConfig.from_legacy(
             task_path=task_path,
             agent="opencode",
-            model="glm-5.1",
+            model=self._engine.model,
             jobs_dir=str(jobs_dir),
             environment="docker",
         )
