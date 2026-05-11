@@ -95,7 +95,7 @@ class OpencodeEngine(AgentEngine):
                     "type": "local",
                     "command": [ontomcp_path, "--ontology-root", ontology_root],
                     "enabled": True,
-                    "timeout": 30000,
+                    "timeout": 120000,
                 }
             }
         })
