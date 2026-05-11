@@ -15,7 +15,7 @@ import BenchmarkApp from '../../../components/benchmark/BenchmarkApp.astro';
 
 像 Claude Code 这样的 AI 编程代理依赖技能文档来完成专业任务——生成 DOCX 文件、处理 PDF、分析金融数据。如今，这些技能以纯 Markdown 文件（`SKILL.md`）的形式提供。代理必须阅读原始文本并自行提取指令、启发式规则和反模式。
 
-**OntoSkills** 采用了不同的方法：技能知识被编译成结构化的 OWL 2 本体，通过 **OntoMCP** 传递。代理通过单一的 `ontoskill` 工具调用发现和加载技能知识——接收带有严重性评级、反模式原因说明、精选代码示例以及**技能内链接**的类型化知识节点，这些链接将反模式连接到正确替代方案，将约束连接到其适用的工作流步骤。
+**OntoSkills** 采用了不同的方法：技能知识被编译成结构化的 OWL 2 本体，通过 **OntoMCP** 传递。代理通过单一的 `mcp__onto__skill` 工具调用发现和加载技能知识——接收带有严重性评级、反模式原因说明、精选代码示例以及**技能内链接**的类型化知识节点，这些链接将反模式连接到正确替代方案，将约束连接到其适用的工作流步骤。
 
 哪种方法效果更好？
 
@@ -48,7 +48,7 @@ import BenchmarkApp from '../../../components/benchmark/BenchmarkApp.astro';
 
 **传统模式（`acp`）** — SKILL.md 文件通过 BenchFlow 的 `_inject_skills_into_dockerfile()` 注入到 Docker 镜像中。代理使用原生文件读取功能发现和加载技能——与生产环境中的工作方式完全一致。100% 与 SkillsBench 对齐。
 
-**OntoSkills MCP 模式（`acp-mcp`）** — 技能编译为 OWL 2 本体，通过容器内的 **OntoMCP** 提供。`ontomcp` 二进制文件、TTL 包和 `.mcp_config.json` 在容器启动和代理安装之间注入。代理通过单一的 `ontoskill` 工具调用发现和加载技能知识，接收经过优先级排序的结构化上下文，知识元素之间相互关联。100% 与 SkillsBench 对齐。
+**OntoSkills MCP 模式（`acp-mcp`）** — 技能编译为 OWL 2 本体，通过容器内的 **OntoMCP** 提供。`ontomcp` 二进制文件、TTL 包和 `.mcp_config.json` 在容器启动和代理安装之间注入。代理通过单一的 `mcp__onto__skill` 工具调用发现和加载技能知识，接收经过优先级排序的结构化上下文，知识元素之间相互关联。100% 与 SkillsBench 对齐。
 
 **基线模式（`baseline`）** — 无技能、无提示。原始代理仅在容器内接收任务描述。这测量模型的零样本能力。
 

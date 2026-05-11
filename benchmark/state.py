@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -31,11 +33,15 @@ class BenchmarkState:
         run_id: str,
         mode: str,
         skill_hints: bool,
+        engine: str = "claude",
+        model: str = "",
     ) -> "BenchmarkState":
         data = {
             "run_id": run_id,
             "mode": mode,
             "skill_hints": skill_hints,
+            "engine": engine,
+            "model": model,
             "tasks": {},
             "rate_limit_count": 0,
         }
@@ -48,10 +54,12 @@ class BenchmarkState:
         data = json.loads(path.read_text(encoding="utf-8"))
         return cls(path, data)
 
-    def matches(self, run_id: str, mode: str, skill_hints: bool) -> bool:
+    def matches(self, run_id: str, mode: str, skill_hints: bool, engine: str = "", model: str = "") -> bool:
         return (
             self._data["mode"] == mode
             and self._data["skill_hints"] == skill_hints
+            and (not engine or self._data.get("engine") == engine)
+            and (not model or self._data.get("model") == model or not self._data.get("model"))
         )
 
     def is_empty(self) -> bool:
@@ -132,18 +140,20 @@ class BenchmarkState:
         run_id: str,
         mode: str,
         skill_hints: bool,
+        engine: str = "claude",
+        model: str = "",
     ) -> "BenchmarkState":
         if path.exists():
             try:
                 state = cls.load(path)
             except (json.JSONDecodeError, KeyError, ValueError):
                 logger.warning("Corrupted state file %s, starting fresh", path)
-                return cls.create(path, run_id, mode, skill_hints)
-            if state.matches(run_id, mode, skill_hints):
+                return cls.create(path, run_id, mode, skill_hints, engine=engine, model=model)
+            if state.matches(run_id, mode, skill_hints, engine=engine, model=model):
                 logger.info("Resuming from %s (%d tasks done)", path, len(state.completed_task_ids()))
                 return state
             logger.info("State file mismatch, starting fresh")
-        return cls.create(path, run_id, mode, skill_hints)
+        return cls.create(path, run_id, mode, skill_hints, engine=engine, model=model)
 
     def completed_task_ids(self) -> list[str]:
         return [
@@ -153,10 +163,18 @@ class BenchmarkState:
 
     def _flush(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(
+        tmp = self._path.with_suffix(".tmp")
+        tmp.write_text(
             json.dumps(self._data, indent=2, default=str, ensure_ascii=False),
             encoding="utf-8",
         )
+        try:
+            tmp.replace(self._path)
+        except OSError:
+            # Fallback for cross-device links (e.g. Docker bind mounts).
+            with open(self._path, "w", encoding="utf-8") as f:
+                f.write(tmp.read_text(encoding="utf-8"))
+            tmp.unlink()
 
     # ── rate limit tracking ──
 

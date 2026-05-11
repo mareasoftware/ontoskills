@@ -21,9 +21,11 @@ ontoskills/system/
 
 # Benchmark logs
 benchmark_results.log
+.log
 
 # Astro build cache
 .astro/
 
 # Claude Code runtime artifacts
 .claude/scheduled_tasks.lock
+*.log

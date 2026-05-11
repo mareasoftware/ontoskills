@@ -34,7 +34,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
       <div class="section-shell">
         <h2>The Question</h2>
         <p>AI coding agents like Claude Code rely on skill documentation to solve specialized tasks — generating DOCX files, processing PDFs, analyzing financial data. Today, these skills are delivered as plain markdown files (<code>SKILL.md</code>). The agent reads the raw text and must extract instructions, heuristics, and anti-patterns on its own.</p>
-        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via a single MCP tool (<code>ontoskill</code>). The agent queries for skill knowledge — receiving typed knowledge nodes with severity ratings, anti-patterns with rationale, and curated code examples.</p>
+        <p><strong>OntoSkills</strong> takes a different approach: skill knowledge is compiled into structured OWL 2 ontologies and delivered via a single MCP tool (<code>mcp__onto__skill</code>). The agent queries for skill knowledge — receiving typed knowledge nodes with severity ratings, anti-patterns with rationale, and curated code examples.</p>
         <p>Which approach produces better results?</p>
       </div>
     </section>
@@ -59,26 +59,31 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
           <div class="method-card glass-panel">
             <h3>Setup</h3>
             <table class="setup-table">
-              <tr><td>Agent</td><td>Claude Code CLI (<code>--print --bare</code>)</td></tr>
+              <tr><td>Agent</td><td>Claude Code (<code>claude</code> CLI, native binary)</td></tr>
               <tr><td>Model</td><td>glm-5.1 (via API proxy)</td></tr>
-              <tr><td>Infrastructure</td><td>BenchFlow Trial + Harbor Verifier</td></tr>
+              <tr><td>Infrastructure</td><td>Docker (BenchFlow Trial) + Harbor Verifier</td></tr>
               <tr><td>Scoring</td><td>Docker + pytest CTRF</td></tr>
-              <tr><td>Retries</td><td>5 per task (BenchFlow RetryConfig)</td></tr>
+              <tr><td>Retries</td><td>5 per task</td></tr>
             </table>
           </div>
         </div>
 
-        <div class="mode-grid">
-          <div class="mode-card">
-            <span class="mode-label" style="color: var(--accent-purple);">Traditional</span>
-            <p>SKILL.md files in <code>.claude/skills/</code>. Agent uses Claude Code's native file reading — same as production.</p>
+          <div class="mode-grid">
+            <div class="mode-card">
+              <span class="mode-label" style="color: var(--accent-cyan);">Baseline</span>
+              <p>Agent alone — no skill documentation. Measures raw performance on each task.</p>
+            </div>
+            <div class="mode-vs">vs</div>
+            <div class="mode-card">
+              <span class="mode-label" style="color: var(--accent-purple);">Traditional</span>
+              <p>SKILL.md files in <code>~/.claude/skills/</code>. Agent reads raw markdown — same as production Claude Code setup.</p>
+            </div>
+            <div class="mode-vs">vs</div>
+            <div class="mode-card">
+              <span class="mode-label" style="color: var(--accent-cyan);">OntoSkills MCP</span>
+              <p>Skills compiled to OWL 2, served via <strong>OntoMCP</strong>. Agent uses a single <code>mcp__onto__skill</code> MCP tool to query structured knowledge.</p>
+            </div>
           </div>
-          <div class="mode-vs">vs</div>
-          <div class="mode-card">
-            <span class="mode-label" style="color: var(--accent-cyan);">OntoSkills MCP</span>
-            <p>Skills compiled to OWL 2, served via <strong>OntoMCP</strong>. The agent discovers and loads skill knowledge through a single <code>ontoskill</code> tool call — receiving structured, prioritized context.</p>
-          </div>
-        </div>
         <p class="note">Same agent, same model, same BenchFlow container management, same Harbor Verifier. The only difference is <strong>how skill knowledge is delivered</strong>.</p>
       </div>
     </section>
@@ -125,7 +130,7 @@ import BenchmarkReact from '../components/benchmark/BenchmarkApp.tsx';
         <div class="cta-box">
           <p style="margin-bottom: 12px;">All benchmark code is open source. Run it yourself:</p>
           <div class="command-shell">
-            <code>python benchmark/run.py --benchmark skillsbench --mode all5 --max-tasks 25 --model glm-5.1 --attempts 5 --workers 2</code>
+              <code>python benchmark/run.py --mode acp --max-tasks 25 --model glm-5.1 --attempts 5 --workers 2</code>
           </div>
         </div>
       </div>

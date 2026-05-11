@@ -554,10 +554,16 @@ async function importSource(repoRef) {
   const sourceSlug = slugify(path.basename(repoRef).replace(/\.git$/, ""));
   const sourceDir = path.join(SKILLS_AUTHOR_DIR, sourceSlug);
   await fsp.rm(sourceDir, { recursive: true, force: true });
-  if (repoRef.startsWith("http://") || repoRef.startsWith("https://") || repoRef.endsWith(".git")) {
-    runCommand("git", ["clone", "--depth", "1", repoRef, sourceDir]);
+  if (/^https?:\/\/.+/.test(repoRef) || repoRef.endsWith(".git")) {
+    if (!/^https?:\/\//.test(repoRef) && !repoRef.endsWith(".git")) {
+      fail(`Invalid import source: ${repoRef}. Use https:// URL or a local path.`);
+    }
+    runCommand("git", ["clone", "--depth", "1", "--", repoRef, sourceDir]);
   } else {
-    runCommand("cp", ["-R", repoRef, sourceDir]);
+    if (!fs.existsSync(repoRef)) {
+      fail(`Import source not found: ${repoRef}`);
+    }
+    runCommand("cp", ["-R", "--", repoRef, sourceDir]);
   }
 
   const ontocoreWrapper = path.join(BIN_DIR, "ontocore");

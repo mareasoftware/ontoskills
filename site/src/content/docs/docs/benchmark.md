@@ -48,7 +48,7 @@ This is not LLM-as-judge. The evaluation is fully deterministic and reproducible
 
 **Traditional (`acp`)** — SKILL.md files injected into the Docker image via BenchFlow's `_inject_skills_into_dockerfile()`. The agent discovers and loads skills using its native file reading capabilities — exactly how skills work in production. 100% SkillsBench aligned.
 
-**OntoSkills MCP (`acp-mcp`)** — Skills compiled to OWL 2 ontologies, served via **OntoMCP** inside the container. The `ontomcp` binary, TTL packages, and `.mcp_config.json` are injected between container start and agent installation. The agent discovers and loads skill knowledge through a single `ontoskill` tool call, receiving structured, prioritized context with interconnections between knowledge elements. 100% SkillsBench aligned.
+**OntoSkills MCP (`acp-mcp`)** — Skills compiled to OWL 2 ontologies, served via **OntoMCP** inside the container. The `ontomcp` binary, TTL packages, and `.mcp.json` are injected between container start and agent installation. The agent discovers and loads skill knowledge through a single `mcp__onto__skill` tool call, receiving structured, prioritized context with interconnections between knowledge elements. 100% SkillsBench aligned.
 
 **Baseline (`baseline`)** — No skills, no hints. The raw agent runs inside the container with only the task description. This measures the model's zero-shot capability.
 

@@ -1,16 +1,16 @@
 """SkillsBench benchmark wrapper — BenchFlow-aligned deterministic evaluation.
 
 Uses BenchFlow's Trial for container lifecycle and Harbor Verifier for
-deterministic scoring.  Supports two evaluation modes:
+deterministic scoring.  Supports three evaluation modes:
 
-  - **ACP** (``acp``): Agent runs inside the container via BenchFlow ACP.
-    Skills are injected into the Dockerfile.  100% SkillsBench aligned.
-  - **ACP-MCP** (``acp-mcp``): Same as ACP but with ontomcp MCP tools
+  - **acp** (ACP): Claude CLI runs inside the container via ``env.exec()``
+    with SKILL.md files deployed via ``install_agent``.
+  - **acp-mcp** (ACP-MCP): Same as ACP but with ontomcp MCP tools
     injected into the container for skill discovery.
+  - **baseline** (no skills): Raw claude CLI without any skill delivery.
 
-Both modes use BenchFlow's RetryConfig for clean retries with exponential
-backoff, and ``_run_pooled()`` for parallel worker execution with
-state-backed resume via ``BenchmarkState``.
+State-backed resume via ``BenchmarkState``, parallel workers with rate-limit
+handling and graceful SIGTERM shutdown.
 
 Legacy API mode (``run_task`` / ``run_benchmark``) remains for other
 wrappers (GAIA, SWE-bench, PerPackage) that share the same interface.
@@ -26,55 +26,235 @@ import logging
 import os
 import random
 import re
+import shlex
 import shutil
+import signal
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 from typing import Any
 
 from benchmark.agents.utils import extract_python_code
 from benchmark.agents.base import AgentResult, BaseAgent
+from benchmark.engines import AgentEngine, ClaudeEngine, OpencodeEngine, create_engine
 
 logger = logging.getLogger(__name__)
 
-# Fix opencode's skill_paths in BenchFlow registry — the default
-# '$HOME/.opencode/skills' is not a path opencode reads from.
-# opencode reads from ~/.claude/skills/ and ~/.agents/skills/.
-# We register both so skills are found regardless of path preference.
-try:
-    from benchflow.agents.registry import register_agent
+_AGENT_REGISTERED = False
 
-    register_agent(
-        name="opencode",
-        launch_cmd="opencode acp",
-        install_cmd=(
-            "set -o pipefail; export DEBIAN_FRONTEND=noninteractive; "
-            "NODE_OK=0; "
-            "if command -v node >/dev/null 2>&1; then "
-            "  NODE_VER=$(node -e 'console.log(process.versions.node.split(\".\")[0])' 2>/dev/null || echo 0); "
-            "  [ \"$NODE_VER\" -ge 22 ] 2>/dev/null && NODE_OK=1; "
-            "fi; "
-            "if [ \"$NODE_OK\" = 0 ]; then "
-            "  apt-get update -qq && apt-get install -y -qq curl ca-certificates && "
-            "  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && "
-            "  apt-get install -y -qq nodejs; "
-            "fi >/dev/null 2>&1 && "
-            "( command -v opencode >/dev/null 2>&1 || npm install -g opencode-ai@latest >/dev/null 2>&1 ) && "
-            "command -v opencode >/dev/null 2>&1"
-        ),
-        requires_env=[],
-        env_mapping={"BENCHFLOW_PROVIDER_BASE_URL": "OPENAI_BASE_URL"},
-        supports_skills=True,
-        skill_paths=[
-            "$HOME/.claude/skills",
-            "$HOME/.agents/skills",
-            "$HOME/.opencode/skills",
-        ],
-        disallow_web_tools_launch_suffix=None,
+
+def _register_agent(engine: AgentEngine) -> None:
+    """Register agent in BenchFlow registry for the given engine."""
+    global _AGENT_REGISTERED
+    if _AGENT_REGISTERED:
+        return
+    try:
+        from benchflow.agents.registry import register_agent
+        import inspect
+        sig = inspect.signature(register_agent)
+        kwargs = {}
+        if "skill_paths" in sig.parameters:
+            kwargs["skill_paths"] = [engine.skills_path]
+        if "env_mapping" in sig.parameters:
+            kwargs["env_mapping"] = {}
+
+        register_agent(
+            name=engine.name,
+            launch_cmd="true",
+            install_cmd=f"command -v {engine.bin_name} >/dev/null 2>&1",
+            requires_env=[],
+            **kwargs,
+        )
+        _AGENT_REGISTERED = True
+        logger.info("Registered %s agent (native CLI, not ACP)", engine.name)
+    except ImportError:
+        logger.warning("benchflow not installed — agent registration skipped, some features disabled")
+
+
+def _build_agent_instruction(
+    task: dict,
+    skill_nudge: str,
+    engine: AgentEngine,
+    *,
+    mcp: bool = False,
+) -> str:
+    """Build the instruction prompt for the agent CLI with optional skill nudge."""
+    task_path = Path(task["task_dir"])
+    instr_path = task_path / "instruction.md"
+    instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
+
+    if skill_nudge and task.get("skill_ids"):
+        names = ", ".join(task["skill_ids"])
+        if mcp:
+            snippet = task["skill_ids"][0]
+            tool = engine.mcp_tool_name
+            nudge = (
+                f"Skills available via the {tool} tool: {names}. "
+                f"Call {tool}(q=\"{snippet}\") to load its full context, "
+                f"or use {tool}(q=\"your task description\") to discover "
+                f"relevant skills. Always start by loading the relevant skills "
+                f"with {tool} before reading or processing the source files. "
+                f"After loading the skills, implement the complete solution "
+                f"by writing the required output files."
+            )
+        else:
+            nudge = (
+                f"Skills available at {engine.skills_path}: {names}. "
+                f"Read them with the Read tool before starting. "
+                f"After loading the skills, implement the complete solution "
+                f"by writing the required output files."
+            )
+        instruction = nudge + "\n\n" + instruction
+
+    return instruction
+
+
+async def _install_agent_binary(env, engine: AgentEngine) -> None:
+    """Upload agent binary to container and make it executable.
+
+    For engines with ``download_url``, the binary must be available locally
+    at ``engine.bin_path`` (downloaded once by the user).  Then uploaded
+    into the container — same pattern for both claude and opencode.
+    """
+    bin_path = os.path.expanduser(engine.bin_path)
+    if not os.path.exists(bin_path):
+        if engine.download_url:
+            raise FileNotFoundError(
+                f"{engine.name} binary not found at {bin_path}\n"
+                f"Download it first:\n"
+                f"  curl -fsSL '{engine.download_url}' "
+                f"| tar xzf - -C {os.path.dirname(bin_path)} {engine.bin_name}"
+            )
+        raise FileNotFoundError(f"{engine.name} binary not found at {bin_path}")
+    logger.info("%s: uploading binary (%d MB)",
+                engine.name, os.path.getsize(bin_path) // (1024 * 1024))
+    await env.upload_file(bin_path, f"/usr/local/bin/{engine.bin_name}")
+    await env.exec(f"chmod +x /usr/local/bin/{engine.bin_name}", timeout_sec=10)
+
+
+async def _run_agent_and_parse(
+    trial,
+    task: dict,
+    instruction: str,
+    mode: str,
+    engine: AgentEngine,
+) -> tuple:
+    """Run agent CLI, parse output, save logs, return (stdout, stderr).
+
+    Warms up the agent with a no-op call before the real task to absorb
+    the one-time startup overhead in a fresh container.
+    """
+    env = engine.env_vars
+    task_timeout = task["agent_timeout_sec"]
+
+    try:
+        warmup = await trial._env.exec(
+            engine.warmup_cmd(),
+            timeout_sec=120, user="agent", env=env,
+        )
+        warmup_out = (warmup.stdout or "").strip()
+        if "WARMUP_DONE" in warmup_out:
+            logger.info("%s warm-up completed for %s", engine.name, task["task_id"])
+        else:
+            logger.warning("%s warm-up output unexpected: %.100s", engine.name, warmup_out)
+    except Exception as exc:
+        logger.warning("%s warm-up failed for %s: %s — continuing anyway", engine.name, task["task_id"], exc)
+
+    cmd = engine.build_run_cmd(instruction)
+    result = await trial._env.exec(
+        cmd,
+        timeout_sec=task_timeout,
+        user="agent",
+        env=env,
     )
-    logger.info("Registered opencode agent with corrected skill_paths")
-except Exception:
-    pass
+    stdout = (result.stdout or "").strip()
+    stderr = (result.stderr or "").strip()
+    parsed = engine.parse_output(stdout)
+    trial._n_tool_calls = parsed.num_turns
+    logger.info(
+        "%s: %s done — n_tool_calls=%d stdout_len=%d stderr_len=%d "
+        "tools=%s stdout_head=%s",
+        engine.name, task["task_id"], parsed.num_turns,
+        len(stdout), len(stderr),
+        parsed.tool_calls or {},
+        stdout[:200],
+    )
+    _save_claude_logs(
+        Path(task["task_dir"]).parent.parent / ".benchflow_jobs",
+        stdout, stderr, task["task_id"], mode=mode,
+    )
+    if not stdout and stderr:
+        logger.error(
+            "%s %s (mode=%s): stderr present but no stdout — "
+            "startup error. Stderr: %.500s",
+            engine.name, task["task_id"], mode, stderr,
+        )
+    return stdout, stderr
+
+
+def _build_trial_result(trial, task_id: str, error: str | None) -> dict:
+    """Build result dict from Trial, handling setup failures."""
+    if trial._trial_dir is None:
+        return {
+            "task_id": task_id,
+            "reward": 0.0,
+            "rewards": None,
+            "error": error or "Setup failed",
+            "verifier_error": None,
+            "build_ok": False,
+            "n_tool_calls": 0,
+        }
+    result = trial._build_result()
+    reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
+    return {
+        "task_id": task_id,
+        "reward": reward,
+        "rewards": result.rewards,
+        "error": error,
+        "verifier_error": result.verifier_error,
+        "build_ok": error is None,
+        "n_tool_calls": result.n_tool_calls,
+    }
+
+
+def _log_tool_usage(stdout: str) -> dict[str, int]:
+    """Count tool_use events from JSON output array (claude format)."""
+    counts: dict[str, int] = {}
+    try:
+        events = json.loads(stdout)
+        if isinstance(events, list):
+            for ev in events:
+                if not isinstance(ev, dict):
+                    continue
+                if ev.get("type") == "tool_use":
+                    name = ev.get("name", ev.get("tool_name", "?"))
+                    counts[name] = counts.get(name, 0) + 1
+                if ev.get("type") == "assistant":
+                    msg = ev.get("message", {})
+                    content = msg.get("content", [])
+                    if isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                name = block.get("name", block.get("tool_name", "?"))
+                                counts[name] = counts.get(name, 0) + 1
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+    return counts
+
+
+def _save_claude_logs(trial_dir: Path, stdout: str, stderr: str, task_id: str, mode: str = "") -> None:
+    """Save agent stdout/stderr to trial directory for later analysis."""
+    try:
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        suffix = f"_{mode}" if mode else ""
+        (trial_dir / f"agent_{task_id}{suffix}_stdout.json").write_text(stdout)
+        (trial_dir / f"agent_{task_id}{suffix}_stderr.txt").write_text(stderr)
+    except OSError as exc:
+        logger.warning("Failed to save agent logs for %s%s: %s", task_id, f" ({mode})" if mode else "", exc)
+
+
+
 
 # Tasks with exotic base images or multi-container setups that won't build.
 _SKIP_TASKS = {
@@ -98,60 +278,37 @@ RATE_LIMIT_BACKOFF = [5, 10, 20, 60, 120]
 RATE_LIMIT_CONSECUTIVE_MAX = 5
 
 
-def _is_rate_limit_error(error: str | None) -> bool:
+def _classify_trial_error(error: str | None) -> str:
+    """Classify trial error into BenchFlow-aligned categories.
+
+    Returns one of: ``\"none\"``, ``\"timeout\"``, ``\"rate_limit\"``,
+    ``\"install_failure\"``, ``\"setup_failure\"``, ``\"other\"``.
+    """
     if not error:
-        return False
-    error_lower = error.lower()
-    return any(
-        kw in error_lower
-        for kw in ("rate limit", "429", "ratelimiterror", "too many requests")
-    )
+        return "none"
+    err = error.lower()
+    if any(kw in err for kw in ("rate limit", "429", "ratelimiterror", "too many requests")):
+        return "rate_limit"
+    if any(kw in err for kw in ("timed out", "timeout")):
+        return "timeout"
+    if any(kw in err for kw in ("install failed", "install_failure", "npm install")):
+        return "install_failure"
+    if any(kw in err for kw in ("setup", "build", "docker", "compose")):
+        return "setup_failure"
+    return "other"
 
 
-def _parse_toml_simple(text: str) -> dict:
-    """Parse simple TOML (flat sections, no nested tables)."""
-    result: dict = {}
-    current_section = result
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.startswith("[") and stripped.endswith("]"):
-            section_name = stripped[1:-1].strip()
-            parts = section_name.split(".")
-            current_section = result
-            for part in parts:
-                if part not in current_section:
-                    current_section[part] = {}
-                current_section = current_section[part]
-            continue
-        if "=" not in stripped:
-            continue
-        key, _, value = stripped.partition("=")
-        key = key.strip()
-        value = value.strip()
+_is_rate_limit_error = lambda e: _classify_trial_error(e) == "rate_limit"
 
-        if not value.startswith(('"', "'", "[")):
-            if " #" in value:
-                value = value[: value.index(" #")].rstrip()
-            elif "\t#" in value:
-                value = value[: value.index("\t#")].rstrip()
 
-        if value.startswith('"') and value.endswith('"'):
-            current_section[key] = value[1:-1]
-        elif value.startswith("'") and value.endswith("'"):
-            current_section[key] = value[1:-1]
-        elif value.startswith("["):
-            items = re.findall(r'["\']([^"\']+)["\']', value)
-            current_section[key] = items
-        elif value in ("true", "false"):
-            current_section[key] = value == "true"
-        else:
-            try:
-                current_section[key] = float(value) if "." in value else int(value)
-            except ValueError:
-                current_section[key] = value
-    return result
+def _load_task_toml(toml_path: Path) -> dict:
+    """Load task.toml using stdlib tomllib (Python 3.11+)."""
+    try:
+        with toml_path.open("rb") as f:
+            return tomllib.load(f)
+    except (tomllib.TOMLDecodeError, OSError) as exc:
+        logger.warning("Failed to parse %s: %s", toml_path, exc)
+        return {}
 
 
 class SkillsBenchWrapper:
@@ -164,9 +321,11 @@ class SkillsBenchWrapper:
         ``tasks/`` directory with per-task Dockerfiles and tests).
     """
 
-    def __init__(self, repo_path: str = DEFAULT_REPO_PATH) -> None:
+    def __init__(self, repo_path: str = DEFAULT_REPO_PATH, engine: AgentEngine | None = None) -> None:
         self.repo_path = Path(repo_path)
         self.tasks_dir = self.repo_path / "tasks"
+        self._engine = engine or ClaudeEngine()
+        _register_agent(self._engine)
 
     # ------------------------------------------------------------------
     # Task loading (from local repo clone)
@@ -179,9 +338,7 @@ class SkillsBenchWrapper:
             return None
 
         toml_path = task_dir / "task.toml"
-        metadata = {}
-        if toml_path.exists():
-            metadata = _parse_toml_simple(toml_path.read_text(encoding="utf-8"))
+        metadata = _load_task_toml(toml_path) if toml_path.exists() else {}
         meta = metadata.get("metadata", {})
 
         instr_path = task_dir / "instruction.md"
@@ -224,8 +381,16 @@ class SkillsBenchWrapper:
         packages_root: str | None = None,
         skip_first: int = 0,
         only_tasks: list[str] | None = None,
+        skip_tasks: set[str] | None = None,
     ) -> list[dict]:
-        """Load SkillsBench tasks from the local repo clone."""
+        """Load SkillsBench tasks from the local repo clone.
+        
+        Parameters
+        ----------
+        skip_tasks:
+            Set of task IDs to skip. Defaults to ``_SKIP_TASKS`` if None.
+        """
+        skip = _SKIP_TASKS if skip_tasks is None else skip_tasks
         if not self.tasks_dir.is_dir():
             raise FileNotFoundError(
                 f"SkillsBench tasks directory not found: {self.tasks_dir}\n"
@@ -242,7 +407,7 @@ class SkillsBenchWrapper:
             task_id = task_dir.name
             if only_set is not None and task_id not in only_set:
                 continue
-            if task_id in _SKIP_TASKS:
+            if task_id in skip:
                 continue
             task = self._load_task_from_repo(task_id)
             if not task or not task["skill_ids"]:
@@ -304,27 +469,10 @@ class SkillsBenchWrapper:
     # BenchFlow Trial integration (async)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _build_agent_env(skill_nudge: str) -> dict[str, str]:
-        """Build agent environment dict with API key and provider vars."""
-        agent_env: dict[str, str] = {"BENCHFLOW_SKILL_NUDGE": skill_nudge}
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if api_key:
-            agent_env["ANTHROPIC_API_KEY"] = api_key
-            agent_env["ANTHROPIC_AUTH_TOKEN"] = api_key
-            # BenchFlow's opencode registry maps BFLOW_BASE_URL → OPENAI_BASE_URL.
-            # Override with Anthropic key so opencode uses the right provider.
-            agent_env["OPENAI_API_KEY"] = api_key
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            agent_env["ANTHROPIC_BASE_URL"] = base_url
-        # BenchFlow provider resolution — glm-5.1 has no built-in provider,
-        # so we must pass the proxy URL and key explicitly.
-        if api_key:
-            agent_env["BENCHFLOW_PROVIDER_API_KEY"] = api_key
-        if base_url:
-            agent_env["BENCHFLOW_PROVIDER_BASE_URL"] = base_url
-            agent_env["BENCHFLOW_PROVIDER_PROTOCOL"] = "anthropic-messages"
+    def _build_agent_env(self, skill_nudge: str) -> dict[str, str]:
+        """Build agent environment dict, blending engine env_vars with BenchFlow vars."""
+        agent_env: dict[str, str] = dict(self._engine.env_vars)
+        agent_env["BENCHFLOW_SKILL_NUDGE"] = skill_nudge
         return agent_env
 
     async def _run_acp_trial(
@@ -334,10 +482,10 @@ class SkillsBenchWrapper:
         skills_dir: str | None = None,
         skill_nudge: str = "name",
     ) -> dict:
-        """Full ACP Trial: agent inside container (100% SkillsBench aligned).
+        """Run claude CLI with traditional SKILL.md delivery.
 
-        Uses Trial.run() for the complete lifecycle: setup → start →
-        install_agent → connect (ACP) → execute → verify → cleanup.
+        BenchFlow Trial handles Docker lifecycle. Uploads claude binary,
+        deploys SKILL.md files via install_agent, then runs claude.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -345,49 +493,40 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        agent_env = self._build_agent_env(skill_nudge)
-
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="opencode",
-            model="glm-5.1",
+            agent=self._engine.name,
+            model=self._engine.model,
             jobs_dir=str(jobs_dir),
             environment="docker",
             skills_dir=skills_dir,
-            agent_env=agent_env,
+            agent_env=self._build_agent_env(skill_nudge),
         )
 
         trial = await Trial.create(config)
+        error = None
         try:
-            result = await trial.run()
+            await trial.setup()
+            await trial.start()
+            await _install_agent_binary(trial._env, self._engine)
+            await trial.install_agent()
+            instruction = _build_agent_instruction(task, skill_nudge, self._engine)
+            await _run_agent_and_parse(trial, task, instruction, mode="acp", engine=self._engine)
+            await trial.verify()
+        except (TimeoutError, ConnectionError) as e:
+            error = str(e)
+            logger.error("Trial error for %s: %s", task_id, error)
         except Exception as exc:
-            logger.exception("ACP Trial failed for %s: %s", task_id, exc)
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": str(exc),
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
+            error = str(exc)
+            logger.exception("Trial failed for %s: %s", task_id, exc)
         finally:
+            trial._error = error
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("Cleanup failed for %s: %s", task_id, cleanup_exc)
 
-        reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-        build_ok = result.error is None
-        return {
-            "task_id": task_id,
-            "reward": reward,
-            "rewards": result.rewards,
-            "error": result.error,
-            "verifier_error": result.verifier_error,
-            "build_ok": build_ok,
-            "n_tool_calls": result.n_tool_calls,
-        }
+        return _build_trial_result(trial, task_id, error)
 
     async def _inject_mcp_into_container(self, env, task: dict) -> None:
         """Inject ontomcp binary + TTL files + MCP config into container."""
@@ -424,30 +563,25 @@ class SkillsBenchWrapper:
             timeout_sec=60,
         )
 
-        # Write .mcp_config.json to the container's WORKDIR.
-        result = await env.exec("pwd", timeout_sec=10)
-        cwd = (result.stdout or "").strip() or "/root"
-        mcp_dst = f"{cwd}/.mcp_config.json"
-        mcp_config = json.dumps({
-            "mcpServers": {
-                "ontoskills": {
-                    "command": "/usr/local/bin/ontomcp",
-                    "args": ["--ontology-root", "/opt/ontoskills/packages"],
-                    "type": "stdio",
-                }
-            }
-        })
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False,
-        ) as f:
-            f.write(mcp_config)
-            config_tmp = f.name
-        try:
-            await env.upload_file(config_tmp, mcp_dst)
-        finally:
-            os.unlink(config_tmp)
-
-        logger.info("MCP injected: ontomcp + TTLs + .mcp_config.json at %s", mcp_dst)
+        # Write MCP config file (engine-specific format).
+        mcp_cfg = self._engine.mcp_config("/usr/local/bin/ontomcp", "/opt/ontoskills/packages")
+        if mcp_cfg is None:
+            logger.warning("Engine %s does not support MCP — skipping MCP config injection", self._engine.name)
+        else:
+            cfg_filename, cfg_content = mcp_cfg
+            result = await env.exec("pwd", timeout_sec=10)
+            cwd = (result.stdout or "").strip() or "/root"
+            cfg_dst = f"{cwd}/{cfg_filename}"
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False,
+            ) as f:
+                f.write(cfg_content)
+                config_tmp = f.name
+            try:
+                await env.upload_file(config_tmp, cfg_dst)
+            finally:
+                os.unlink(config_tmp)
+            logger.info("MCP injected: ontomcp + TTLs + %s at %s (engine: %s)", cfg_filename, cfg_dst, self._engine.name)
 
     async def _run_acp_mcp_trial(
         self,
@@ -455,14 +589,10 @@ class SkillsBenchWrapper:
         *,
         skill_nudge: str = "name",
     ) -> dict:
-        """ACP Trial with MCP tools injected into the container.
+        """Run claude CLI with ontomcp MCP skill delivery.
 
-        Splits Trial lifecycle using public API so we can inject
-        ontomcp binary + TTL files + .mcp_config.json between
-        start() and install_agent().
-
-        Overrides the prompt nudge to mention the ``ontoskill`` MCP tool
-        instead of ``~/.claude/skills`` (which does not exist in MCP mode).
+        Injects ontomcp binary + TTLs + .mcp.json into the container
+        before starting claude. The agent discovers skills via MCP.
         """
         from benchflow.trial import Trial, TrialConfig
 
@@ -470,29 +600,13 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        # Build MCP-specific prompt: read instruction.md and prepend
-        # an MCP tool nudge.  Disable BenchFlow's built-in skill_nudge
-        # because it mentions ~/.claude/skills which doesn't exist here.
-        instr_path = task_path / "instruction.md"
-        instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
-
-        if skill_nudge and task.get("skill_ids"):
-            names = ", ".join(task["skill_ids"])
-            snippet = task["skill_ids"][0]
-            nudge = (
-                f"Skills available via the ontoskill tool: {names}. "
-                f"Call ontoskill(q=\"{snippet}\") to load its full context, "
-                f"or use ontoskill(q=\"your task description\") to discover "
-                f"relevant skills."
-            )
-            instruction = nudge + "\n\n" + instruction
-
+        instruction = _build_agent_instruction(task, skill_nudge, self._engine, mcp=True)
         agent_env = self._build_agent_env("")  # disable BenchFlow's skill_nudge
 
         config = TrialConfig.from_legacy(
             task_path=task_path,
-            agent="opencode",
-            model="glm-5.1",
+            agent=self._engine.name,
+            model=self._engine.model,
             prompts=[instruction],
             jobs_dir=str(jobs_dir),
             environment="docker",
@@ -500,52 +614,90 @@ class SkillsBenchWrapper:
         )
 
         trial = await Trial.create(config)
+        error = None
         try:
             await trial.setup()
             await trial.start()
-
-            # MCP injection point — between start and install_agent.
-            await self._inject_mcp_into_container(trial.env, task)
-
+            await _install_agent_binary(trial._env, self._engine)
+            await self._inject_mcp_into_container(trial._env, task)
             await trial.install_agent()
-            await trial.connect()
-            await trial.execute()
-
-            try:
-                await trial.disconnect()
-            except Exception:
-                pass
-
+            await _run_agent_and_parse(trial, task, instruction, mode="acp-mcp", engine=self._engine)
             await trial.verify()
-
-            result = trial._build_result()
-            reward = result.rewards.get("reward", 0.0) if result.rewards else 0.0
-            build_ok = result.error is None
-            return {
-                "task_id": task_id,
-                "reward": reward,
-                "rewards": result.rewards,
-                "error": result.error,
-                "verifier_error": result.verifier_error,
-                "build_ok": build_ok,
-                "n_tool_calls": result.n_tool_calls,
-            }
+        except (TimeoutError, ConnectionError) as e:
+            error = str(e)
+            logger.error("MCP Trial error for %s: %s", task_id, error)
         except Exception as exc:
-            logger.exception("ACP MCP Trial failed for %s: %s", task_id, exc)
-            return {
-                "task_id": task_id,
-                "reward": 0.0,
-                "rewards": None,
-                "error": str(exc),
-                "verifier_error": None,
-                "build_ok": False,
-                "n_tool_calls": 0,
-            }
+            error = str(exc)
+            logger.exception("MCP Trial failed for %s: %s", task_id, exc)
         finally:
+            trial._error = error
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("MCP cleanup failed for %s: %s", task_id, cleanup_exc)
+
+        return _build_trial_result(trial, task_id, error)
+
+    async def _handle_attempt_result(
+        self,
+        result: dict,
+        state: "BenchmarkState",
+        tid: str,
+        attempt: int,
+        max_attempts: int,
+        label: str,
+        shutdown_event: asyncio.Event,
+    ) -> str:
+        """Process a trial result: rate-limit, reward, retry decision.
+
+        Returns one of: ``\"passed\"``, ``\"failed\"``, ``\"retry\"``, ``\"rate_limit_shutdown\"``.
+        Side effects: updates state, sleeps for backoff.
+        """
+        if _is_rate_limit_error(result.get("error")):
+            state.record_attempt(tid, result, counted=False)
+            rl_count = state.increment_rate_limit()
+
+            if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
+                logger.warning(
+                    "Rate limit threshold reached (%d consecutive), "
+                    "shutting down gracefully. Resume with --resume.",
+                    rl_count,
+                )
+                shutdown_event.set()
+                return "rate_limit_shutdown"
+
+            idx = min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)
+            backoff = RATE_LIMIT_BACKOFF[idx]
+            logger.info(
+                "Task %s [%s]: rate limited "
+                "(free attempt, consecutive RL %d/%d), retry in %ds",
+                tid, label, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
+            )
+            await asyncio.sleep(backoff)
+            return "retry"
+
+        state.reset_rate_limit()
+        result["attempt"] = attempt
+        state.record_attempt(tid, result, counted=True)
+
+        reward = result.get("reward", 0.0)
+        if reward >= 1.0:
+            logger.info("Task %s [%s]: PASSED on attempt %d", tid, label, attempt)
+            state.mark_completed(tid)
+            return "passed"
+
+        if attempt >= max_attempts:
+            logger.info("Task %s [%s]: exhausted %d attempts", tid, label, max_attempts)
+            state.mark_completed(tid)
+            return "failed"
+
+        delay = min(1.0 * 2.0 ** attempt, 30.0)
+        logger.info(
+            "Task %s [%s]: attempt %d reward=%.3f, retry in %.1fs",
+            tid, label, attempt, reward, delay,
+        )
+        await asyncio.sleep(delay)
+        return "retry"
 
     async def _run_pooled(
         self,
@@ -563,8 +715,6 @@ class SkillsBenchWrapper:
         rate-limit responses the workers gracefully shut down so the
         benchmark can be resumed later.
         """
-        from benchflow.job import RetryConfig
-
         queue: asyncio.Queue[tuple[str, dict, int]] = asyncio.Queue()
         shutdown_event = asyncio.Event()
 
@@ -579,8 +729,6 @@ class SkillsBenchWrapper:
             logger.info("All tasks already completed, nothing to run.")
             return state.get_results()
 
-        retry_config = RetryConfig(max_retries=max_attempts - 1)
-
         async def worker(worker_id: int) -> None:
             while not shutdown_event.is_set():
                 try:
@@ -594,60 +742,26 @@ class SkillsBenchWrapper:
                 )
 
                 result = await trial_runner(task)
+                status = await self._handle_attempt_result(
+                    result, state, tid, attempt, max_attempts,
+                    label=tid, shutdown_event=shutdown_event,
+                )
 
-                if _is_rate_limit_error(result.get("error")):
-                    state.record_attempt(tid, result, counted=False)
-                    rl_count = state.increment_rate_limit()
-
-                    if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
-                        logger.warning(
-                            "Rate limit threshold reached (%d consecutive), "
-                            "shutting down gracefully. Resume with --resume.",
-                            rl_count,
-                        )
-                        shutdown_event.set()
-                        queue.put_nowait((tid, task, attempt))
-                        queue.task_done()
-                        return
-
-                    backoff = RATE_LIMIT_BACKOFF[min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)]
-                    logger.info(
-                        "Task %s: rate limited (free attempt, consecutive RL %d/%d), "
-                        "retry in %ds",
-                        tid, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
-                    )
-                    await asyncio.sleep(backoff)
+                if status == "passed" or status == "failed":
+                    queue.task_done()
+                elif status == "rate_limit_shutdown":
                     queue.put_nowait((tid, task, attempt))
                     queue.task_done()
-                    continue
-
-                state.reset_rate_limit()
-                result["attempt"] = attempt
-                state.record_attempt(tid, result, counted=True)
-
-                reward = result.get("reward", 0.0)
-                if reward >= 1.0:
-                    logger.info("Task %s: PASSED on attempt %d", tid, attempt)
-                    state.mark_completed(tid)
-                elif attempt >= max_attempts:
-                    logger.info("Task %s: exhausted %d attempts", tid, max_attempts)
-                    state.mark_completed(tid)
-                else:
-                    delay = retry_config.backoff_delay(attempt - 1)
-                    logger.info(
-                        "Task %s: attempt %d reward=%.3f, retry in %.1fs",
-                        tid, attempt, reward, delay,
-                    )
-                    await asyncio.sleep(delay)
+                    return
+                elif status == "retry":
                     queue.put_nowait((tid, task, attempt + 1))
-
-                queue.task_done()
+                    queue.task_done()
 
         await asyncio.gather(*[worker(i) for i in range(workers)])
 
         if shutdown_event.is_set():
             logger.warning(
-                "Benchmark shut down due to rate limits. "
+                "Benchmark gracefully shut down. "
                 "%d task(s) remain in progress — resume with --resume.",
                 sum(1 for t in tasks if state.should_run(t["task_id"])),
             )
@@ -676,6 +790,14 @@ class SkillsBenchWrapper:
         queue: asyncio.Queue[dict] = asyncio.Queue()
         shutdown_event = asyncio.Event()
 
+        # Graceful shutdown on SIGTERM/SIGINT — finish current attempt, save state.
+        try:
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(sig, shutdown_event.set)
+        except (ValueError, RuntimeError, NotImplementedError):
+            pass
+
         for task in tasks:
             tid = task["task_id"]
             needs_work = any(
@@ -691,14 +813,14 @@ class SkillsBenchWrapper:
         async def _docker_prune() -> None:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "docker", "system", "prune", "-a", "-f",
+                    "docker", "system", "prune", "-f",
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
                 await proc.wait()
                 logger.info("Docker prune completed")
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.warning("Docker prune failed: %s", exc)
 
         async def worker(worker_id: int) -> None:
             while not shutdown_event.is_set():
@@ -731,59 +853,17 @@ class SkillsBenchWrapper:
                         )
 
                         result = await runner(task)
+                        status = await self._handle_attempt_result(
+                            result, state, tid, attempt, max_attempts,
+                            label=label, shutdown_event=shutdown_event,
+                        )
 
-                        if _is_rate_limit_error(result.get("error")):
-                            state.record_attempt(tid, result, counted=False)
-                            rl_count = state.increment_rate_limit()
-
-                            if rl_count > RATE_LIMIT_CONSECUTIVE_MAX:
-                                logger.warning(
-                                    "Rate limit threshold reached (%d consecutive), "
-                                    "shutting down gracefully. Resume with --resume.",
-                                    rl_count,
-                                )
-                                shutdown_event.set()
-                                break
-
-                            idx = min(rl_count - 1, len(RATE_LIMIT_BACKOFF) - 1)
-                            backoff = RATE_LIMIT_BACKOFF[idx]
-                            logger.info(
-                                "Task %s [%s]: rate limited "
-                                "(free attempt, consecutive RL %d/%d), retry in %ds",
-                                tid, label, rl_count, RATE_LIMIT_CONSECUTIVE_MAX, backoff,
-                            )
-                            await asyncio.sleep(backoff)
-                            continue
-
-                        state.reset_rate_limit()
-                        result["attempt"] = attempt
-                        state.record_attempt(tid, result, counted=True)
-
-                        reward = result.get("reward", 0.0)
-                        if reward >= 1.0:
-                            logger.info(
-                                "Task %s [%s]: PASSED on attempt %d",
-                                tid, label, attempt,
-                            )
-                            state.mark_completed(tid)
+                        if status == "passed" or status == "failed":
                             break
-
-                        attempt += 1
-
-                        if attempt > max_attempts:
-                            logger.info(
-                                "Task %s [%s]: exhausted %d attempts",
-                                tid, label, max_attempts,
-                            )
-                            state.mark_completed(tid)
+                        elif status == "rate_limit_shutdown":
                             break
-                        else:
-                            delay = min(1.0 * 2.0 ** attempt, 30.0)
-                            logger.info(
-                                "Task %s [%s]: attempt %d reward=%.3f, retry in %.1fs",
-                                tid, label, attempt, reward, delay,
-                            )
-                            await asyncio.sleep(delay)
+                        elif status == "retry":
+                            attempt += 1
 
                 if shutdown_event.is_set():
                     break
@@ -800,7 +880,7 @@ class SkillsBenchWrapper:
                 if s.should_run(t["task_id"])
             )
             logger.warning(
-                "Benchmark shut down due to rate limits. "
+                "Benchmark gracefully shut down. "
                 "%d case(s) remain in progress — resume with --resume.",
                 total_remaining,
             )
@@ -995,7 +1075,7 @@ class SkillsBenchWrapper:
         max_tasks: int | None = None,
         shuffle: bool = True,
         seed: int = 42,
-        workers: int = 3,
+        workers: int = 2,
         skip_first: int = 0,
         skill_hints: bool = True,
     ) -> list[dict]:
@@ -1090,7 +1170,7 @@ class SkillsBenchWrapper:
         config = TrialConfig.from_legacy(
             task_path=task_path,
             agent="opencode",
-            model="glm-5.1",
+            model=self._engine.model,
             jobs_dir=str(jobs_dir),
             environment="docker",
         )
@@ -1106,11 +1186,11 @@ class SkillsBenchWrapper:
                 f.write(solution_script)
                 tmp_path = f.name
             try:
-                await trial.env.upload_file(tmp_path, "/tmp/agent_solution.py")
+                await trial._env.upload_file(tmp_path, "/tmp/agent_solution.py")
             finally:
                 os.unlink(tmp_path)
 
-            await trial.env.exec("python3 /tmp/agent_solution.py", timeout_sec=300)
+            await trial._env.exec("python3 /tmp/agent_solution.py", timeout_sec=300)
             await trial.verify()
 
             result = trial._build_result()
@@ -1122,8 +1202,8 @@ class SkillsBenchWrapper:
         finally:
             try:
                 await trial.cleanup()
-            except Exception:
-                pass
+            except Exception as cleanup_exc:
+                logger.warning("Trial cleanup failed for %s: %s", task_id, cleanup_exc)
 
     # ------------------------------------------------------------------
     # Scoring (uses BenchFlow extract_reward)
@@ -1187,6 +1267,8 @@ class SkillsBenchWrapper:
             return str(dst.parent)
 
         if dst.exists():
+            if "skillsbench" not in str(dst):
+                raise RuntimeError(f"Refusing to delete non-skillsbench path: {dst}")
             shutil.rmtree(str(dst))
         try:
             shutil.copytree(str(src), str(dst))
