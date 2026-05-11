@@ -18,11 +18,7 @@ class EngineOutput:
 
 
 class AgentEngine:
-    """Encapsulates all differences between agent CLIs (claude vs opencode).
-
-    Each engine knows its binary path, model name, environment variables,
-    CLI command syntax, JSON output format, and MCP config format.
-    """
+    """Encapsulates all differences between agent CLIs (claude vs opencode)."""
 
     name: str = ""
     bin_name: str = ""
@@ -30,6 +26,7 @@ class AgentEngine:
     model: str = ""
     skills_path: str = ""
     download_url: str | None = None
+    mcp_tool_name: str = "mcp__onto__skill"
 
     @property
     def env_vars(self) -> dict[str, str]:

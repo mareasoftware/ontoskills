@@ -75,10 +75,11 @@ def _register_agent(engine: AgentEngine) -> None:
 def _build_agent_instruction(
     task: dict,
     skill_nudge: str,
+    engine: AgentEngine,
     *,
     mcp: bool = False,
 ) -> str:
-    """Build the instruction prompt for claude CLI with optional skill nudge."""
+    """Build the instruction prompt for the agent CLI with optional skill nudge."""
     task_path = Path(task["task_dir"])
     instr_path = task_path / "instruction.md"
     instruction = instr_path.read_text(encoding="utf-8").strip() if instr_path.exists() else ""
@@ -87,16 +88,17 @@ def _build_agent_instruction(
         names = ", ".join(task["skill_ids"])
         if mcp:
             snippet = task["skill_ids"][0]
+            tool = engine.mcp_tool_name
             nudge = (
-                f"Skills available via the mcp__onto__skill tool: {names}. "
-                f"Call mcp__onto__skill(q=\"{snippet}\") to load its full context, "
-                f"or use mcp__onto__skill(q=\"your task description\") to discover "
+                f"Skills available via the {tool} tool: {names}. "
+                f"Call {tool}(q=\"{snippet}\") to load its full context, "
+                f"or use {tool}(q=\"your task description\") to discover "
                 f"relevant skills. Always start by loading the relevant skills "
-                f"with mcp__onto__skill before reading or processing the source files."
+                f"with {tool} before reading or processing the source files."
             )
         else:
             nudge = (
-                f"Skills available at ~/.claude/skills: {names}. "
+                f"Skills available at {engine.skills_path}: {names}. "
                 f"Read them with the Read tool before starting."
             )
         instruction = nudge + "\n\n" + instruction
@@ -504,7 +506,7 @@ class SkillsBenchWrapper:
             await trial.start()
             await _install_agent_binary(trial._env, self._engine)
             await trial.install_agent()
-            instruction = _build_agent_instruction(task, skill_nudge)
+            instruction = _build_agent_instruction(task, skill_nudge, self._engine)
             await _run_agent_and_parse(trial, task, instruction, mode="acp", engine=self._engine)
             await trial.verify()
         except (TimeoutError, ConnectionError) as e:
@@ -594,7 +596,7 @@ class SkillsBenchWrapper:
         task_id = task["task_id"]
         jobs_dir = task_path.parent.parent / ".benchflow_jobs"
 
-        instruction = _build_agent_instruction(task, skill_nudge, mcp=True)
+        instruction = _build_agent_instruction(task, skill_nudge, self._engine, mcp=True)
         agent_env = self._build_agent_env("")  # disable BenchFlow's skill_nudge
 
         config = TrialConfig.from_legacy(
