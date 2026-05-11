@@ -64,23 +64,15 @@ run via ``env.exec()``. The only difference between modes is how skills are
 delivered.
 
 ```bash
-# Prerequisites: clone the SkillsBench repo
-git clone --depth 1 https://github.com/benchflow-ai/skillsbench ~/.ontoskills/skillsbench
-
-# Traditional mode — SKILL.md files in ~/.claude/skills/
-python benchmark/run.py --mode acp --max-tasks 25 \
-  --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
-
-# MCP mode — ontomcp inside container
-python benchmark/run.py --mode acp-mcp --max-tasks 25 \
-  --model glm-5.1 --output-dir benchmark/results \
-  --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
-
 # Baseline — no skills
 python benchmark/run.py --mode baseline --max-tasks 25 \
   --model glm-5.1 --output-dir benchmark/results \
   --skillsbench-repo ~/.ontoskills/skillsbench -v --attempts 5
+
+# Opencode engine (uses OPENCODE_API_KEY)
+python benchmark/run.py --mode acp --engine opencode --max-tasks 25 \
+  --output-dir benchmark/results \
+  --skillsbench-repo ~/.ontoskills/skillsbench -v
 
 # Sequential wrapper (all 3 modes)
 bash benchmark/run_sequential.sh
@@ -110,7 +102,11 @@ the native Claude Code CLI binary (not ACP), uploaded into each container:
 
 #### CLI flags
 
-- `--mode {baseline,acp,acp-mcp,both,all5}` — Agent mode (default: both)
+- `--engine {claude,opencode}` — Agent engine (default: claude). Chooses binary,
+  model, env vars, and output format. `claude` uses the standalone Claude Code
+  binary + glm-5.1 via Anthropic proxy. `opencode` uses opencode CLI + opencode-go
+  models via OPENCODE_API_KEY.
+- `--mode {baseline,acp,acp-mcp,both,all5,taskwise}` — Agent mode (default: both)
   - `baseline`: no skills — measures raw agent performance
   - `acp`: traditional SKILL.md delivery
   - `acp-mcp`: MCP delivery via ontomcp
