@@ -28,3 +28,4 @@ benchmark_results.log
 
 # Claude Code runtime artifacts
 .claude/scheduled_tasks.lock
+*.log
