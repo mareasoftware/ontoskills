@@ -79,6 +79,7 @@ _CASE_RUNNERS = {
 
 def _prepare_states(
     output_dir: Path, cases: list[tuple[str, bool]], force_restart: bool,
+    engine_name: str = "claude", model: str = "",
 ) -> tuple[list[BenchmarkState], list[str]]:
     """Create or load BenchmarkState for each case."""
     run_id = str(uuid.uuid4())[:8]
@@ -89,9 +90,9 @@ def _prepare_states(
         labels.append(label)
         state_path = output_dir / "skillsbench" / label / "benchmark_state.json"
         if force_restart:
-            state = BenchmarkState.create(state_path, run_id, mode, hints)
+            state = BenchmarkState.create(state_path, run_id, mode, hints, engine=engine_name, model=model)
         else:
-            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints)
+            state = BenchmarkState.load_or_create(state_path, run_id, mode, hints, engine=engine_name, model=model)
         states.append(state)
     return states, labels
 
@@ -184,7 +185,7 @@ def _run_skillsbench(
         _print_dry_run(tasks, cases, workers, max_attempts)
         return None
 
-    states, labels = _prepare_states(output_dir, cases, force_restart)
+    states, labels = _prepare_states(output_dir, cases, force_restart, engine_name=engine_name, model=model)
 
     if len(cases) == 1:
         # Single case: use _run_pooled.
