@@ -27,7 +27,7 @@ class OpencodeEngine(AgentEngine):
     bin_name = "opencode"
     bin_path = _OPENCODE_BIN_PATH
     model = "opencode-go/deepseek-v4-flash"
-    skills_path = "~/.opencode/skills"
+    skills_path = "$HOME/.opencode/skills"
     download_url = _OPENCODE_DOWNLOAD_URL
     mcp_tool_name = "onto_skill"
 

@@ -20,7 +20,7 @@ class ClaudeEngine(AgentEngine):
     bin_name = "claude"
     bin_path = _CLAUDE_BIN_PATH
     model = "glm-5.1"
-    skills_path = "~/.claude/skills"
+    skills_path = "$HOME/.claude/skills"
     download_url = None  # uploaded from host binary
 
     @property
