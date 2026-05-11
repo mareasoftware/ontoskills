@@ -88,4 +88,18 @@ class OpencodeEngine(AgentEngine):
         return output
 
     def mcp_config(self, ontomcp_path: str, ontology_root: str) -> tuple[str, str] | None:
-        return None
+        logger.warning(
+            "Opencode 'run' mode does not auto-discover MCP servers from opencode.json. "
+            "MCP tools will not be available to the agent. "
+            "The config file is written for compatibility with future opencode versions."
+        )
+        content = json.dumps({
+            "mcp": {
+                "onto": {
+                    "type": "local",
+                    "command": [ontomcp_path, "--ontology-root", ontology_root],
+                    "enabled": True,
+                }
+            }
+        })
+        return ("opencode.json", content)
