@@ -162,6 +162,13 @@ python benchmark/run.py --benchmark swebench --mode both --max-tasks 25 --model 
 
 ## Known issues
 
+### Opencode engine: MCP not available in `opencode run` mode
+The `opencode run` (headless) mode does not auto-discover MCP servers — neither
+from `.mcp.json` (Claude Code format) nor from `opencode.json` (opencode format).
+This means ``acp-mcp`` mode is a no-op for ``--engine opencode``: MCP config is
+written to the container but not loaded by the agent. Use ``--engine claude`` for
+MCP-based skill delivery, or ``--engine opencode --mode acp`` for SKILL.md delivery.
+
 ### SWE-bench wrapper: custom run-loop required
 The SWE-bench wrapper patches `agent.run_turn` to intercept file_read/file_edit. It does NOT use `BaseAgent.run()` — it has a custom loop.
 
