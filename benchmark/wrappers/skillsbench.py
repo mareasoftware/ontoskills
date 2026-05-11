@@ -94,7 +94,9 @@ def _build_agent_instruction(
                 f"Call {tool}(q=\"{snippet}\") to load its full context, "
                 f"or use {tool}(q=\"your task description\") to discover "
                 f"relevant skills. Always start by loading the relevant skills "
-                f"with {tool} before reading or processing the source files."
+                f"with {tool} before reading or processing the source files. "
+                f"After loading the skills, implement the complete solution "
+                f"by writing the required output files."
             )
         else:
             nudge = (
